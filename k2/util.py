@@ -85,3 +85,18 @@ def beta(residuals, timestep, start_min=5, stop_min=20):
         betas.append(beta)
 
     return np.median(betas)
+
+
+def piecewise_clip(f, lo, hi, nseg=16):
+
+    width = f.size/nseg
+    mask = np.array([]).astype(bool)
+    for i in range(nseg):
+        if i == nseg-1:
+            fsub = f[i*width:]
+        else:
+            fsub = f[i*width:(i+1)*width]
+        clipped = sigma_clip(fsub, sigma_lower=lo, sigma_upper=hi)
+        mask = np.append(mask, clipped.mask)
+
+    return mask
