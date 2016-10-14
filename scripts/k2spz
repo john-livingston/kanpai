@@ -50,11 +50,10 @@ nthreads = args.nthreads
 setup = k2.util.parse_setup(spz_setup_fp)
 tr = setup['transit']
 
-try:
-    os.mkdir(outdir)
-except:
-    if not clobber:
-        raise IOError("Output directory exists and clobber set to False")
+if os.path.isdir(out_dir) and not clobber:
+    raise IOError("Output directory exists and clobber set to False")
+elif not os.path.isdir(out_dir):
+    os.mkdir(out_dir)
 
 if args.data_dir:
     data_dir = args.data_dir
@@ -64,9 +63,13 @@ else:
 if args.k2:
     k2_kolded_fp = args.k2
 else:
+    import numpy as np
     epic = int(setup['config']['star'].split('-')[1])
-    tf, ff = k2.lc.get_everest_folded(epic, tr['p'], tr['t0'], tr['t14'])
-    k2_kolded_fp = os.path.join(outdir, 'k2_lc_{}.txt'.format(epic))
+    p, t0, t14 = tr['p'], tr['t0'], tr['t14']
+    t0 -= 2454833
+    tf, ff = k2.lc.get_everest_folded(epic, p, t0, t14,
+        width=t14*3, clip=True, bl=True)
+    k2_kolded_fp = os.path.join(out_dir, 'k2_lc_{}.txt'.format(epic))
     np.savetxt(k2_kolded_fp, np.c_[tf, ff])
 
 k2.spz.go(setup, method, binning, nsteps1, nsteps2, burn,

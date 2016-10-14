@@ -3,37 +3,48 @@
 import os
 import sys
 import numpy as np
-import matplotlib.pyplot as pl
 import argparse
 import k2
 
 cwd = os.path.abspath('.')
 parser = argparse.ArgumentParser(description="Get phased-folded K2"
-    " light curve")
+    " Everest light curve")
 parser.add_argument('epic', help='Target star EPIC id number', type=int)
-parser.add_argument('period', help='Period of candidate', type=float)
-parser.add_argument('t0', help='Time of first transit', type=float)
-parser.add_argument('t14', help='Transit duration', type=float)
+parser.add_argument('period', help='Period of candidate [days]', type=float)
+parser.add_argument('t0', help='Time of first transit [BJD]', type=float)
+parser.add_argument('t14', help='Transit duration [days]', type=float)
+parser.add_argument('-w', '--width', help='Extraction width [days]',
+    type=float, default=0.8)
 parser.add_argument('-o', '--outdir', help='output directory',
     type=str, default=cwd)
 parser.add_argument('-p', '--plot', dest='plot', help='make a plot',
     action='store_true')
-parser.set_defaults(plot=False)
+parser.add_argument('-c', '--clip', dest='clip', help='sigma clip',
+    action='store_true')
+parser.add_argument('-b', '--baseline', dest='baseline', help='fit a'
+    ' linear baseline model to each transit', action='store_true')
+parser.set_defaults(plot=False, clip=False, baseline=False)
 args = parser.parse_args()
 
 epic = args.epic
 p = args.period
-t0 = args.t0
+t0 = args.t0 - 2454833
 t14 = args.t14
+width = args.width
 outdir = args.outdir
 plot = args.plot
+clip = args.clip
+baseline = args.baseline
+
+tf, ff = k2.lc.get_everest_folded(epic, p, t0, t14,
+    width=width, clip=clip, bl=baseline)
 
 if plot:
+    import matplotlib.pyplot as pl
     pl.plot(tf, ff, 'ko')
     fp = os.path.join(outdir, 'k2_lc_{}.png'.format(epic))
     pl.savefig(fp)
     pl.close()
 
-tf, ff = k2.lc.get_everest_folded(epic, p, t0, t14)
 fp = os.path.join(outdir, 'k2_lc_{}.txt'.format(epic))
 np.savetxt(fp, np.c_[tf, ff])

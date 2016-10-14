@@ -15,7 +15,6 @@ import pandas as pd
 import scipy.optimize as op
 from scipy import stats
 
-from astropy.stats import sigma_clip
 from photutils.morphology import centroid_com, centroid_2dg
 
 import seaborn as sb
@@ -24,16 +23,12 @@ from emcee import MHSampler, EnsembleSampler, PTSampler
 from emcee.utils import sample_ball
 import corner
 
-import time
 import pickle
 import functools
 
 from tqdm import tqdm
 
 import sxp
-
-# import george
-# from george import kernels
 
 import util
 
@@ -80,7 +75,7 @@ def loglike(theta, t, f, s, p, aux, k2):
     return loglike1(theta, t, f, s, p, aux) + loglike2(theta, k2, p)
 
 
-def logprob(theta, t, f, s, p, aux, k2):
+def logprob(theta, t, f, s, p, aux, k2, u_kep, u_spz):
 
     ks,kk,tc,a,i,u1s,u2s,u1k,u2k,t0,sig,k0,k1 = theta[:13]
 
@@ -215,6 +210,7 @@ def go(setup, method, binning, nsteps1, nsteps2, burn,
         fig.savefig(fp)
         pl.close()
 
+    args = (t, f, s, p, aux, k2, u_kep, u_spz)
     nlp = lambda *x: -logprob(*x)
     res = op.minimize(nlp, initial, args=args, method='nelder-mead')
     if res.success:
@@ -223,11 +219,11 @@ def go(setup, method, binning, nsteps1, nsteps2, burn,
     with sb.axes_style('white'):
         fig, axs = pl.subplots(1, 2, figsize=(15,3), sharex=True, sharey=True)
         axs[0].plot(t, f, 'k.')
-        axs[0].plot(t, model(initial, *args[:-1]), 'b-', lw=5)
-        axs[0].plot(t, model(res.x, *args[:-1]), 'r-', lw=5)
-        axs[1].plot(t, f-model(res.x, *args[:-1], ret_sys=True), 'k.')
-        axs[1].plot(t, model(initial, *args[:-1], ret_ma=True), 'b-', lw=5)
-        axs[1].plot(t, model(res.x, *args[:-1], ret_ma=True), 'r-', lw=5)
+        axs[0].plot(t, model(initial, *args[:-3]), 'b-', lw=5)
+        axs[0].plot(t, model(res.x, *args[:-3]), 'r-', lw=5)
+        axs[1].plot(t, f-model(res.x, *args[:-3], ret_sys=True), 'k.')
+        axs[1].plot(t, model(initial, *args[:-3], ret_ma=True), 'b-', lw=5)
+        axs[1].plot(t, model(res.x, *args[:-3], ret_ma=True), 'r-', lw=5)
         pl.setp(axs, xlim=[t.min(), t.max()], xticks=[], yticks=[])
         fig.tight_layout()
         fp = os.path.join(out_dir, 'fit-map.png')
@@ -242,21 +238,17 @@ def go(setup, method, binning, nsteps1, nsteps2, burn,
     pos0 = sample_ball(res.x, [1e-3]*ndim, nwalkers)
 
     width = 30
-    tick = time.time()
     print "\nstage 1"
     for pos,_,_ in tqdm(sampler.sample(pos0, iterations=nsteps1)):
         pass
-    print "{0:.2f} seconds elapsed".format(time.time()-tick)
 
     idx = np.argmax(sampler.lnprobability)
     best = sampler.flatchain[idx]
     pos0 = sample_ball(best, [1e-5]*ndim, nwalkers)
     sampler.reset()
-    tick = time.time()
     print "\nstage 2"
     for pos,_,_ in tqdm(sampler.sample(pos0, iterations=nsteps2)):
         pass
-    print "{0:.2f} seconds elapsed".format(time.time()-tick)
 
     chain = sampler.chain
     labels = 'ks,kk,tc,a,i,u1s,u2s,u1k,u2k,t0,sig,k0,k1'.split(',') + ['c{}'.format(i) for i in range(len(aux))]
@@ -300,10 +292,10 @@ def go(setup, method, binning, nsteps1, nsteps2, burn,
     with sb.axes_style('white'):
         fig, axs = pl.subplots(1, 3, figsize=(11,3), sharex=True, sharey=False)
         axs.flat[0].plot(t, f, 'k.')
-        axs.flat[0].plot(t, model(best, *args[:-1]), '-', lw=2)
-        axs.flat[1].plot(t, f - model(best, *args[:-1], ret_sys=True), 'k.')
-        axs.flat[1].plot(t, model(best, *args[:-1], ret_ma=True), '-', lw=5)
-        resid = f - model(best, *args[:-1])
+        axs.flat[0].plot(t, model(best, *args[:-3]), '-', lw=2)
+        axs.flat[1].plot(t, f - model(best, *args[:-3], ret_sys=True), 'k.')
+        axs.flat[1].plot(t, model(best, *args[:-3], ret_ma=True), '-', lw=5)
+        resid = f - model(best, *args[:-3])
         axs.flat[2].plot(t, resid, 'k.')
         pl.setp(axs, xlim=[t.min(), t.max()], xticks=[], yticks=[])
         fig.tight_layout()
@@ -340,18 +332,18 @@ def go(setup, method, binning, nsteps1, nsteps2, burn,
 
         flux_pr = []
         for theta in fc[np.random.permutation(fc.shape[0])[:1000]]:
-            flux_pr.append(model(theta, *args[:-1], ret_ma=True))
+            flux_pr.append(model(theta, *args[:-3], ret_ma=True))
         flux_pr = np.array(flux_pr)
         flux_pc = np.array(np.percentile(flux_pr, [50, 0.15, 99.85, 2.5, 97.5, 16, 84], axis=0))
-        fcor = f - model(best, *args[:-1], ret_sys=True)
+        fcor = f - model(best, *args[:-3], ret_sys=True)
         axs.flat[1].plot(t, fcor, 'k.', alpha=alpha)
         [axs.flat[1].fill_between(t, *flux_pc[i:i+2,:], alpha=0.2, facecolor='r') for i in range(1,6,2)]
-        axs.flat[1].plot(t, model(best, *args[:-1], ret_ma=True), 'r-', lw=2)
+        axs.flat[1].plot(t, model(best, *args[:-3], ret_ma=True), 'r-', lw=2)
 
         edgs, bins = np.histogram(fc[:,:2], bins=30)
         axs.flat[2].hist(fc[:,1], bins=bins, histtype='stepfilled', color='b', alpha=alpha, lw=0, label='K2')
         axs.flat[2].hist(fc[:,0], bins=bins, histtype='stepfilled', color='r', alpha=alpha, lw=0, label='Spitzer')
-        axs.flat[2].legend(loc=2)
+        # axs.flat[2].legend(loc=2)
 
         ylim = axs.flat[1].get_ylim()
         pl.setp(axs.flat[0], xlim=[spz_phase[0], spz_phase[-1]], ylim=ylim, xticks=[], yticks=[])

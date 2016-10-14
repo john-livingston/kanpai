@@ -1,5 +1,28 @@
 import numpy as np
 from everest import Everest
+import statsmodels.api as sm
+from astropy.stats import sigma_clip
+
+
+def get_tns(t, p, t0):
+
+    idx = t != 0
+    t = t[idx]
+
+    while t0-p > t.min():
+        t0 -= p
+    if t0 < t.min():
+        t0 += p
+
+    tns = [t0+p*i for i in range(int((t.max()-t0)/p+1))]
+
+    while tns[-1] > t.max():
+        tns.pop()
+
+    while tns[0] < t.min():
+        tns = tns[1:]
+
+    return tns
 
 
 def fold(t, f, p, t0, width=0.8, clip=False, bl=False, t14=0.2):
@@ -19,8 +42,8 @@ def fold(t, f, p, t0, width=0.8, clip=False, bl=False, t14=0.2):
         if bl:
 
             idx = (ti < -t14/2.) | (ti > t14/2.)
-            assert np.isfinite(ti[idx]).all() & np.isfinite(fi[idx]).all()
-            assert idx.sum() > 0
+            if idx.sum() == 0:
+                continue
 
             try:
 
@@ -55,12 +78,12 @@ def fold(t, f, p, t0, width=0.8, clip=False, bl=False, t14=0.2):
 
 
 
-def get_everest_folded(epic, p, t0, t14):
+def get_everest_folded(epic, p, t0, t14, width=0.8, clip=False, bl=False):
 
     star = Everest(epic)
     t, f = star.time, star.flux
     idx = np.isnan(t) | np.isnan(f)
     t, f = t[~idx], f[~idx]
-    tf, ff = fold(t, f, p, t0, t14=t14, width=0.6, bl=True)
+    tf, ff = fold(t, f, p, t0, t14=t14, width=width, clip=clip, bl=bl)
 
     return tf, ff
