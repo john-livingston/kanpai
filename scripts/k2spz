@@ -1,0 +1,73 @@
+#!/usr/bin/env python
+
+import os
+import argparse
+import k2
+
+
+cwd = os.path.abspath('.')
+parser = argparse.ArgumentParser(description="Simultaneously fit"
+    " K2 and Spitzer data")
+parser.add_argument('input', help='path to input yaml file', type=str)
+parser.add_argument('-k', '--k2', help='k2 folded lc file',
+    type=str, default=None)
+parser.add_argument('-o', '--out_dir', help='output dir',
+    type=str, default=os.path.join(cwd, 'k2spz_out'))
+parser.add_argument('-d', '--data_dir', help='dir containing *_phot.pkl',
+    type=str, default=None)
+parser.add_argument('-b', '--bin', dest='bin', help='bin the Spitzer data',
+    action='store_true')
+parser.add_argument('-c', '--clobber', dest='clobber', help='overwrite',
+    action='store_true')
+parser.add_argument('-s', '--save', dest='save', help='save MCMC samples',
+    action='store_true')
+parser.add_argument('-m', '--method', type=str, default='cen',
+    help='detrending method to use (cen or pld)')
+parser.add_argument('--nthreads', type=int, default=4,
+    help='number of threads (processes) to use for MCMC')
+parser.add_argument('--nsteps1', type=int, default=500,
+    help='number of initialization MCMC steps')
+parser.add_argument('--nsteps2', type=int, default=3000,
+    help='number of production MCMC steps')
+parser.add_argument('--burn', type=int, default=2000,
+    help='number of MCMC burn-in steps')
+parser.set_defaults(clobber=False, bin=False, save=False)
+
+args = parser.parse_args()
+
+
+spz_setup_fp = args.input
+binning = args.bin
+clobber = args.clobber
+save = args.save
+method = args.method
+nsteps1 = args.nsteps1
+nsteps2 = args.nsteps2
+burn = args.burn
+out_dir = args.out_dir
+nthreads = args.nthreads
+
+setup = k2.util.parse_setup(spz_setup_fp)
+tr = setup['transit']
+
+try:
+    os.mkdir(outdir)
+except:
+    if not clobber:
+        raise IOError("Output directory exists and clobber set to False")
+
+if args.data_dir:
+    data_dir = args.data_dir
+else:
+    data_dir = setup['config']['data_dir']
+
+if args.k2:
+    k2_kolded_fp = args.k2
+else:
+    epic = int(setup['config']['star'].split('-')[1])
+    tf, ff = k2.lc.get_everest_folded(epic, tr['p'], tr['t0'], tr['t14'])
+    k2_kolded_fp = os.path.join(outdir, 'k2_lc_{}.txt'.format(epic))
+    np.savetxt(k2_kolded_fp, np.c_[tf, ff])
+
+k2.spz.go(setup, method, binning, nsteps1, nsteps2, burn,
+    data_dir, out_dir, save, nthreads, k2_kolded_fp)
