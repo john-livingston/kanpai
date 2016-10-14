@@ -5,14 +5,14 @@ import argparse
 import k2
 
 
-cwd = os.path.abspath('.')
+
 parser = argparse.ArgumentParser(description="Simultaneously fit"
     " K2 and Spitzer data")
 parser.add_argument('input', help='path to input yaml file', type=str)
 parser.add_argument('-k', '--k2', help='k2 folded lc file',
     type=str, default=None)
 parser.add_argument('-o', '--out_dir', help='output dir',
-    type=str, default=os.path.join(cwd, 'k2spz_out'))
+    type=str, default=None)
 parser.add_argument('-d', '--data_dir', help='dir containing *_phot.pkl',
     type=str, default=None)
 parser.add_argument('-b', '--bin', dest='bin', help='bin the Spitzer data',
@@ -44,11 +44,17 @@ method = args.method
 nsteps1 = args.nsteps1
 nsteps2 = args.nsteps2
 burn = args.burn
-out_dir = args.out_dir
 nthreads = args.nthreads
 
 setup = k2.util.parse_setup(spz_setup_fp)
 tr = setup['transit']
+
+if args.out_dir:
+    out_dir = args.out_dir
+else:
+    out_dir = setup['config']['star']
+    if 'planet' in setup['config'].keys():
+        out_dir += setup['config']['planet']
 
 if os.path.isdir(out_dir) and not clobber:
     raise IOError("Output directory exists and clobber set to False")

@@ -310,6 +310,7 @@ def go(setup, method, binning, nsteps1, nsteps2, burn,
     print "Beta: {}".format(beta)
     fp = os.path.join(out_dir, 'stats.txt')
     with open(fp, 'w') as o:
+        o.write("Method: {}\n".format(method))
         o.write("RMS: {}\n".format(rms))
         o.write("Beta: {}\n".format(beta))
 
