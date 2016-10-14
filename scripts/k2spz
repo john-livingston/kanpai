@@ -55,6 +55,7 @@ else:
     out_dir = setup['config']['star']
     if 'planet' in setup['config'].keys():
         out_dir += setup['config']['planet']
+    out_dir += '-{}'.format(method)
 
 if os.path.isdir(out_dir) and not clobber:
     raise IOError("Output directory exists and clobber set to False")
