@@ -187,30 +187,10 @@ def go(setup, method, binning, nsteps1, nsteps2, burn,
 
     p = tr['p']
     k2 = df[['t','f']].values.T
-    args = (t, f, s, p, aux, k2)
+    args = (t, f, s, p, aux, k2, u_kep, u_spz)
     initial = [tr['k'], tr['k'], t.mean(), tr['a'], tr['i'],
                u_spz[0], u_spz[2], u_kep[0], u_kep[2], 0, 1e-5, 0, 0] + [0] * aux.shape[0]
 
-    nll = lambda *x: -loglike(*x)
-    res = op.minimize(nll, initial, args=args, method='nelder-mead')
-    if res.success:
-        print res.x
-
-    with sb.axes_style('white'):
-        fig, axs = pl.subplots(1, 2, figsize=(15,3), sharex=True, sharey=True)
-        axs[0].plot(t, f, 'k.')
-        axs[0].plot(t, model(initial, *args[:-1]), 'b-', lw=5)
-        axs[0].plot(t, model(res.x, *args[:-1]), 'r-', lw=5)
-        axs[1].plot(t, f-model(res.x, *args[:-1], ret_sys=True), 'k.')
-        axs[1].plot(t, model(initial, *args[:-1], ret_ma=True), 'b-', lw=5)
-        axs[1].plot(t, model(res.x, *args[:-1], ret_ma=True), 'r-', lw=5)
-        pl.setp(axs, xlim=[t.min(), t.max()], xticks=[], yticks=[])
-        fig.tight_layout()
-        fp = os.path.join(out_dir, 'fit-mle.png')
-        fig.savefig(fp)
-        pl.close()
-
-    args = (t, f, s, p, aux, k2, u_kep, u_spz)
     nlp = lambda *x: -logprob(*x)
     res = op.minimize(nlp, initial, args=args, method='nelder-mead')
     if res.success:
