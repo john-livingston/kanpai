@@ -4,7 +4,7 @@ import os
 import sys
 import numpy as np
 import argparse
-import k2
+import kanpai
 
 cwd = os.path.abspath('.')
 parser = argparse.ArgumentParser(description="Get phased-folded K2"
@@ -36,7 +36,7 @@ plot = args.plot
 clip = args.clip
 baseline = args.baseline
 
-tf, ff = k2.lc.get_everest_folded(epic, p, t0, t14,
+tf, ff = kanpai.k2.lc.get_everest_folded(epic, p, t0, t14,
     width=width, clip=clip, bl=baseline)
 
 if plot:

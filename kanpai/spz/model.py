@@ -30,7 +30,8 @@ from tqdm import tqdm
 
 import sxp
 
-import util
+from .. import util
+
 
 from pytransit import MandelAgol
 MA_K2 = MandelAgol(supersampling=8, exptime=0.02)
@@ -123,7 +124,7 @@ def go(setup, method, binning, nsteps1, nsteps2, burn,
     keys = ['p{}'.format(i) for i in range(9)]
     pix = spz[keys].values
     t, f, s = spz.t, spz.f, spz.s
-    
+
     if binning:
         timestep = np.median(np.diff(t)) * 24 * 3600
         bs_sec = 60

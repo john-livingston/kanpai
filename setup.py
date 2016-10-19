@@ -4,10 +4,10 @@ import sys
 import re
 
 try:
-    from setuptools import setup
+    from setuptools import setup, find_packages
     setup
 except ImportError:
-    from distutils.core import setup
+    from distutils.core import setup, find_packages
     setup
 
 if sys.argv[-1] == "publish":
@@ -30,18 +30,19 @@ else:
         return r
 
 setup(
-    name='k2',
-    packages =['k2'],
+    name='kanpai',
+    # packages =['kanpai', 'kanpai/k2', 'kanpai/spz'],
+    packages = find_packages(),
     version="0.1.1",
     author='John Livingston',
     author_email = 'jliv84@gmail.com',
-    url = 'https://github.com/john-livingston/k2',
+    url = 'https://github.com/john-livingston/kanpai',
     license = ['GNU GPLv3'],
-    description ='K2',
+    description ='kanpai',
     long_description=rd("README.md") + "\n\n"
                     + "---------\n\n",
-    package_dir={"k2": "k2"},
-    package_data={"k2": []},
+    package_dir={"kanpai": "kanpai" },
+    package_data={"kanpai": []},
     scripts=['scripts/k2spz', 'scripts/k2lc'],
     include_package_data=True,
     keywords=[],
