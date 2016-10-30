@@ -69,6 +69,7 @@ def beta(residuals, timestep, start_min=5, stop_min=20):
     timestep : time interval between datapoints in seconds
     """
 
+    assert timestep < 300
     ndata = len(residuals)
 
     sigma1 = np.std(residuals)

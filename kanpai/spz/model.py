@@ -95,8 +95,8 @@ def logprob(theta, t, f, s, p, aux, k2, u_kep, u_spz):
 
 
 
-def go(setup, method, binning, nsteps1, nsteps2, burn,
-        data_dir, out_dir, save, nthreads, k2_kolded_fp):
+def go(setup, method, bin_size, nsteps1, nsteps2, burn, data_dir, out_dir,
+       save, nthreads, k2_kolded_fp, restart, axes_style):
 
     tr = setup['transit']
     if tr['i'] > np.pi/2.:
@@ -113,7 +113,7 @@ def go(setup, method, binning, nsteps1, nsteps2, burn,
     fp = os.path.join(data_dir, aor+'_phot.pkl')
     spz = sxp.util.df_from_pickle(fp, radius, pix=True)
 
-    with sb.axes_style('white'):
+    with sb.axes_style(axes_style):
         fig, ax = pl.subplots(1, 1, figsize=(15,5))
         ax.errorbar(spz.t, spz.f, spz.s, alpha=0.5)
         pl.setp(ax, xlim=[spz.t.min(), spz.t.max()])
@@ -125,23 +125,22 @@ def go(setup, method, binning, nsteps1, nsteps2, burn,
     pix = spz[keys].values
     t, f, s = spz.t, spz.f, spz.s
 
-    if binning:
-        timestep = np.median(np.diff(t)) * 24 * 3600
-        bs_sec = 60
-        bs = int(round(bs_sec/timestep))
-        binned = functools.partial(util.binned, binsize=bs)
-        tb, fb, ub, pixb = map(binned, [t, f, s, pix])
-        ub /= np.sqrt(bs)
+    timestep = np.median(np.diff(t)) * 24 * 3600
+    bs_sec = bin_size
+    bs = int(round(bs_sec/timestep))
+    binned = functools.partial(util.binned, binsize=bs)
+    tb, fb, ub, pixb = map(binned, [t, f, s, pix])
+    ub /= np.sqrt(bs)
 
-        with sb.axes_style('white'):
-            fig, ax = pl.subplots(1, 1, figsize=(15,3), sharex=True, sharey=True)
-            ax.errorbar(tb, fb, ub, marker='o', linestyle='none')
-            pl.setp(ax, xlim=[tb.min(), tb.max()])
-            fp = os.path.join(out_dir, 'spz_binned.png')
-            fig.savefig(fp)
-            pl.close()
+    with sb.axes_style(axes_style):
+        fig, ax = pl.subplots(1, 1, figsize=(15,3), sharex=True, sharey=True)
+        ax.errorbar(tb, fb, ub, marker='o', linestyle='none')
+        pl.setp(ax, xlim=[tb.min(), tb.max()])
+        fp = os.path.join(out_dir, 'spz_binned.png')
+        fig.savefig(fp)
+        pl.close()
 
-        t, f, s, pix = tb, fb, ub, pixb
+    t, f, s, pix = tb, fb, ub, pixb
 
     cube = pix.reshape(-1,3,3)
     cubestacked = np.median(cube, axis=0)
@@ -159,7 +158,7 @@ def go(setup, method, binning, nsteps1, nsteps2, burn,
 
     xy = np.array([centroid_com(i) for i in cube])
     x, y = xy.T
-    with sb.axes_style('white'):
+    with sb.axes_style(axes_style):
         fig, ax = pl.subplots(1, 1, figsize=(15,5))
         ax.plot(t, x)
         ax.plot(t, y)
@@ -173,7 +172,7 @@ def go(setup, method, binning, nsteps1, nsteps2, burn,
         df = pd.read_csv(k2_kolded_fp, sep=' ', names='t f s'.split())
     else:
         df = pd.read_csv(k2_kolded_fp, sep=' ', names='t f'.split())
-    with sb.axes_style('white'):
+    with sb.axes_style(axes_style):
         fig, ax = pl.subplots(1, 1, figsize=(15,5))
         ax.plot(df.t, df.f, marker='o', lw=0)
         fp = os.path.join(out_dir, 'k2_folded.png')
@@ -198,7 +197,7 @@ def go(setup, method, binning, nsteps1, nsteps2, burn,
     if res.success:
         print res.x
 
-    with sb.axes_style('white'):
+    with sb.axes_style(axes_style):
         fig, axs = pl.subplots(1, 2, figsize=(15,3), sharex=True, sharey=True)
         axs[0].plot(t, f, 'k.')
         axs[0].plot(t, model(initial, *args[:-3]), 'b-', lw=5)
@@ -216,112 +215,135 @@ def go(setup, method, binning, nsteps1, nsteps2, burn,
     ndim = len(initial)
     nwalkers = 8*ndim
 
-    sampler = EnsembleSampler(nwalkers, ndim, logprob, args=args, threads=nthreads)
-    pos0 = sample_ball(res.x, [1e-3]*ndim, nwalkers)
+    fp = os.path.join(out_dir, 'flatchain.npz')
+    if os.path.isfile(fp) and not restart:
 
-    width = 30
-    print "\nstage 1"
-    for pos,_,_ in tqdm(sampler.sample(pos0, iterations=nsteps1)):
-        pass
+        print "using chain from previous run"
+        npz = np.load(fp)
+        fc = npz['fc']
+        best = npz['best']
 
-    idx = np.argmax(sampler.lnprobability)
-    best = sampler.flatchain[idx]
-    pos0 = sample_ball(best, [1e-5]*ndim, nwalkers)
-    sampler.reset()
-    print "\nstage 2"
-    for pos,_,_ in tqdm(sampler.sample(pos0, iterations=nsteps2)):
-        pass
+    else:
 
-    chain = sampler.chain
-    labels = 'ks,kk,tc,a,i,u1s,u2s,u1k,u2k,t0,sig,k0,k1'.split(',') + ['c{}'.format(i) for i in range(len(aux))]
-    with sb.axes_style('white'):
-        fig, axs = pl.subplots(ndim, 1, figsize=(15,ndim/1.5), sharex=True)
-        [axs.flat[i].plot(c, drawstyle='steps', color='k', alpha=4./nwalkers) for i,c in enumerate(chain.T)]
-        [pl.setp(axs.flat[i], ylabel=labels[i]) for i,c in enumerate(chain.T)]
-        fp = os.path.join(out_dir, 'chains.png')
-        fig.savefig(fp)
-        pl.close()
+        sampler = EnsembleSampler(nwalkers, ndim, logprob, args=args, threads=nthreads)
+        pos0 = sample_ball(res.x, [1e-3]*ndim, nwalkers)
 
+        width = 30
+        print "\nstage 1"
+        for pos,_,_ in tqdm(sampler.sample(pos0, iterations=nsteps1)):
+            pass
 
-    thin = 1
-    fc = chain[:,burn::thin,:].reshape(-1, ndim)
-    if save:
-        fp = os.path.join(out_dir, 'chain_npz.dat')
-        np.savez_compressed(fp, fc)
+        idx = np.argmax(sampler.lnprobability)
+        best = sampler.flatchain[idx]
+        pos0 = sample_ball(best, [1e-5]*ndim, nwalkers)
+        sampler.reset()
+        print "\nstage 2"
+        for pos,_,_ in tqdm(sampler.sample(pos0, iterations=nsteps2)):
+            pass
 
-    hist_kwargs = dict(lw=2, alpha=0.5)
-    title_kwargs = dict(fontdict=dict(fontsize=12))
-    with sb.axes_style('white'):
-        corner.corner(fc,
-                      labels=labels,
-                      hist_kwargs=hist_kwargs,
-                      title_kwargs=title_kwargs,
-                      show_titles=True,
-                      quantiles=[0.16,0.5,0.84],
-                      title_fmt='.4f')
-        fp = os.path.join(out_dir, 'corner.png')
-        pl.savefig(fp)
-        pl.close()
+        chain = sampler.chain
+        labels = 'ks,kk,tc,a,i,u1s,u2s,u1k,u2k,t0,sig,k0,k1'.split(',') + ['c{}'.format(i) for i in range(len(aux))]
+        with sb.axes_style(axes_style):
+            fig, axs = pl.subplots(ndim, 1, figsize=(15,ndim/1.5), sharex=True)
+            [axs.flat[i].plot(c, drawstyle='steps', color='k', alpha=4./nwalkers) for i,c in enumerate(chain.T)]
+            [pl.setp(axs.flat[i], ylabel=labels[i]) for i,c in enumerate(chain.T)]
+            fp = os.path.join(out_dir, 'chains.png')
+            fig.savefig(fp)
+            pl.close()
 
 
-    maxprob = sampler.lnprobability.flatten().max()
-    print maxprob
-    idx = np.argmax(sampler.lnprobability)
-    assert sampler.lnprobability.flat[idx] == maxprob
-    best = sampler.flatchain[idx]
-    print best
+        thin = 1
+        fc = chain[:,burn::thin,:].reshape(-1, ndim)
 
-    with sb.axes_style('white'):
-        fig, axs = pl.subplots(1, 3, figsize=(11,3), sharex=True, sharey=False)
-        axs.flat[0].plot(t, f, 'k.')
-        axs.flat[0].plot(t, model(best, *args[:-3]), '-', lw=2)
-        axs.flat[1].plot(t, f - model(best, *args[:-3], ret_sys=True), 'k.')
-        axs.flat[1].plot(t, model(best, *args[:-3], ret_ma=True), '-', lw=5)
-        resid = f - model(best, *args[:-3])
-        axs.flat[2].plot(t, resid, 'k.')
-        pl.setp(axs, xlim=[t.min(), t.max()], xticks=[], yticks=[])
-        fig.tight_layout()
-        fp = os.path.join(out_dir, 'fit-mcmc-best.png')
-        fig.savefig(fp)
-        pl.close()
+        hist_kwargs = dict(lw=2, alpha=0.5)
+        title_kwargs = dict(fontdict=dict(fontsize=12))
+        with sb.axes_style(axes_style):
+            corner.corner(fc,
+                          labels=labels,
+                          hist_kwargs=hist_kwargs,
+                          title_kwargs=title_kwargs,
+                          show_titles=True,
+                          quantiles=[0.16,0.5,0.84],
+                          title_fmt='.4f')
+            fp = os.path.join(out_dir, 'corner.png')
+            pl.savefig(fp)
+            pl.close()
 
-    timestep = np.median(np.diff(t))*24*3600
-    rms = util.rms(resid)
-    beta = util.beta(resid, timestep)
-    print "RMS: {}".format(rms)
-    print "Beta: {}".format(beta)
-    fp = os.path.join(out_dir, 'stats.txt')
-    with open(fp, 'w') as o:
-        o.write("Method: {}\n".format(method))
-        o.write("RMS: {}\n".format(rms))
-        o.write("Beta: {}\n".format(beta))
+
+        maxprob = sampler.lnprobability.flatten().max()
+        print maxprob
+        idx = np.argmax(sampler.lnprobability)
+        assert sampler.lnprobability.flat[idx] == maxprob
+        best = sampler.flatchain[idx]
+        print best
+
+        with sb.axes_style(axes_style):
+            fig, axs = pl.subplots(1, 3, figsize=(11,3), sharex=True, sharey=False)
+            axs.flat[0].plot(t, f, 'k.')
+            axs.flat[0].plot(t, model(best, *args[:-3]), '-', lw=2)
+            axs.flat[1].plot(t, f - model(best, *args[:-3], ret_sys=True), 'k.')
+            axs.flat[1].plot(t, model(best, *args[:-3], ret_ma=True), '-', lw=5)
+            resid = f - model(best, *args[:-3])
+            axs.flat[2].plot(t, resid, 'k.')
+            pl.setp(axs, xlim=[t.min(), t.max()], xticks=[], yticks=[])
+            fig.tight_layout()
+            fp = os.path.join(out_dir, 'fit-mcmc-best.png')
+            fig.savefig(fp)
+            pl.close()
+
+        timestep = np.median(np.diff(t))*24*3600
+        rms = util.rms(resid)
+        beta = util.beta(resid, timestep)
+        print "RMS: {}".format(rms)
+        print "Beta: {}".format(beta)
+        fp = os.path.join(out_dir, 'stats.txt')
+        with open(fp, 'w') as o:
+            o.write("Method: {}\n".format(method))
+            o.write("RMS: {}\n".format(rms))
+            o.write("Beta: {}\n".format(beta))
+
+
+        if save:
+            fp = os.path.join(out_dir, 'flatchain')
+            np.savez_compressed(fp, fc=fc, best=best)
+
 
     tc = np.median(fc[:,2])
     spz_phase = list(t - tc)
 
     alpha = 0.8
     sb.palettes.set_color_codes(palette='muted')
-    with sb.axes_style('white'):
+    with sb.axes_style(axes_style):
         fig, axs = pl.subplots(1, 3, figsize=(11,3), sharex=False, sharey=False)
+
+        # percentiles = [50, 0.15, 99.85, 2.5, 97.5, 16, 84]
+        # percentiles = [50, 2.5, 97.5, 16, 84]
+        percentiles = [50, 16, 84]
+        npercs = len(percentiles)
 
         flux_pr = []
         for theta in fc[np.random.permutation(fc.shape[0])[:1000]]:
             flux_pr.append(loglike2(theta, k2, p, ret_ma=True))
         flux_pr = np.array(flux_pr)
-        flux_pc = np.array(np.percentile(flux_pr, [50, 0.15, 99.85, 2.5, 97.5, 16, 84], axis=0))
+        flux_pc = np.array(np.percentile(flux_pr, percentiles, axis=0))
         axs.flat[0].plot(df.t, df.f, 'k.', alpha=alpha)
-        [axs.flat[0].fill_between(df.t, *flux_pc[i:i+2,:], alpha=0.2, facecolor='b') for i in range(1,6,2)]
-        axs.flat[0].plot(df.t, loglike2(best, k2, p, ret_ma=True), 'b-', lw=2)
+        [axs.flat[0].fill_between(df.t, *flux_pc[i:i+2,:], alpha=0.4,
+            facecolor='b', edgecolor='b') for i in range(1,npercs-1,2)]
+        # axs.flat[0].plot(df.t, loglike2(best, k2, p, ret_ma=True), 'b-', lw=2)
+        axs.flat[0].plot(df.t, flux_pc[0], 'b-', lw=1.5)
 
         flux_pr = []
         for theta in fc[np.random.permutation(fc.shape[0])[:1000]]:
             flux_pr.append(model(theta, *args[:-3], ret_ma=True))
         flux_pr = np.array(flux_pr)
-        flux_pc = np.array(np.percentile(flux_pr, [50, 0.15, 99.85, 2.5, 97.5, 16, 84], axis=0))
+        flux_pc = np.array(np.percentile(flux_pr, percentiles, axis=0))
         fcor = f - model(best, *args[:-3], ret_sys=True)
+        # fcor = f - model(np.median(fc, axis=0), *args[:-3], ret_sys=True)
         axs.flat[1].plot(t, fcor, 'k.', alpha=alpha)
-        [axs.flat[1].fill_between(t, *flux_pc[i:i+2,:], alpha=0.2, facecolor='r') for i in range(1,6,2)]
-        axs.flat[1].plot(t, model(best, *args[:-3], ret_ma=True), 'r-', lw=2)
+        [axs.flat[1].fill_between(t, *flux_pc[i:i+2,:], alpha=0.4,
+            facecolor='r', edgecolor='r') for i in range(1,npercs-1,2)]
+        # axs.flat[1].plot(t, model(best, *args[:-3], ret_ma=True), 'r-', lw=2)
+        axs.flat[1].plot(t, flux_pc[0], 'r-', lw=1.5)
 
         edgs, bins = np.histogram(fc[:,:2], bins=30)
         axs.flat[2].hist(fc[:,1], bins=bins, histtype='stepfilled', color='b', alpha=alpha, lw=0, label='K2')
