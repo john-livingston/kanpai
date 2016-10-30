@@ -101,3 +101,14 @@ def piecewise_clip(f, lo, hi, nseg=16):
         mask = np.append(mask, clipped.mask)
 
     return mask
+
+
+def gelman_rubin(chains, verbose=False):
+    assert chains.ndim == 3
+    nn = chains.shape[1]
+    mean_j = chains.mean(axis=1)
+    var_j = chains.var(axis=1)
+    B = nn * mean_j.var(axis=0)
+    W = var_j.mean(axis=0)
+    R2 = ( W*(nn-1)/nn + B/nn ) / W
+    return np.sqrt(R2)

@@ -15,8 +15,8 @@ parser.add_argument('-o', '--out_dir', help='output dir',
     type=str, default=None)
 parser.add_argument('-d', '--data_dir', help='dir containing *_phot.pkl',
     type=str, default=None)
-parser.add_argument('-a', '--axes_style', help='seaborn axes style',
-    type=str, default='whitegrid')
+# parser.add_argument('-a', '--axes_style', help='seaborn axes style',
+#     type=str, default='whitegrid')
 parser.add_argument('-b', '--bin_size', help='bin size for'
     ' Spitzer data [seconds]', type=int, default=60)
 parser.add_argument('-c', '--clobber', dest='clobber', help='overwrite',
@@ -33,8 +33,11 @@ parser.add_argument('--nsteps1', type=int, default=500,
     help='number of initialization MCMC steps')
 parser.add_argument('--nsteps2', type=int, default=3000,
     help='number of production MCMC steps')
-parser.add_argument('--burn', type=int, default=2000,
-    help='number of MCMC burn-in steps')
+# parser.add_argument('--burn', type=int, default=2000,
+#     help='number of MCMC burn-in steps')
+parser.add_argument('--max_steps', type=int, default=10000,
+    help='maximum number of MCMC steps')
+
 parser.set_defaults(clobber=False, save=False, restart=False)
 
 args = parser.parse_args()
@@ -47,10 +50,11 @@ save = args.save
 method = args.method
 nsteps1 = args.nsteps1
 nsteps2 = args.nsteps2
-burn = args.burn
+# burn = args.burn
+max_steps = args.max_steps
 nthreads = args.nthreads
 restart = args.restart
-axes_style = args.axes_style
+# axes_style = args.axes_style
 
 setup = kanpai.util.parse_setup(spz_setup_fp)
 tr = setup['transit']
@@ -85,5 +89,5 @@ else:
     k2_kolded_fp = os.path.join(out_dir, 'k2_lc_{}.txt'.format(epic))
     np.savetxt(k2_kolded_fp, np.c_[tf, ff])
 
-kanpai.spz.go(setup, method, bin_size, nsteps1, nsteps2, burn,
-    data_dir, out_dir, save, nthreads, k2_kolded_fp, restart, axes_style)
+kanpai.spz.go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
+    data_dir, out_dir, save, nthreads, k2_kolded_fp, restart)

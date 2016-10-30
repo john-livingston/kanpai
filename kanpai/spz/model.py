@@ -95,8 +95,8 @@ def logprob(theta, t, f, s, p, aux, k2, u_kep, u_spz):
 
 
 
-def go(setup, method, bin_size, nsteps1, nsteps2, burn, data_dir, out_dir,
-       save, nthreads, k2_kolded_fp, restart, axes_style):
+def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
+       data_dir, out_dir, save, nthreads, k2_kolded_fp, restart):
 
     tr = setup['transit']
     if tr['i'] > np.pi/2.:
@@ -113,7 +113,7 @@ def go(setup, method, bin_size, nsteps1, nsteps2, burn, data_dir, out_dir,
     fp = os.path.join(data_dir, aor+'_phot.pkl')
     spz = sxp.util.df_from_pickle(fp, radius, pix=True)
 
-    with sb.axes_style(axes_style):
+    with sb.axes_style('white'):
         fig, ax = pl.subplots(1, 1, figsize=(15,5))
         ax.errorbar(spz.t, spz.f, spz.s, alpha=0.5)
         pl.setp(ax, xlim=[spz.t.min(), spz.t.max()])
@@ -132,7 +132,7 @@ def go(setup, method, bin_size, nsteps1, nsteps2, burn, data_dir, out_dir,
     tb, fb, ub, pixb = map(binned, [t, f, s, pix])
     ub /= np.sqrt(bs)
 
-    with sb.axes_style(axes_style):
+    with sb.axes_style('white'):
         fig, ax = pl.subplots(1, 1, figsize=(15,3), sharex=True, sharey=True)
         ax.errorbar(tb, fb, ub, marker='o', linestyle='none')
         pl.setp(ax, xlim=[tb.min(), tb.max()])
@@ -152,16 +152,17 @@ def go(setup, method, bin_size, nsteps1, nsteps2, burn, data_dir, out_dir,
         pl.close()
 
     cx, cy = centroid_2dg(cubestacked)
-    print cx, cy
+    print "cube centroids: {}, {}".format(cx, cy)
     cx, cy = map(int, map(round, [cx, cy]))
-    print cx, cy
+    # print cx, cy
 
     xy = np.array([centroid_com(i) for i in cube])
     x, y = xy.T
-    with sb.axes_style(axes_style):
+    with sb.axes_style('white'):
         fig, ax = pl.subplots(1, 1, figsize=(15,5))
-        ax.plot(t, x)
-        ax.plot(t, y)
+        ax.plot(t, x, label='x')
+        ax.plot(t, y, label='y')
+        ax.legend()
         fp = os.path.join(out_dir, 'spz_cen.png')
         pl.setp(ax, xlim=[t.min(), t.max()])
         fig.savefig(fp)
@@ -172,7 +173,7 @@ def go(setup, method, bin_size, nsteps1, nsteps2, burn, data_dir, out_dir,
         df = pd.read_csv(k2_kolded_fp, sep=' ', names='t f s'.split())
     else:
         df = pd.read_csv(k2_kolded_fp, sep=' ', names='t f'.split())
-    with sb.axes_style(axes_style):
+    with sb.axes_style('white'):
         fig, ax = pl.subplots(1, 1, figsize=(15,5))
         ax.plot(df.t, df.f, marker='o', lw=0)
         fp = os.path.join(out_dir, 'k2_folded.png')
@@ -192,24 +193,24 @@ def go(setup, method, bin_size, nsteps1, nsteps2, burn, data_dir, out_dir,
     initial = [tr['k'], tr['k'], t.mean(), tr['a'], tr['i'],
                u_spz[0], u_spz[2], u_kep[0], u_kep[2], 0, 1e-5, 0, 0] + [0] * aux.shape[0]
 
-    nlp = lambda *x: -logprob(*x)
-    res = op.minimize(nlp, initial, args=args, method='nelder-mead')
-    if res.success:
-        print res.x
-
-    with sb.axes_style(axes_style):
-        fig, axs = pl.subplots(1, 2, figsize=(15,3), sharex=True, sharey=True)
-        axs[0].plot(t, f, 'k.')
-        axs[0].plot(t, model(initial, *args[:-3]), 'b-', lw=5)
-        axs[0].plot(t, model(res.x, *args[:-3]), 'r-', lw=5)
-        axs[1].plot(t, f-model(res.x, *args[:-3], ret_sys=True), 'k.')
-        axs[1].plot(t, model(initial, *args[:-3], ret_ma=True), 'b-', lw=5)
-        axs[1].plot(t, model(res.x, *args[:-3], ret_ma=True), 'r-', lw=5)
-        pl.setp(axs, xlim=[t.min(), t.max()], xticks=[], yticks=[])
-        fig.tight_layout()
-        fp = os.path.join(out_dir, 'fit-map.png')
-        fig.savefig(fp)
-        pl.close()
+    # nlp = lambda *x: -logprob(*x)
+    # res = op.minimize(nlp, initial, args=args, method='nelder-mead')
+    # if res.success:
+    #     print res.x
+    #
+    # with sb.axes_style(axes_style):
+    #     fig, axs = pl.subplots(1, 2, figsize=(15,3), sharex=True, sharey=True)
+    #     axs[0].plot(t, f, 'k.')
+    #     axs[0].plot(t, model(initial, *args[:-3]), 'b-', lw=5)
+    #     axs[0].plot(t, model(res.x, *args[:-3]), 'r-', lw=5)
+    #     axs[1].plot(t, f-model(res.x, *args[:-3], ret_sys=True), 'k.')
+    #     axs[1].plot(t, model(initial, *args[:-3], ret_ma=True), 'b-', lw=5)
+    #     axs[1].plot(t, model(res.x, *args[:-3], ret_ma=True), 'r-', lw=5)
+    #     pl.setp(axs, xlim=[t.min(), t.max()], xticks=[], yticks=[])
+    #     fig.tight_layout()
+    #     fp = os.path.join(out_dir, 'fit-map.png')
+    #     fig.savefig(fp)
+    #     pl.close()
 
 
     ndim = len(initial)
@@ -226,7 +227,7 @@ def go(setup, method, bin_size, nsteps1, nsteps2, burn, data_dir, out_dir,
     else:
 
         sampler = EnsembleSampler(nwalkers, ndim, logprob, args=args, threads=nthreads)
-        pos0 = sample_ball(res.x, [1e-3]*ndim, nwalkers)
+        pos0 = sample_ball(initial, [1e-3]*ndim, nwalkers)
 
         width = 30
         print "\nstage 1"
@@ -235,15 +236,37 @@ def go(setup, method, bin_size, nsteps1, nsteps2, burn, data_dir, out_dir,
 
         idx = np.argmax(sampler.lnprobability)
         best = sampler.flatchain[idx]
-        pos0 = sample_ball(best, [1e-5]*ndim, nwalkers)
+        pos = sample_ball(best, [1e-5]*ndim, nwalkers)
         sampler.reset()
         print "\nstage 2"
-        for pos,_,_ in tqdm(sampler.sample(pos0, iterations=nsteps2)):
-            pass
+
+        nsteps = 0
+        gr_vals = []
+        while nsteps < max_steps:
+            for pos,_,_ in tqdm(sampler.sample(pos, iterations=nsteps2)):
+                pass
+            nsteps += nsteps2
+            gr = util.gelman_rubin(sampler.chain)
+            gr_vals.append(gr.mean())
+            msg = "After {} steps\n\tMean G-R: {}\n\tMax G-R: {}"
+            print msg.format(nsteps, gr.mean(), gr.max())
+            if (gr < 1.1).all():
+                break
+            # worst = np.argmax(gr)
+            # best = np.argmin(gr)
+            # pos[worst] = pos[best]
+
+        with sb.axes_style('white'):
+            fig, ax = pl.subplots(1, 1, figsize=(5,2))
+            ax.plot(gr_vals, 'k-')
+            pl.setp(ax, xlabel='iterations', ylabel='mean G-R')
+            fp = os.path.join(out_dir, 'gr.png')
+            fig.savefig(fp)
+            pl.close()
 
         chain = sampler.chain
         labels = 'ks,kk,tc,a,i,u1s,u2s,u1k,u2k,t0,sig,k0,k1'.split(',') + ['c{}'.format(i) for i in range(len(aux))]
-        with sb.axes_style(axes_style):
+        with sb.axes_style('white'):
             fig, axs = pl.subplots(ndim, 1, figsize=(15,ndim/1.5), sharex=True)
             [axs.flat[i].plot(c, drawstyle='steps', color='k', alpha=4./nwalkers) for i,c in enumerate(chain.T)]
             [pl.setp(axs.flat[i], ylabel=labels[i]) for i,c in enumerate(chain.T)]
@@ -252,12 +275,13 @@ def go(setup, method, bin_size, nsteps1, nsteps2, burn, data_dir, out_dir,
             pl.close()
 
 
+        burn = nsteps - 1000 if nsteps > 2000 else 0
         thin = 1
         fc = chain[:,burn::thin,:].reshape(-1, ndim)
 
         hist_kwargs = dict(lw=2, alpha=0.5)
         title_kwargs = dict(fontdict=dict(fontsize=12))
-        with sb.axes_style(axes_style):
+        with sb.axes_style('white'):
             corner.corner(fc,
                           labels=labels,
                           hist_kwargs=hist_kwargs,
@@ -271,13 +295,13 @@ def go(setup, method, bin_size, nsteps1, nsteps2, burn, data_dir, out_dir,
 
 
         maxprob = sampler.lnprobability.flatten().max()
-        print maxprob
+        # print maxprob
         idx = np.argmax(sampler.lnprobability)
         assert sampler.lnprobability.flat[idx] == maxprob
         best = sampler.flatchain[idx]
-        print best
+        # print best
 
-        with sb.axes_style(axes_style):
+        with sb.axes_style('white'):
             fig, axs = pl.subplots(1, 3, figsize=(11,3), sharex=True, sharey=False)
             axs.flat[0].plot(t, f, 'k.')
             axs.flat[0].plot(t, model(best, *args[:-3]), '-', lw=2)
@@ -313,7 +337,7 @@ def go(setup, method, bin_size, nsteps1, nsteps2, burn, data_dir, out_dir,
 
     alpha = 0.8
     sb.palettes.set_color_codes(palette='muted')
-    with sb.axes_style(axes_style):
+    with sb.axes_style('whitegrid'):
         fig, axs = pl.subplots(1, 3, figsize=(11,3), sharex=False, sharey=False)
 
         # percentiles = [50, 0.15, 99.85, 2.5, 97.5, 16, 84]
