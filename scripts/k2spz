@@ -33,9 +33,9 @@ parser.add_argument('-m', '--method', type=str, default='cen',
     help='detrending method to use (cen or pld)')
 parser.add_argument('--nthreads', type=int, default=4,
     help='number of threads (processes) to use for MCMC')
-parser.add_argument('--nsteps1', type=int, default=500,
+parser.add_argument('--nsteps1', type=int, default=1000,
     help='number of initialization MCMC steps')
-parser.add_argument('--nsteps2', type=int, default=3000,
+parser.add_argument('--nsteps2', type=int, default=1000,
     help='number of production MCMC steps')
 # parser.add_argument('--burn', type=int, default=2000,
 #     help='number of MCMC burn-in steps')
@@ -54,11 +54,9 @@ save = args.save
 method = args.method
 nsteps1 = args.nsteps1
 nsteps2 = args.nsteps2
-# burn = args.burn
 max_steps = args.max_steps
 nthreads = args.nthreads
 restart = args.restart
-# axes_style = args.axes_style
 
 setup = kanpai.util.parse_setup(spz_setup_fp)
 tr = setup['transit']
@@ -77,9 +75,7 @@ elif not os.path.isdir(out_dir):
     os.mkdir(out_dir)
 
 if args.data_dir:
-    data_dir = args.data_dir
-else:
-    data_dir = setup['config']['data_dir']
+    setup['config']['data_dir'] = args.data_dir
 
 if args.k2:
     k2_kolded_fp = args.k2
@@ -93,5 +89,5 @@ else:
     k2_kolded_fp = os.path.join(out_dir, 'k2_lc_{}.txt'.format(epic))
     np.savetxt(k2_kolded_fp, np.c_[tf, ff])
 
-kanpai.spz.go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
-    data_dir, out_dir, save, nthreads, k2_kolded_fp, restart)
+kanpai.k2spz.go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
+    out_dir, save, nthreads, k2_kolded_fp, restart)
