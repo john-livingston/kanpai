@@ -1,6 +1,7 @@
-import numpy as np
-import limbdark
 import yaml
+import numpy as np
+
+import limbdark
 
 
 def scaled_a(p, t14, k, i=np.pi/2.):

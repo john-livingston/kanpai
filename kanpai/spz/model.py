@@ -1,13 +1,10 @@
 #!/usr/bin/env python
 
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as pl
-
 import os
 import sys
 import yaml
 
+import matplotlib.pyplot as pl
 import numpy as np
 np.warnings.simplefilter('ignore')
 
