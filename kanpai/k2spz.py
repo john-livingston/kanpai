@@ -81,7 +81,10 @@ def get_theta(theta, sub):
 
 
 def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
-       out_dir, save, nthreads, k2_kolded_fp, restart):
+    out_dir, save, nthreads, k2_kolded_fp, restart):
+
+    fp = os.path.join(out_dir, 'input.yaml')
+    yaml.dump(setup, open(fp, 'w'))
 
     tr = setup['transit']
     if tr['i'] > np.pi/2.:
@@ -233,14 +236,8 @@ def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
             if (gr < 1.1).all():
                 break
 
-        with sb.axes_style('white'):
-            fig, ax = pl.subplots(1, 1, figsize=(7,3))
-            ax.plot(gr_vals, 'k-')
-            pl.setp(ax, xlabel='iterations', ylabel='mean G-R')
-            fp = os.path.join(out_dir, 'gr.png')
-            fig.tight_layout()
-            fig.savefig(fp)
-            pl.close()
+        fp = os.path.join(out_dir, 'gr.png')
+        plot.gr_iter(gr_vals, fp)
 
 
         labels = 'ks,kk,tc,a,i,u1s,u2s,u1k,u2k,t0,sig,k0,k1'.split(',')

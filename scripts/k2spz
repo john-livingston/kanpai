@@ -19,8 +19,6 @@ parser.add_argument('-o', '--out_dir', help='output dir',
     type=str, default=None)
 parser.add_argument('-d', '--data_dir', help='dir containing *_phot.pkl',
     type=str, default=None)
-# parser.add_argument('-a', '--axes_style', help='seaborn axes style',
-#     type=str, default='whitegrid')
 parser.add_argument('-b', '--bin_size', help='bin size for'
     ' Spitzer data [seconds]', type=int, default=60)
 parser.add_argument('-c', '--clobber', dest='clobber', help='overwrite',
@@ -37,8 +35,6 @@ parser.add_argument('--nsteps1', type=int, default=1000,
     help='number of initialization MCMC steps')
 parser.add_argument('--nsteps2', type=int, default=1000,
     help='number of production MCMC steps')
-# parser.add_argument('--burn', type=int, default=2000,
-#     help='number of MCMC burn-in steps')
 parser.add_argument('--max_steps', type=int, default=10000,
     help='maximum number of MCMC steps')
 

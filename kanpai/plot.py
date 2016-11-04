@@ -4,6 +4,7 @@ import seaborn as sb
 sb.set_color_codes('muted')
 from corner import corner as triangle
 
+
 def errorbar(t, f, s, fp=None, **kwargs):
     with sb.axes_style('white'):
         fig, ax = pl.subplots(1, 1, figsize=(15,5))
@@ -13,6 +14,7 @@ def errorbar(t, f, s, fp=None, **kwargs):
             fig.savefig(fp)
             pl.close()
 
+
 def pixels(pix, fp=None):
     with sb.axes_style('white'):
         fig, ax = pl.subplots(1, 1, figsize=(5,5))
@@ -20,6 +22,7 @@ def pixels(pix, fp=None):
         if fp:
             fig.savefig(fp)
             pl.close()
+
 
 def centroids(t, x, y, fp=None):
     with sb.axes_style('white'):
@@ -32,6 +35,7 @@ def centroids(t, x, y, fp=None):
             fig.savefig(fp)
             pl.close()
 
+
 def simple_ts(t, f, fp=None, **kwargs):
     with sb.axes_style('white'):
         fig, ax = pl.subplots(1, 1, figsize=(15,5))
@@ -39,6 +43,7 @@ def simple_ts(t, f, fp=None, **kwargs):
         if fp:
             fig.savefig(fp)
             pl.close()
+
 
 def corrected_ts(t, f, f_cor, mod_full, mod_ma, resid, fp=None):
     with sb.axes_style('white'):
@@ -53,6 +58,18 @@ def corrected_ts(t, f, f_cor, mod_full, mod_ma, resid, fp=None):
         if fp:
             fig.savefig(fp)
             pl.close()
+
+
+def gr_iter(gr_vals, fp=None):
+    with sb.axes_style('white'):
+        fig, ax = pl.subplots(1, 1, figsize=(7,3))
+        ax.plot(gr_vals, 'k-')
+        pl.setp(ax, xlabel='iterations', ylabel='mean G-R')
+        fig.tight_layout()
+        if fp:
+            fig.savefig(fp)
+            pl.close()
+
 
 def chain(chain, labels, fp=None):
     with sb.axes_style('white'):
@@ -79,7 +96,6 @@ def corner(fc, labels, fp=None):
         if fp:
             pl.savefig(fp)
             pl.close()
-
 
 
 def k2_spz_together(df_sp, df_k2, spz_phase, flux_pc_sp, flux_pc_k2, percs, fc,
