@@ -7,7 +7,7 @@ from corner import corner as triangle
 
 def errorbar(t, f, s, fp=None, **kwargs):
     with sb.axes_style('white'):
-        fig, ax = pl.subplots(1, 1, figsize=(15,5))
+        fig, ax = pl.subplots(1, 1, figsize=(10,3))
         ax.errorbar(t, f, s, marker='o', linestyle='none', **kwargs)
         pl.setp(ax, xlim=[t.min(), t.max()])
         if fp:
@@ -26,7 +26,7 @@ def pixels(pix, fp=None):
 
 def centroids(t, x, y, fp=None):
     with sb.axes_style('white'):
-        fig, ax = pl.subplots(1, 1, figsize=(15,5))
+        fig, ax = pl.subplots(1, 1, figsize=(10,3))
         ax.plot(t, x, label='x')
         ax.plot(t, y, label='y')
         ax.legend()
@@ -38,7 +38,7 @@ def centroids(t, x, y, fp=None):
 
 def simple_ts(t, f, fp=None, **kwargs):
     with sb.axes_style('white'):
-        fig, ax = pl.subplots(1, 1, figsize=(15,5))
+        fig, ax = pl.subplots(1, 1, figsize=(10,3))
         ax.plot(t, f, marker='o', lw=0, **kwargs)
         if fp:
             fig.savefig(fp)
@@ -47,7 +47,7 @@ def simple_ts(t, f, fp=None, **kwargs):
 
 def corrected_ts(t, f, f_cor, mod_full, mod_ma, resid, fp=None):
     with sb.axes_style('white'):
-        fig, axs = pl.subplots(1, 3, figsize=(11,3), sharex=True, sharey=False)
+        fig, axs = pl.subplots(1, 3, figsize=(10,3), sharex=True, sharey=False)
         axs.flat[0].plot(t, f, 'k.')
         axs.flat[0].plot(t, mod_full, '-', lw=2)
         axs.flat[1].plot(t, f_cor, 'k.')
@@ -105,7 +105,7 @@ def k2_spz_together(df_sp, df_k2, spz_phase, flux_pc_sp, flux_pc_k2, percs, fc,
 
     with sb.axes_style('whitegrid'):
 
-        fig, axs = pl.subplots(1, 3, figsize=(11,3), sharex=False, sharey=False)
+        fig, axs = pl.subplots(1, 3, figsize=(10,3), sharex=False, sharey=False)
 
         axs.flat[0].plot(df_k2.t, df_k2.f, 'k.', alpha=alpha)
         [axs.flat[0].fill_between(df_k2.t, *flux_pc_k2[i:i+2,:], alpha=0.4,
@@ -124,9 +124,9 @@ def k2_spz_together(df_sp, df_k2, spz_phase, flux_pc_sp, flux_pc_k2, percs, fc,
             color='r', alpha=alpha, lw=0, label='Spitzer')
 
         ylim = axs.flat[1].get_ylim()
-        pl.setp(axs.flat[0], xlim=[spz_phase[0], spz_phase[-1]], ylim=ylim, xticks=[], yticks=[])
-        pl.setp(axs.flat[1], xlim=[df_sp.t.min(), df_sp.t.max()], ylim=ylim, xticks=[], yticks=[])
-        pl.setp(axs.flat[2], xticks=[], yticks=[])
+        pl.setp(axs.flat[0], xlim=[spz_phase[0], spz_phase[-1]], ylim=ylim)
+        pl.setp(axs.flat[1], xlim=[df_sp.t.min(), df_sp.t.max()], ylim=ylim)
+        # pl.setp(axs, xticks=[], yticks=[])
 
         fig.tight_layout()
         if fp:

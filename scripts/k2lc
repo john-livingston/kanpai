@@ -40,7 +40,7 @@ plot = args.plot
 clip = args.clip
 baseline = args.baseline
 
-tf, ff = kanpai.k2.lc.get_everest_folded(epic, p, t0, t14,
+tf, ff = kanpai.k2.lc.everest_folded(epic, p, t0, t14,
     width=width, clip=clip, bl=baseline)
 
 if plot:

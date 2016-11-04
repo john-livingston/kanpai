@@ -27,6 +27,8 @@ parser.add_argument('-s', '--save', dest='save', help='save MCMC samples',
     action='store_true')
 parser.add_argument('-r', '--restart', dest='restart', help='restart MCMC',
     action='store_true')
+parser.add_argument('--clip', dest='restart', help='sigma clip K2 light curve',
+    action='store_true')
 parser.add_argument('-m', '--method', type=str, default='cen',
     help='detrending method to use (cen or pld)')
 parser.add_argument('--nthreads', type=int, default=4,
@@ -37,8 +39,10 @@ parser.add_argument('--nsteps2', type=int, default=1000,
     help='number of production MCMC steps')
 parser.add_argument('--max_steps', type=int, default=10000,
     help='maximum number of MCMC steps')
+parser.add_argument('--gr_threshold', type=float, default=1.1,
+    help='Gelmin-Rubin threshold')
 
-parser.set_defaults(clobber=False, save=False, restart=False)
+parser.set_defaults(clobber=False, save=False, restart=False, clip=False)
 
 args = parser.parse_args()
 
@@ -51,8 +55,13 @@ method = args.method
 nsteps1 = args.nsteps1
 nsteps2 = args.nsteps2
 max_steps = args.max_steps
+gr_threshold = args.gr_threshold
 nthreads = args.nthreads
 restart = args.restart
+clip = args.clip
+
+assert method == 'cen' or method == 'pld'
+
 
 setup = kanpai.util.parse_setup(spz_setup_fp)
 tr = setup['transit']
@@ -81,9 +90,9 @@ else:
     p, t0, t14 = tr['p'], tr['t0'], tr['t14']
     t0 -= 2454833
     tf, ff = kanpai.k2.lc.everest_folded(epic, p, t0, t14,
-        width=t14*3, clip=True, bl=True)
-    k2_kolded_fp = os.path.join(out_dir, 'k2_lc_{}.txt'.format(epic))
+        width=t14*5, clip=clip, bl=True)
+    k2_kolded_fp = os.path.join(out_dir, 'k2_lc_{}.csv'.format(epic))
     np.savetxt(k2_kolded_fp, np.c_[tf, ff], delimiter=',')
 
 kanpai.k2spz.go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
-    out_dir, save, nthreads, k2_kolded_fp, restart)
+    gr_threshold, out_dir, save, nthreads, k2_kolded_fp, restart)

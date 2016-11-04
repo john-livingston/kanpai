@@ -81,7 +81,7 @@ def get_theta(theta, sub):
 
 
 def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
-    out_dir, save, nthreads, k2_kolded_fp, restart):
+    gr_threshold, out_dir, save, nthreads, k2_kolded_fp, restart):
 
     fp = os.path.join(out_dir, 'input.yaml')
     yaml.dump(setup, open(fp, 'w'))
@@ -179,17 +179,20 @@ def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
             print "{} negative log probability: {}".format(alg, res.fun)
             results.append(res)
     idx = np.argmin([r.fun for r in results])
-    res = np.array(results)[idx]
+    best_map = np.array(results)[idx]
 
     with sb.axes_style('white'):
-        fig, axs = pl.subplots(1, 2, figsize=(15,3), sharex=True, sharey=True)
+        fig, axs = pl.subplots(1, 2, figsize=(10,3), sharex=True, sharey=True)
         axs[0].plot(t, f, 'k.')
-        axs[0].plot(t, spz.model(get_theta(initial, 'sp'), *args[:-3]), 'b-', lw=5)
-        axs[0].plot(t, spz.model(get_theta(res.x, 'sp'), *args[:-3]), 'r-', lw=5)
-        axs[1].plot(t, f-spz.model(get_theta(res.x, 'sp'), *args[:-3], ret_sys=True), 'k.')
-        axs[1].plot(t, spz.model(get_theta(initial, 'sp'), *args[:-3], ret_ma=True), 'b-', lw=5)
-        axs[1].plot(t, spz.model(get_theta(res.x, 'sp'), *args[:-3], ret_ma=True), 'r-', lw=5)
+        axs[0].plot(t, spz.model(get_theta(initial, 'sp'), *args[:-3]), 'b-', lw=5, label='initial')
+        axs[0].plot(t, spz.model(get_theta(best_map.x, 'sp'), *args[:-3]), 'r-', lw=5, label='optimized')
+        axs[0].legend()
+        axs[1].plot(t, f-spz.model(get_theta(best_map.x, 'sp'), *args[:-3], ret_sys=True), 'k.')
+        # axs[1].plot(t, spz.model(get_theta(initial, 'sp'), *args[:-3], ret_ma=True), 'b-', lw=5)
+        axs[1].plot(t, spz.model(get_theta(best_map.x, 'sp'), *args[:-3], ret_ma=True), 'r-', lw=5)
         pl.setp(axs, xlim=[t.min(), t.max()], xticks=[], yticks=[])
+        pl.setp(axs[0], title='raw')
+        pl.setp(axs[1], title='corrected')
         fig.tight_layout()
         fp = os.path.join(out_dir, 'fit-map.png')
         fig.savefig(fp)
@@ -233,7 +236,7 @@ def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
             gr_vals.append(gr.mean())
             msg = "After {} steps\n\tMean G-R: {}\n\tMax G-R: {}"
             print msg.format(nsteps, gr.mean(), gr.max())
-            if (gr < 1.1).all():
+            if (gr < gr_threshold).all():
                 break
 
         fp = os.path.join(out_dir, 'gr.png')
@@ -258,6 +261,14 @@ def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
         assert sampler.lnprobability.flat[idx] == maxprob
         best = sampler.flatchain[idx]
 
+        fp = os.path.join(out_dir, 'opt.txt')
+        with open(fp, 'w') as o:
+            o.write("MAP log prob: {}".format(-best_map.fun))
+            o.write("\n\tparams: ")
+            o.write(' '.join([str(i) for i in best_map.x]))
+            o.write("\nMCMC log prob: {}".format(maxprob))
+            o.write("\n\tparams: ")
+            o.write(' '.join([str(i) for i in best]))
 
         best_sp = get_theta(best, 'sp')
         mod_full = spz.model(best_sp, *args[:-3])
@@ -309,3 +320,6 @@ def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
 
     fp = os.path.join(out_dir, 'fit-final.png')
     plot.k2_spz_together(df_sp, df_k2, spz_phase, flux_pc_sp, flux_pc_k2, percs, fc, fp)
+
+    fp = os.path.join(out_dir, 'spz.csv')
+    df_sp.to_csv(fp, index=False)
