@@ -144,11 +144,11 @@ def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
     plot.centroids(t, x, y, fp)
 
 
-    names = open(k2_kolded_fp).readline().split()
+    names = open(k2_kolded_fp).readline().split(',')
     if len(names) == 3:
-        df_k2 = pd.read_csv(k2_kolded_fp, sep=' ', names='t f s'.split())
+        df_k2 = pd.read_csv(k2_kolded_fp, names='t f s'.split())
     else:
-        df_k2 = pd.read_csv(k2_kolded_fp, sep=' ', names='t f'.split())
+        df_k2 = pd.read_csv(k2_kolded_fp, names='t f'.split())
     fp = os.path.join(out_dir, 'k2_folded.png')
     plot.simple_ts(df_k2.t, df_k2.f, fp, color='b')
 

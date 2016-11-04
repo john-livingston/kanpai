@@ -83,7 +83,7 @@ else:
     tf, ff = kanpai.k2.lc.everest_folded(epic, p, t0, t14,
         width=t14*3, clip=True, bl=True)
     k2_kolded_fp = os.path.join(out_dir, 'k2_lc_{}.txt'.format(epic))
-    np.savetxt(k2_kolded_fp, np.c_[tf, ff])
+    np.savetxt(k2_kolded_fp, np.c_[tf, ff], delimiter=',')
 
 kanpai.k2spz.go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
     out_dir, save, nthreads, k2_kolded_fp, restart)

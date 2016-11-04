@@ -50,5 +50,5 @@ if plot:
     pl.savefig(fp)
     pl.close()
 
-fp = os.path.join(outdir, 'k2_lc_{}.txt'.format(epic))
-np.savetxt(fp, np.c_[tf, ff])
+fp = os.path.join(outdir, 'k2_lc_{}.csv'.format(epic))
+np.savetxt(fp, np.c_[tf, ff], delimiter=',')
