@@ -80,7 +80,7 @@ else:
     epic = int(setup['config']['star'].split('-')[1])
     p, t0, t14 = tr['p'], tr['t0'], tr['t14']
     t0 -= 2454833
-    tf, ff = kanpai.k2.lc.get_everest_folded(epic, p, t0, t14,
+    tf, ff = kanpai.k2.lc.everest_folded(epic, p, t0, t14,
         width=t14*3, clip=True, bl=True)
     k2_kolded_fp = os.path.join(out_dir, 'k2_lc_{}.txt'.format(epic))
     np.savetxt(k2_kolded_fp, np.c_[tf, ff])

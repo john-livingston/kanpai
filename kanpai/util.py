@@ -4,8 +4,17 @@ import numpy as np
 import limbdark
 
 
+def impact(a, i):
+    return np.abs(a * np.cos(i))
+
+
+def tdur_circ(p, a, k, i=np.pi/2.):
+    b = impact(a, i)
+    alpha = np.sqrt( (k + 1) ** 2 - b ** 2 )
+    return (p / np.pi) * np.arcsin( alpha / np.sin(i) / a )
+
+
 def scaled_a(p, t14, k, i=np.pi/2.):
-    b = lambda *x: np.abs(x[0] * np.cos(x[1]))
     numer = np.sqrt( (k + 1) ** 2 )
     denom = np.sin(i) * np.sin(t14 * np.pi / p)
     return float(numer / denom)
