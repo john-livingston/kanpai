@@ -27,8 +27,8 @@ def pixels(pix, fp=None):
 def centroids(t, x, y, fp=None):
     with sb.axes_style('white'):
         fig, ax = pl.subplots(1, 1, figsize=(10,3))
-        ax.plot(t, x, label='x')
-        ax.plot(t, y, label='y')
+        ax.plot(t, x, label='x', color='b')
+        ax.plot(t, y, label='y', color='r')
         ax.legend()
         pl.setp(ax, xlim=[t.min(), t.max()])
         if fp:

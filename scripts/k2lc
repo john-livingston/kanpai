@@ -10,7 +10,9 @@ matplotlib.use('Agg')
 
 import kanpai
 
+
 cwd = os.path.abspath('.')
+
 parser = argparse.ArgumentParser(description="Get phased-folded K2"
     " Everest light curve")
 parser.add_argument('epic', help='Target star EPIC id number', type=int)
@@ -21,12 +23,16 @@ parser.add_argument('-w', '--width', help='Extraction width [days]',
     type=float, default=0.8)
 parser.add_argument('-o', '--outdir', help='output directory',
     type=str, default=cwd)
+parser.add_argument('--pipeline', help='which pipeline to use',
+    type=str, default='everest')
 parser.add_argument('-p', '--plot', dest='plot', help='make a plot',
     action='store_true')
 parser.add_argument('-c', '--clip', dest='clip', help='sigma clip',
     action='store_true')
 parser.add_argument('-b', '--baseline', dest='baseline', help='fit a'
     ' linear baseline model to each transit', action='store_true')
+parser.add_argument('-s', '--skip', help='individual K2 epochs to skip'
+    ', comma-separated', type=str, default=None)
 parser.set_defaults(plot=False, clip=False, baseline=False)
 args = parser.parse_args()
 
@@ -39,9 +45,15 @@ outdir = args.outdir
 plot = args.plot
 clip = args.clip
 baseline = args.baseline
+pipeline = args.pipeline
 
-tf, ff = kanpai.k2.lc.everest_folded(epic, p, t0, t14,
-    width=width, clip=clip, bl=baseline)
+if args.skip:
+    skip = [int(i) for i in args.skip.split(',')]
+else:
+    skip = args.skip
+
+tf, ff = kanpai.k2.lc.folded(epic, p, t0, t14, pipeline=pipeline,
+    width=width, clip=clip, bl=baseline, skip=skip)
 
 if plot:
     import matplotlib.pyplot as pl

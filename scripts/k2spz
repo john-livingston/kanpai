@@ -9,7 +9,6 @@ matplotlib.use('Agg')
 import kanpai
 
 
-
 parser = argparse.ArgumentParser(description="Simultaneously fit"
     " K2 and Spitzer data")
 parser.add_argument('input', help='path to input yaml file', type=str)
@@ -41,6 +40,10 @@ parser.add_argument('--max_steps', type=int, default=10000,
     help='maximum number of MCMC steps')
 parser.add_argument('--gr_threshold', type=float, default=1.1,
     help='Gelmin-Rubin threshold')
+parser.add_argument('--pipeline', help='which pipeline to use',
+    type=str, default='everest')
+parser.add_argument('--skip', help='individual K2 epochs to skip'
+    ', comma-separated', type=str, default=None)
 
 parser.set_defaults(clobber=False, save=False, restart=False, clip=False)
 
@@ -59,9 +62,15 @@ gr_threshold = args.gr_threshold
 nthreads = args.nthreads
 restart = args.restart
 clip = args.clip
+pipeline = args.pipeline
 
-assert method == 'cen' or method == 'pld'
+if args.skip:
+    skip = [int(i) for i in args.skip.split(',')]
+else:
+    skip = args.skip
 
+METHODS = 'cen pld'.split()
+assert method in METHODS
 
 setup = kanpai.util.parse_setup(spz_setup_fp)
 tr = setup['transit']
@@ -89,8 +98,8 @@ else:
     epic = int(setup['config']['star'].split('-')[1])
     p, t0, t14 = tr['p'], tr['t0'], tr['t14']
     t0 -= 2454833
-    tf, ff = kanpai.k2.lc.everest_folded(epic, p, t0, t14,
-        width=t14*5, clip=clip, bl=True)
+    tf, ff = kanpai.k2.lc.folded(epic, p, t0, t14, pipeline=pipeline,
+        width=t14*5, clip=clip, bl=True, skip=skip)
     k2_kolded_fp = os.path.join(out_dir, 'k2_lc_{}.csv'.format(epic))
     np.savetxt(k2_kolded_fp, np.c_[tf, ff], delimiter=',')
 

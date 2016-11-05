@@ -28,6 +28,9 @@ import k2
 import spz
 import plot
 
+
+METHODS = 'cen pld'.split()
+
 # import logging
 # logger = logging.getLogger('scope.name')
 # file_log_handler = logging.FileHandler('logfile.log')
@@ -158,7 +161,7 @@ def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
     elif method == 'pld':
         aux = pix.T
     else:
-        sys.exit('neither cen nor pld selected')
+        raise ValueError('method must be one of: {}'.format(METHODS))
 
 
     p = tr['p']
@@ -186,9 +189,8 @@ def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
         axs[0].plot(t, f, 'k.')
         axs[0].plot(t, spz.model(get_theta(initial, 'sp'), *args[:-3]), 'b-', lw=5, label='initial')
         axs[0].plot(t, spz.model(get_theta(best_map.x, 'sp'), *args[:-3]), 'r-', lw=5, label='optimized')
-        axs[0].legend()
+        axs[0].legend(loc=4)
         axs[1].plot(t, f-spz.model(get_theta(best_map.x, 'sp'), *args[:-3], ret_sys=True), 'k.')
-        # axs[1].plot(t, spz.model(get_theta(initial, 'sp'), *args[:-3], ret_ma=True), 'b-', lw=5)
         axs[1].plot(t, spz.model(get_theta(best_map.x, 'sp'), *args[:-3], ret_ma=True), 'r-', lw=5)
         pl.setp(axs, xlim=[t.min(), t.max()], xticks=[], yticks=[])
         pl.setp(axs[0], title='raw')

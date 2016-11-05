@@ -24,11 +24,17 @@ def get_tns(t, p, t0):
     return tns
 
 
-def fold(t, f, p, t0, width=0.8, clip=False, bl=False, t14=0.2):
+def fold(t, f, p, t0, width=0.8, clip=False, bl=False, t14=0.2, skip=None):
 
     idx = np.isnan(t) | np.isnan(f)
     t, f = t[~idx], f[~idx]
     tns = get_tns(t, p, t0)
+
+    if skip:
+        assert max(skip) < len(tns)
+        for i in reversed(sorted(skip)):
+            tns.pop(i)
+
     tf, ff = np.empty(0), np.empty(0)
 
     for i,tn in enumerate(tns):
