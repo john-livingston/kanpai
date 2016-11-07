@@ -76,7 +76,11 @@ def fold(t, f, p, t0, width=0.8, clip=False, bl=False, t14=0.2, skip=None):
     ff = ff[idx]
 
     if clip:
-        fc = sigma_clip(ff, sigma_lower=10, sigma_upper=2)
+        fc = sigma_clip(ff, sigma_upper=clip[0], sigma_lower=clip[1])
+        print "clipped {} outliers".format(fc.mask.sum())
         tf, ff = tf[~fc.mask], ff[~fc.mask]
 
+    idx = (tf < -t14/2.) | (t14/2. < tf)
+    print "OOT std dev: {}".format(ff[idx].std())
+    
     return tf, ff

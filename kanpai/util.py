@@ -25,6 +25,13 @@ def parse_setup(fp):
     transit = setup['transit']
     if not transit['i']:
         transit['i'] = np.pi/2
+    if not transit['t14']:
+        try:
+            transit['t14'] = tdur_circ(transit['p'],
+                transit['a'], transit['k'], transit['i'])
+        except KeyError as e:
+            msg = "{} is missing! unable to compute transit duration"
+            print(msg.format(e))
     if not transit['a']:
         try:
             p = transit['p']

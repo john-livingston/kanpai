@@ -29,7 +29,7 @@ import spz
 import plot
 
 
-METHODS = 'cen pld'.split()
+METHODS = 'cen pld none'.split()
 
 # import logging
 # logger = logging.getLogger('scope.name')
@@ -49,21 +49,23 @@ METHODS = 'cen pld'.split()
 
 def logprob(theta, t, f, s, p, aux, k2data, u_kep, u_spz):
 
-    ks,kk,tc,a,i,u1s,u2s,u1k,u2k,t0,sig,k0,k1 = theta[:13]
-    theta_aux = theta[13:]
+    a,i,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k0_s,k1_s,k0_k,s_k = theta[:14]
+    theta_aux = theta[14:]
 
-    if ks < 0 or kk < 0 or tc < t.min() or tc > t.max() or i > np.pi/2:
+    if k_s < 0 or k_k < 0 or \
+        tc_s < t.min() or tc_s > t.max() or \
+        i > np.pi/2:
         return -np.inf
-    lp = np.log(stats.norm.pdf(u1s, u_spz[0], u_spz[1]))
-    lp += np.log(stats.norm.pdf(u2s, u_spz[2], u_spz[3]))
-    lp += np.log(stats.norm.pdf(u1k, u_kep[0], u_kep[1]))
-    lp += np.log(stats.norm.pdf(u2k, u_kep[2], u_kep[3]))
+    lp = np.log(stats.norm.pdf(u1_s, u_spz[0], u_spz[1]))
+    lp += np.log(stats.norm.pdf(u2_s, u_spz[2], u_spz[3]))
+    lp += np.log(stats.norm.pdf(u1_k, u_kep[0], u_kep[1]))
+    lp += np.log(stats.norm.pdf(u2_k, u_kep[2], u_kep[3]))
 
-    theta_sp = [ks,tc,a,i,u1s,u2s,k0,k1] + theta_aux.tolist()
-    theta_k2 = kk,t0,a,i,u1k,u2k,sig
+    theta_sp = [k_s,tc_s,a,i,u1_s,u2_s,k0_s,k1_s] + theta_aux.tolist()
+    theta_k2 =  k_k,tc_k,a,i,u1_k,u2_k,k0_k,s_k
 
     ll = spz.loglike(theta_sp, t, f, s, p, aux)
-    ll += k2.loglike(theta_k2, k2data[0], k2data[1], p)
+    ll += k2.loglike1(theta_k2, k2data[0], k2data[1], p)
 
     if np.isnan(ll).any():
         return -np.inf
@@ -72,10 +74,10 @@ def logprob(theta, t, f, s, p, aux, k2data, u_kep, u_spz):
 
 def get_theta(theta, sub):
 
-    ks,kk,tc,a,i,u1s,u2s,u1k,u2k,t0,sig,k0,k1 = theta[:13]
-    theta_aux = theta[13:]
-    theta_sp = [ks,tc,a,i,u1s,u2s,k0,k1] + theta_aux.tolist()
-    theta_k2 = kk,t0,a,i,u1k,u2k,sig
+    a,i,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k0_s,k1_s,k0_k,s2_k = theta[:14]
+    theta_aux = theta[14:]
+    theta_sp = [k_s,tc_s,a,i,u1_s,u2_s,k0_s,k1_s] + theta_aux.tolist()
+    theta_k2 =  k_k,tc_k,a,i,u1_k,u2_k,k0_k,s2_k
 
     if sub == 'sp':
         return theta_sp
@@ -160,19 +162,23 @@ def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
         aux = np.c_[x, y].T
     elif method == 'pld':
         aux = pix.T
+    elif method == 'none':
+        aux = None
     else:
         raise ValueError('method must be one of: {}'.format(METHODS))
 
-
+    n_aux = aux.shape[0] if aux is not None else 0
     p = tr['p']
     k2data = df_k2[['t','f']].values.T
     args = (t, f, s, p, aux, k2data, u_kep, u_spz)
-    initial = np.array( [tr['k'], tr['k'], t.mean(), tr['a'], tr['i'],
-               u_spz[0], u_spz[2], u_kep[0], u_kep[2], 0, 1e-5, 0, 0] + [0] * aux.shape[0] )
+    idx = (k2data[0] < -tr['t14']/2.) | (k2data[0] > tr['t14']/2.)
+    s_k = k2data[1][idx].std()
+    initial = np.array( [tr['a'], tr['i'], tr['k'], tr['k'], t.mean(), 0,
+               u_spz[0], u_spz[2], u_kep[0], u_kep[2], 0, 0, 0, s_k] + [0] * n_aux )
 
-
+    # import pdb ; pdb.set_trace()
     nlp = lambda *x: -logprob(*x)
-    algs = ['powell', 'nelder-mead']
+    algs = 'powell nelder-mead'.split()
     best = np.inf
     results = []
     for alg in algs:
@@ -183,6 +189,9 @@ def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
             results.append(res)
     idx = np.argmin([r.fun for r in results])
     best_map = np.array(results)[idx]
+    best_alg = np.array(algs)[idx]
+    if len(results) == 0:
+        res.x = initial
 
     with sb.axes_style('white'):
         fig, axs = pl.subplots(1, 2, figsize=(10,3), sharex=True, sharey=True)
@@ -193,6 +202,8 @@ def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
         axs[1].plot(t, f-spz.model(get_theta(best_map.x, 'sp'), *args[:-3], ret_sys=True), 'k.')
         axs[1].plot(t, spz.model(get_theta(best_map.x, 'sp'), *args[:-3], ret_ma=True), 'r-', lw=5)
         pl.setp(axs, xlim=[t.min(), t.max()], xticks=[], yticks=[])
+        xl, yl = axs[0].get_xlim(), axs[1].get_ylim()
+        axs[0].text(xl[0]+0.1*np.diff(xl), yl[0]+0.1*np.diff(yl), best_alg)
         pl.setp(axs[0], title='raw')
         pl.setp(axs[1], title='corrected')
         fig.tight_layout()
@@ -215,12 +226,18 @@ def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
     else:
 
         sampler = EnsembleSampler(nwalkers, ndim, logprob, args=args, threads=nthreads)
-        pos0 = sample_ball(initial, [1e-3]*ndim, nwalkers)
+        pos0 = sample_ball(res.x, [1e-5]*ndim, nwalkers)
+        pos0[13] = np.abs(pos0[13])
 
-        width = 30
         print "\nstage 1"
         for pos,_,_ in tqdm(sampler.sample(pos0, iterations=nsteps1)):
             pass
+
+        labels = 'a,i,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k0_s,k1_s,k0_k,s_k'.split(',')
+        if aux:
+            labels += ['c{}'.format(i) for i in range(len(aux))]
+        fp = os.path.join(out_dir, 'chain-initial.png')
+        plot.chain(sampler.chain, labels, fp)
 
         idx = np.argmax(sampler.lnprobability)
         best = sampler.flatchain[idx]
@@ -244,10 +261,7 @@ def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
         fp = os.path.join(out_dir, 'gr.png')
         plot.gr_iter(gr_vals, fp)
 
-
-        labels = 'ks,kk,tc,a,i,u1s,u2s,u1k,u2k,t0,sig,k0,k1'.split(',')
-        labels += ['c{}'.format(i) for i in range(len(aux))]
-        fp = os.path.join(out_dir, 'chains.png')
+        fp = os.path.join(out_dir, 'chain.png')
         plot.chain(sampler.chain, labels, fp)
 
 
@@ -301,8 +315,8 @@ def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
     best_sp = get_theta(best, 'sp')
     df_sp['f_cor'] = f - spz.model(best_sp, *args[:-3], ret_sys=True)
 
-    tc = np.median(fc[:,2])
-    spz_phase = list(t - tc)
+    tc = np.median(fc[:,4])
+    df_sp['phase'] = t - tc
 
     percs = [50, 16, 84]
     npercs = len(percs)
@@ -314,14 +328,15 @@ def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
         theta_k2 = get_theta(theta, 'k2')
 
         flux_pr_sp.append(spz.model(theta_sp, t, f, s, p, aux, ret_ma=True))
-        flux_pr_k2.append(k2.loglike(theta_k2, k2data[0], k2data[1], p, ret_ma=True))
+        flux_pr_k2.append(k2.loglike1(theta_k2, k2data[0], k2data[1], p, ret_mod=True))
 
     flux_pr_sp, flux_pr_k2 = map(np.array, [flux_pr_sp, flux_pr_k2])
     flux_pc_sp = np.percentile(flux_pr_sp, percs, axis=0)
     flux_pc_k2 = np.percentile(flux_pr_k2, percs, axis=0)
 
     fp = os.path.join(out_dir, 'fit-final.png')
-    plot.k2_spz_together(df_sp, df_k2, spz_phase, flux_pc_sp, flux_pc_k2, percs, fc, fp)
+    plot.k2_spz_together(df_sp, df_k2, flux_pc_sp, flux_pc_k2,
+        percs, fc[:,2], fc[:,3], fp)
 
     fp = os.path.join(out_dir, 'spz.csv')
     df_sp.to_csv(fp, index=False)

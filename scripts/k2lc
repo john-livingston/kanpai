@@ -27,13 +27,15 @@ parser.add_argument('--pipeline', help='which pipeline to use',
     type=str, default='everest')
 parser.add_argument('-p', '--plot', dest='plot', help='make a plot',
     action='store_true')
-parser.add_argument('-c', '--clip', dest='clip', help='sigma clip',
-    action='store_true')
 parser.add_argument('-b', '--baseline', dest='baseline', help='fit a'
     ' linear baseline model to each transit', action='store_true')
+parser.add_argument('-f', '--fit', dest='fit', action='store_true',
+    help='fit basic light curve model')
+parser.add_argument('-c', '--clip', help='sigma clip (upper, lower)',
+    type=str, default=None)
 parser.add_argument('-s', '--skip', help='individual K2 epochs to skip'
     ', comma-separated', type=str, default=None)
-parser.set_defaults(plot=False, clip=False, baseline=False)
+parser.set_defaults(plot=False, baseline=False, fit=False)
 args = parser.parse_args()
 
 epic = args.epic
@@ -43,14 +45,21 @@ t14 = args.t14
 width = args.width
 outdir = args.outdir
 plot = args.plot
-clip = args.clip
 baseline = args.baseline
 pipeline = args.pipeline
+
+if args.clip:
+    clip = [float(i) for i in args.clip.split(',')]
+else:
+    clip = args.clip
 
 if args.skip:
     skip = [int(i) for i in args.skip.split(',')]
 else:
     skip = args.skip
+
+if fit:
+
 
 tf, ff = kanpai.k2.lc.folded(epic, p, t0, t14, pipeline=pipeline,
     width=width, clip=clip, bl=baseline, skip=skip)
@@ -58,9 +67,11 @@ tf, ff = kanpai.k2.lc.folded(epic, p, t0, t14, pipeline=pipeline,
 if plot:
     import matplotlib.pyplot as pl
     pl.plot(tf, ff, 'ko')
-    fp = os.path.join(outdir, 'k2_lc_{}.png'.format(epic))
+    idx = (tf < -t14/2.) | (t14/2. < tf)
+    pl.title("OOT std dev: {}".format(ff[idx].std()))
+    fp = os.path.join(outdir, 'k2_lc_{}-{}.png'.format(epic, pipeline))
     pl.savefig(fp)
     pl.close()
 
-fp = os.path.join(outdir, 'k2_lc_{}.csv'.format(epic))
+fp = os.path.join(outdir, 'k2_lc_{}-{}.csv'.format(epic, pipeline))
 np.savetxt(fp, np.c_[tf, ff], delimiter=',')

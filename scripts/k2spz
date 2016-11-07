@@ -26,8 +26,6 @@ parser.add_argument('-s', '--save', dest='save', help='save MCMC samples',
     action='store_true')
 parser.add_argument('-r', '--restart', dest='restart', help='restart MCMC',
     action='store_true')
-parser.add_argument('--clip', dest='restart', help='sigma clip K2 light curve',
-    action='store_true')
 parser.add_argument('-m', '--method', type=str, default='cen',
     help='detrending method to use (cen or pld)')
 parser.add_argument('--nthreads', type=int, default=4,
@@ -44,8 +42,10 @@ parser.add_argument('--pipeline', help='which pipeline to use',
     type=str, default='everest')
 parser.add_argument('--skip', help='individual K2 epochs to skip'
     ', comma-separated', type=str, default=None)
+parser.add_argument('--clip', help='sigma clip (upper, lower)',
+    type=str, default=None)
 
-parser.set_defaults(clobber=False, save=False, restart=False, clip=False)
+parser.set_defaults(clobber=False, save=False, restart=False)
 
 args = parser.parse_args()
 
@@ -61,15 +61,19 @@ max_steps = args.max_steps
 gr_threshold = args.gr_threshold
 nthreads = args.nthreads
 restart = args.restart
-clip = args.clip
 pipeline = args.pipeline
+
+if args.clip:
+    clip = [float(i) for i in args.clip.split(',')]
+else:
+    clip = args.clip
 
 if args.skip:
     skip = [int(i) for i in args.skip.split(',')]
 else:
     skip = args.skip
 
-METHODS = 'cen pld'.split()
+METHODS = 'cen pld none'.split()
 assert method in METHODS
 
 setup = kanpai.util.parse_setup(spz_setup_fp)

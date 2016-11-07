@@ -10,7 +10,9 @@ def model(theta, t, f, s, p, aux, ret_ma=False, ret_sys=False):
     auxcoeff = theta[8:]
     ma = MA.evaluate(t, k, [u1, u2], tc, p, a, i)
     bl = k0 + k1 * (t-t.mean())
-    if aux.shape[0] == aux.size:
+    if aux is None:
+        sys = 0
+    elif aux.shape[0] == aux.size:
         sys = auxcoeff * aux
     else:
         sys = (auxcoeff * aux.T).sum(axis=1)
