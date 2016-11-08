@@ -14,6 +14,7 @@ def folded(epic, p, t0, t14, pipeline='everest',
 
     if pipeline == 'everest':
         star = Everest(epic)
+        star.set_mask(transits = [(p, t0, t14)])
         t, f = star.time, star.flux
     elif pipeline == 'k2sff':
         star = kplr.K2SFF(epic)
@@ -26,7 +27,7 @@ def folded(epic, p, t0, t14, pipeline='everest',
 
     idx = np.isnan(t) | np.isnan(f)
     t, f = t[~idx], f[~idx]
-    tf, ff = util.fold(t, f, p, t0, t14=t14, 
+    tf, ff = util.fold(t, f, p, t0, t14=t14,
         width=width, clip=clip, bl=bl, skip=skip)
 
     return tf, ff

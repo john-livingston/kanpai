@@ -11,6 +11,8 @@ matplotlib.use('Agg')
 import kanpai
 
 
+K2_TIME_OFFSET = 2454833
+
 cwd = os.path.abspath('.')
 
 parser = argparse.ArgumentParser(description="Get phased-folded K2"
@@ -29,18 +31,18 @@ parser.add_argument('-p', '--plot', dest='plot', help='make a plot',
     action='store_true')
 parser.add_argument('-b', '--baseline', dest='baseline', help='fit a'
     ' linear baseline model to each transit', action='store_true')
-parser.add_argument('-f', '--fit', dest='fit', action='store_true',
-    help='fit basic light curve model')
+parser.add_argument('--refine', dest='refine', action='store_true',
+    help='refine transit duration')
 parser.add_argument('-c', '--clip', help='sigma clip (upper, lower)',
     type=str, default=None)
 parser.add_argument('-s', '--skip', help='individual K2 epochs to skip'
     ', comma-separated', type=str, default=None)
-parser.set_defaults(plot=False, baseline=False, fit=False)
+parser.set_defaults(plot=False, baseline=False, refine=False)
 args = parser.parse_args()
 
 epic = args.epic
 p = args.period
-t0 = args.t0 - 2454833
+t0 = args.t0 - K2_TIME_OFFSET
 t14 = args.t14
 width = args.width
 outdir = args.outdir
@@ -58,20 +60,23 @@ if args.skip:
 else:
     skip = args.skip
 
-if fit:
-
-
 tf, ff = kanpai.k2.lc.folded(epic, p, t0, t14, pipeline=pipeline,
     width=width, clip=clip, bl=baseline, skip=skip)
 
-if plot:
-    import matplotlib.pyplot as pl
-    pl.plot(tf, ff, 'ko')
+if args.refine:
+    fit = kanpai.k2.Fit(tf, ff, t14=t14, p=p)
+    fit.max_apo()
+    t14 = fit.t14()
+    print "refined transit duration: {} [days]".format(t14)
+    fp = os.path.join(outdir, 'k2_lc_{}-{}-fit.png'.format(epic, pipeline))
+    fit.plot(fp, lw=5, ms=10, nmodel=1000)
+    tf, ff = kanpai.k2.lc.folded(epic, p, t0, t14, pipeline=pipeline,
+        width=width, clip=clip, bl=baseline, skip=skip)
+elif plot:
     idx = (tf < -t14/2.) | (t14/2. < tf)
-    pl.title("OOT std dev: {}".format(ff[idx].std()))
+    title = "OOT std dev: {}".format(ff[idx].std())
     fp = os.path.join(outdir, 'k2_lc_{}-{}.png'.format(epic, pipeline))
-    pl.savefig(fp)
-    pl.close()
+    kanpai.k2.plot.simple_ts(tf, ff, fp=fp, title=title, lw=5, ms=10)
 
 fp = os.path.join(outdir, 'k2_lc_{}-{}.csv'.format(epic, pipeline))
 np.savetxt(fp, np.c_[tf, ff], delimiter=',')

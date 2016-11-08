@@ -86,6 +86,7 @@ else:
     if 'planet' in setup['config'].keys():
         out_dir += setup['config']['planet']
     out_dir += '-{}'.format(method)
+    out_dir += '-{}'.format(pipeline)
 
 if os.path.isdir(out_dir) and not clobber:
     raise IOError("Output directory exists and clobber set to False")
@@ -102,8 +103,9 @@ else:
     epic = int(setup['config']['star'].split('-')[1])
     p, t0, t14 = tr['p'], tr['t0'], tr['t14']
     t0 -= 2454833
+    width = t14*4 if t14 > 0.2 else 0.8
     tf, ff = kanpai.k2.lc.folded(epic, p, t0, t14, pipeline=pipeline,
-        width=t14*5, clip=clip, bl=True, skip=skip)
+        width=width, clip=clip, bl=True, skip=skip)
     k2_kolded_fp = os.path.join(out_dir, 'k2_lc_{}.csv'.format(epic))
     np.savetxt(k2_kolded_fp, np.c_[tf, ff], delimiter=',')
 

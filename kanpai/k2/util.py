@@ -3,6 +3,16 @@ import statsmodels.api as sm
 from astropy.stats import sigma_clip
 
 
+def rms(x):
+    return np.sqrt((x**2).sum()/x.size)
+
+
+def scaled_a(p, t14, k, i=np.pi/2.):
+    numer = np.sqrt( (k + 1) ** 2 )
+    denom = np.sin(i) * np.sin(t14 * np.pi / p)
+    return float(numer / denom)
+
+
 def get_tns(t, p, t0):
 
     idx = t != 0
@@ -82,5 +92,5 @@ def fold(t, f, p, t0, width=0.8, clip=False, bl=False, t14=0.2, skip=None):
 
     idx = (tf < -t14/2.) | (t14/2. < tf)
     print "OOT std dev: {}".format(ff[idx].std())
-    
+
     return tf, ff

@@ -179,7 +179,6 @@ def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
     # import pdb ; pdb.set_trace()
     nlp = lambda *x: -logprob(*x)
     algs = 'powell nelder-mead'.split()
-    best = np.inf
     results = []
     for alg in algs:
         print "attempting minimization with {}".format(alg)
@@ -234,7 +233,7 @@ def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
             pass
 
         labels = 'a,i,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k0_s,k1_s,k0_k,s_k'.split(',')
-        if aux:
+        if aux is not None:
             labels += ['c{}'.format(i) for i in range(len(aux))]
         fp = os.path.join(out_dir, 'chain-initial.png')
         plot.chain(sampler.chain, labels, fp)
@@ -321,6 +320,8 @@ def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
     percs = [50, 16, 84]
     npercs = len(percs)
 
+    df_k2.ti = np.linspace(df_k2.t.min(), df_k2.t.max(), 1000)
+
     flux_pr_k2, flux_pr_sp = [], []
     for theta in fc[np.random.permutation(fc.shape[0])[:1000]]:
 
@@ -328,15 +329,16 @@ def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
         theta_k2 = get_theta(theta, 'k2')
 
         flux_pr_sp.append(spz.model(theta_sp, t, f, s, p, aux, ret_ma=True))
-        flux_pr_k2.append(k2.loglike1(theta_k2, k2data[0], k2data[1], p, ret_mod=True))
+        flux_pr_k2.append(k2.loglike1(theta_k2, df_k2.ti, k2data[1], p, ret_mod=True))
 
     flux_pr_sp, flux_pr_k2 = map(np.array, [flux_pr_sp, flux_pr_k2])
     flux_pc_sp = np.percentile(flux_pr_sp, percs, axis=0)
     flux_pc_k2 = np.percentile(flux_pr_k2, percs, axis=0)
 
     fp = os.path.join(out_dir, 'fit-final.png')
+    title = setup['config']['star'] + setup['config']['planet']
     plot.k2_spz_together(df_sp, df_k2, flux_pc_sp, flux_pc_k2,
-        percs, fc[:,2], fc[:,3], fp)
+        percs, fc[:,2], fc[:,3], fp, title=title)
 
     fp = os.path.join(out_dir, 'spz.csv')
     df_sp.to_csv(fp, index=False)
