@@ -251,7 +251,7 @@ def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
                 pass
             nsteps += nsteps2
             gr = util.gelman_rubin(sampler.chain)
-            gr_vals.append(gr.mean())
+            gr_vals.append(gr)
             msg = "After {} steps\n\tMean G-R: {}\n\tMax G-R: {}"
             print msg.format(nsteps, gr.mean(), gr.max())
             if (gr < gr_threshold).all():
@@ -308,7 +308,7 @@ def go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
 
         if save:
             fp = os.path.join(out_dir, 'flatchain')
-            np.savez_compressed(fp, fc=fc, best=best)
+            np.savez_compressed(fp, fc=fc, best=best, gr=np.array(gr_vals))
 
 
     best_sp = get_theta(best, 'sp')

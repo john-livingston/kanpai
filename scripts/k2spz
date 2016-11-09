@@ -44,8 +44,10 @@ parser.add_argument('--skip', help='individual K2 epochs to skip'
     ', comma-separated', type=str, default=None)
 parser.add_argument('--clip', help='sigma clip (upper, lower)',
     type=str, default=None)
+parser.add_argument('--refine', dest='refine', action='store_true',
+    help='refine transit duration')
 
-parser.set_defaults(clobber=False, save=False, restart=False)
+parser.set_defaults(clobber=False, save=False, restart=False, refine=False)
 
 args = parser.parse_args()
 
@@ -62,6 +64,7 @@ gr_threshold = args.gr_threshold
 nthreads = args.nthreads
 restart = args.restart
 pipeline = args.pipeline
+refine = args.refine
 
 if args.clip:
     clip = [float(i) for i in args.clip.split(',')]
@@ -105,7 +108,7 @@ else:
     t0 -= 2454833
     width = t14*4 if t14 > 0.2 else 0.8
     tf, ff = kanpai.k2.lc.folded(epic, p, t0, t14, pipeline=pipeline,
-        width=width, clip=clip, bl=True, skip=skip)
+        width=width, clip=clip, bl=True, skip=skip, refine=refine)
     k2_kolded_fp = os.path.join(out_dir, 'k2_lc_{}.csv'.format(epic))
     np.savetxt(k2_kolded_fp, np.c_[tf, ff], delimiter=',')
 

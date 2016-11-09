@@ -18,8 +18,6 @@ def simple_ts(t, f, tmodel=None, model=None, fp=None, title="", **kwargs):
         pl.setp(ax, xlabel='Time [days]',
             ylabel='Normalized Flux',
             title=title)
-        # pl.setp(ax.yaxis.get_majorticklabels(), rotation=45)
-        # pl.setp(ax.yaxis.get_major_formatter(), useOffset=False)
         ax.yaxis.get_major_formatter().set_useOffset(False)
         fig.tight_layout()
         if fp:
