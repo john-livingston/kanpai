@@ -61,7 +61,7 @@ class Fit(object):
         u = self._u
         k0 = self._k0
         t, f = self._data.T
-        idx = (t < -t14/2.) | (t14/2. < t)
+        idx = (t < tc - t14/2.) | (tc + t14/2. < t)
         sig = f[idx].std()
         return k,tc,t14,i,u,k0,sig
 
@@ -118,8 +118,6 @@ class Fit(object):
             plot.simple_ts(t, f, model=m, fp=fp, title=title, **kwargs)
 
     def t14(self, nmodel=1000):
-        # if self._pv_best is None:
-        #     self.max_apo()
         t = self._data.T[0]
         ti = np.linspace(t.min(), t.max(), nmodel)
         mi = self.model(ti, include_offset=False)

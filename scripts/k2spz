@@ -9,6 +9,8 @@ matplotlib.use('Agg')
 import kanpai
 
 
+K2_TIME_OFFSET = 2454833
+
 parser = argparse.ArgumentParser(description="Simultaneously fit"
     " K2 and Spitzer data")
 parser.add_argument('input', help='path to input yaml file', type=str)
@@ -26,8 +28,8 @@ parser.add_argument('-s', '--save', dest='save', help='save MCMC samples',
     action='store_true')
 parser.add_argument('-r', '--restart', dest='restart', help='restart MCMC',
     action='store_true')
-parser.add_argument('-m', '--method', type=str, default='cen',
-    help='detrending method to use (cen or pld)')
+parser.add_argument('-m', '--method', type=str, default='base',
+    help='detrending method to use (base, cen, pld)')
 parser.add_argument('--nthreads', type=int, default=4,
     help='number of threads (processes) to use for MCMC')
 parser.add_argument('--nsteps1', type=int, default=1000,
@@ -76,10 +78,10 @@ if args.skip:
 else:
     skip = args.skip
 
-METHODS = 'cen pld none'.split()
+METHODS = 'base cen pld'.split()
 assert method in METHODS
 
-setup = kanpai.util.parse_setup(spz_setup_fp)
+setup = kanpai.spz.util.parse_setup(spz_setup_fp)
 tr = setup['transit']
 
 if args.out_dir:
@@ -105,12 +107,12 @@ else:
     import numpy as np
     epic = int(setup['config']['star'].split('-')[1])
     p, t0, t14 = tr['p'], tr['t0'], tr['t14']
-    t0 -= 2454833
+    t0 -= K2_TIME_OFFSET
     width = t14*4 if t14 > 0.2 else 0.8
     tf, ff = kanpai.k2.lc.folded(epic, p, t0, t14, pipeline=pipeline,
         width=width, clip=clip, bl=True, skip=skip, refine=refine)
     k2_kolded_fp = os.path.join(out_dir, 'k2_lc_{}.csv'.format(epic))
     np.savetxt(k2_kolded_fp, np.c_[tf, ff], delimiter=',')
 
-kanpai.k2spz.go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
+kanpai.spz.go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
     gr_threshold, out_dir, save, nthreads, k2_kolded_fp, restart)

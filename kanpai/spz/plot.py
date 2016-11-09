@@ -66,25 +66,25 @@ def gr_iter(gr_vals, fp=None):
     with sb.axes_style('white'):
         fig, ax = pl.subplots(1, 1, figsize=(7,3))
         ax.plot(gr_vals, 'k-')
-        pl.setp(ax, xlabel='iterations', ylabel='mean G-R')
+        pl.setp(ax, xlabel='iterations', ylabel='G-R')
         fig.tight_layout()
         if fp:
             fig.savefig(fp)
             pl.close()
 
 
-def chain(chain, labels, fp=None):
+def chain(chain, labels, fp=None, dpi=96):
     with sb.axes_style('white'):
         nwalkers, nsteps, ndim = chain.shape
         fig, axs = pl.subplots(ndim, 1, figsize=(15,ndim/1.5), sharex=True)
         [axs.flat[i].plot(c, drawstyle='steps', color='k', alpha=4./nwalkers) for i,c in enumerate(chain.T)]
         [pl.setp(axs.flat[i], ylabel=labels[i]) for i,c in enumerate(chain.T)]
         if fp:
-            fig.savefig(fp)
+            fig.savefig(fp, dpi=dpi)
             pl.close()
 
 
-def corner(fc, labels, fp=None):
+def corner(fc, labels, fp=None, dpi=96):
     hist_kwargs = dict(lw=2, alpha=0.5)
     title_kwargs = dict(fontdict=dict(fontsize=12))
     with sb.axes_style('white'):
@@ -96,7 +96,7 @@ def corner(fc, labels, fp=None):
             quantiles=[0.16,0.5,0.84],
             title_fmt='.4f')
         if fp:
-            pl.savefig(fp)
+            pl.savefig(fp, dpi=dpi)
             pl.close()
 
 
