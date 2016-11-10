@@ -49,7 +49,8 @@ class Fit(object):
         self._logprob_best = None
         self._logprob = logprob
 
-    def _initial(self):
+    @property
+    def _ini(self):
         k = self._k
         if k is None:
             f = self._data.T[1]
@@ -73,7 +74,7 @@ class Fit(object):
 
     def _map(self, method='nelder-mead'):
 
-        initial = self._initial()
+        initial = self._ini
         nlp = lambda *x: -self._logprob(*x)
         args = self._args()
         res = op.minimize(nlp, initial, args=args, method=method)

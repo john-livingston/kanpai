@@ -75,7 +75,7 @@ def gr_iter(gr_vals, fp=None):
         fig, ax = pl.subplots(1, 1, figsize=(7,3))
         iterations = np.arange(len(gr_vals)).astype(int)+1
         ax.plot(iterations, gr_vals, 'k-', lw=5, alpha=0.5)
-        pl.setp(ax, xlabel='iterations', ylabel='G-R')
+        pl.setp(ax, xlabel='Iterations', ylabel='G-R')
         fig.tight_layout()
         if fp:
             fig.savefig(fp)

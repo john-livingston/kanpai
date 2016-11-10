@@ -102,9 +102,11 @@ elif not os.path.isdir(out_dir):
 
 if args.data_dir:
     setup['config']['data_dir'] = args.data_dir
-import pdb ; pdb.set_trace()
+
+
 fit = kanpai.spz.Fit(setup, out_dir, method, bin_size)
 fit.load_k2(k2_kolded_fp, pipeline, clip=clip, skip=skip, refine=refine)
 fit.max_apo()
 fit.run_mcmc(nthreads, nsteps1, nsteps2, max_steps, gr_threshold, save, restart, resume)
 fit.plot_final()
+fit.dump()

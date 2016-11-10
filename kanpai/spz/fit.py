@@ -1,10 +1,9 @@
-
-#!/usr/bin/env python
 import os
 import sys
 import yaml
 import pickle
 import functools
+from collections import OrderedDict
 
 import matplotlib.pyplot as pl
 import numpy as np
@@ -100,7 +99,6 @@ class Fit(object):
     :param str out_dir: Where to save all the output.
     :param str method: One of [base, cen, pld].
     :param int bin_size: Desired bin size for Spitzer data, in seconds.
-    :param str k2_kolded_fp: Path to phased-folded K2 light curve.
 
     setup ::
     """
@@ -118,6 +116,7 @@ class Fit(object):
         self._pv_mcmc = None
         self._lp_mcmc = None
         self._epic = int(setup['config']['star'].split('-')[1])
+        self._output = dict(method=method, bin_size=bin_size)
 
         fp = os.path.join(out_dir, 'input.yaml')
         yaml.dump(setup, open(fp, 'w'))
@@ -220,25 +219,30 @@ class Fit(object):
                 bl=baseline, skip=skip)
 
             if refine:
+
                 fit = k2_fit.Fit(tf, ff, t14=t14, p=p)
                 fit.max_apo()
-                t14 = fit.t14()
-                print "Refined transit duration: {} [days]".format(t14)
+                t14_refined = fit.t14()
                 fp = os.path.join(self._out_dir, 'k2_lc_{}-{}-fit.png'.format(epic, pipeline))
                 fit.plot(fp, lw=5, ms=10, nmodel=1000)
-                tf, ff = k2_lc.folded(epic, p, t0, t14, pipeline=pipeline,
+                tf, ff = k2_lc.folded(epic, p, t0, t14_refined, pipeline=pipeline,
                     width=width, clip=clip, bl=baseline, skip=skip)
                 pvd = fit.final()
-                t14_refined = pvd['t14']
                 i_refined = pvd['i']
-                a_refined = util.scaled_a(self._tr['p'], pvd['t14'], pvd['k'], pvd['i'])
+                k_refined = pvd['k']
+                a_refined = util.scaled_a(self._tr['p'],
+                    t14_refined, k_refined, i_refined)
                 self._tr['a'] = a_refined
                 self._tr['t14'] = t14_refined
                 self._tr['i'] = i_refined
-                print "Refined scaled semi-major axis: {}".format(a_refined)
-                print "Refined inclination [degrees]: {}".format(i_refined * 180./np.pi)
+                self._tr['k'] = k_refined
+                print "Refined transit duration (t14): {} [days]".format(t14_refined)
+                print "Refined scaled semi-major axis (a): {}".format(a_refined)
+                print "Refined radius ratio (k): {}".format(k_refined)
+                print "Refined inclination (i) [degrees]: {}".format(i_refined * 180./np.pi)
 
             elif plot:
+
                 idx = (tf < -t14/2.) | (t14/2. < tf)
                 title = "OOT std dev: {}".format(ff[idx].std())
                 fp = os.path.join(self._out_dir, 'k2_lc_{}-{}.png'.format(epic, pipeline))
@@ -249,6 +253,7 @@ class Fit(object):
             np.savetxt(k2_kolded_fp, np.c_[tf, ff], delimiter=',')
 
 
+    @property
     def _k2_sig(self):
 
         """
@@ -263,10 +268,11 @@ class Fit(object):
         return sig
 
 
+    @property
     def _spz_tc(self):
 
         """
-        Uneducated guess for Tc of Spitzer data.
+        Optimistic guess for Tc of Spitzer data.
         """
 
         t = self._df_sp['t']
@@ -274,6 +280,7 @@ class Fit(object):
         return t.mean()
 
 
+    @property
     def _spz_ts(self):
 
         """
@@ -286,13 +293,14 @@ class Fit(object):
         return t, f, s
 
 
+    @property
     def _args(self):
 
         """
         Additional arguments passed to logprob function.
         """
 
-        t, f, s = self._spz_ts()
+        t, f, s = self._spz_ts
         p = self._tr['p']
         aux = self._aux
         k2data = self._df_k2[['t','f']].values.T
@@ -301,16 +309,17 @@ class Fit(object):
         return t, f, s, p, aux, k2data, u_kep, u_spz
 
 
-    def _initial(self):
+    @property
+    def _ini(self):
 
         """
         Initial guess parameter vector.
         """
 
         n_aux = self._aux.shape[0] if self._aux is not None else 0
-        s_k = self._k2_sig()
+        s_k = self._k2_sig
         a, i, k = self._tr['a'], self._tr['i'], self._tr['k']
-        tc_s = self._spz_tc()
+        tc_s = self._spz_tc
         tc_k = 0
         u1_s, u2_s = self._u_spz[0], self._u_spz[2]
         u1_k, u2_k = self._u_kep[0], self._u_kep[2]
@@ -324,14 +333,23 @@ class Fit(object):
         return np.array(initial)
 
 
+    @property
+    def _labels(self):
+
+        labels = 'a i k_s k_k tc_s tc_k u1_s u2_s u1_k u2_k k0_s k1_s k0_k s_k'.split()
+        if self._aux is not None:
+            labels += ['c{}'.format(i) for i in range(len(self._aux))]
+
+        return labels
+
+
     def _pv_names(self, idx):
 
         """
         Parameter names for a given index.
         """
 
-        pvn = 'a i k_s k_k tc_s tc_k u1_s u2_s u1_k u2_k k0_s k1_s k0_k s_k'
-        pvna = np.array(pvn.split())
+        pvna = np.array(self._labels)
         return pvna[idx]
 
 
@@ -342,8 +360,8 @@ class Fit(object):
         """
 
         nlp = lambda *x: -self._logprob(*x)
-        initial = self._initial()
-        args = self._args()
+        initial = self._ini
+        args = self._args
         res = op.minimize(nlp, initial, args=args, method=method)
 
         return res
@@ -368,7 +386,7 @@ class Fit(object):
             map_best = np.array(results)[idx]
             lp_map = -map_best.fun
             pv_map = map_best.x
-            lp_ini = self._logprob(self._initial(), *self._args())
+            lp_ini = self._logprob(self._ini, *self._args)
             if lp_map > lp_ini:
                 self._pv_map = pv_map
                 self._lp_map = lp_map
@@ -379,15 +397,22 @@ class Fit(object):
             print "All methods failed to converge"
             return
 
-        delta = np.abs(self._initial() / self._pv_map)
+        delta = np.abs(self._ini / self._pv_map)
         threshold = 2
         idx = ( (delta > threshold) | ((delta < 1./threshold) & (delta != 0)) )
         if idx.any():
             print "WARNING -- some MAP parameters changed by more than 2x:"
             print self._pv_names(idx)
             print "Overriding MAP parameters with initial guesses"
-            self._pv_map = self._initial()
-            self._lp_map = self._logprob(self._pv_map, *self._args())
+            self._pv_map = self._ini
+            self._lp_map = self._logprob(self._pv_map, *self._args)
+
+        if 'opt' not in self._output.keys():
+            self._output['opt'] = {}
+        self._output['opt']['map'] = dict(
+            logprob=float(self._lp_map),
+            pv=dict(zip(self._labels, self._pv_map.tolist()))
+            )
 
 
     def _plot_max_apo(self):
@@ -396,9 +421,9 @@ class Fit(object):
         Plot the result of max_apo().
         """
 
-        t, f, s = self._spz_ts()
-        initial = self._initial()
-        args = self._args()
+        t, f, s = self._spz_ts
+        initial = self._ini
+        args = self._args
         alg = self._max_apo_alg
         init_sp = get_theta(initial, 'sp')
         best_sp = get_theta(self._pv_map, 'sp')
@@ -439,10 +464,10 @@ class Fit(object):
 
         out_dir = self._out_dir
 
-        args = self._args()
+        args = self._args
 
         if self._pv_map is None:
-            pv_ini = self._initial()
+            pv_ini = self._ini
             logprob_ini = self._logprob(pv_ini, *args)
         else:
             pv_ini = self._pv_map
@@ -476,16 +501,14 @@ class Fit(object):
 
         sampler = EnsembleSampler(nwalkers, ndim, logprob,
             args=args, threads=nthreads)
-        pos0 = sample_ball(pv_ini, [1e-4]*ndim, nwalkers)
+        pos0 = sample_ball(pv_ini, [1e-4]*ndim, nwalkers) # FIXME use individual sigmas
         pos0[13] = np.abs(pos0[13])
 
         print "\nstage 1"
         for pos,_,_ in tqdm(sampler.sample(pos0, iterations=nsteps1)):
             pass
 
-        labels = 'a,i,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k0_s,k1_s,k0_k,s_k'.split(',')
-        if self._aux is not None:
-            labels += ['c{}'.format(i) for i in range(len(self._aux))]
+        labels = self._labels
         fp = os.path.join(out_dir, 'chain-initial.png')
         plot.chain(sampler.chain, labels, fp)
 
@@ -493,7 +516,7 @@ class Fit(object):
         new_best = sampler.flatchain[idx]
         new_prob = sampler.lnprobability.flat[idx]
         best = new_best if new_prob > logprob_ini else pv_ini
-        pos = sample_ball(best, [1e-6]*ndim, nwalkers)
+        pos = sample_ball(best, [1e-6]*ndim, nwalkers) # FIXME use individual sigmas
         pos[13] = np.abs(pos[13])
         sampler.reset()
 
@@ -543,18 +566,16 @@ class Fit(object):
                 gelman_rubin=np.array(gr_vals)
                 )
 
-        fp = os.path.join(out_dir, 'opt.txt')
-        with open(fp, 'w') as o:
-            o.write("MAP log prob: {}".format(self._lp_map))
-            o.write("\n\tparams: ")
-            o.write(' '.join([str(i) for i in self._pv_map]))
-            o.write("\nMCMC log prob: {}".format(self._lp_mcmc))
-            o.write("\n\tparams: ")
-            o.write(' '.join([str(i) for i in self._pv_mcmc]))
+        if 'opt' not in self._output.keys():
+            self._output['opt'] = {}
+        self._output['opt']['mcmc'] = dict(
+            logprob=float(self._lp_mcmc),
+            pv=dict(OrderedDict(zip(self._labels, self._pv_mcmc.tolist())))
+            )
 
         best_sp = get_theta(self._pv_mcmc, 'sp')
         mod_full = spz_model(best_sp, *args[:-3])
-        t, f, s = self._spz_ts()
+        t, f, s = self._spz_ts
         sys = spz_model(best_sp, *args[:-3], ret_sys=True)
         f_cor = f - sys
         mod_transit = spz_model(best_sp, *args[:-3], ret_ma=True)
@@ -565,25 +586,45 @@ class Fit(object):
         timestep = np.median(np.diff(t)) * 86400
         rms = util.rms(resid)
         beta = util.beta(resid, timestep)
+        acor = sampler.acor
+        rchisq = None # FIXME
         print "RMS: {}".format(rms)
         print "Beta: {}".format(beta)
-        fp = os.path.join(out_dir, 'stats.txt')
-        with open(fp, 'w') as o:
-            o.write("Method: {}\n".format(self._method))
-            o.write("RMS: {}\n".format(rms))
-            o.write("Beta: {}\n".format(beta))
+        self._output['stats'] = dict(rms=float(rms),
+            beta=float(beta),
+            reduced_chisq=rchisq,
+            acor=dict(zip(self._labels, acor.tolist())),
+            gr=dict(zip(self._labels, gr_vals[-1].tolist()))
+            )
 
         if self._lp_mcmc > self._lp_map:
             best = self._pv_mcmc
         else:
             best = self._pv_map
         best_sp = get_theta(best, 'sp')
+        self._update_df_sp(best_sp)
+        fp = os.path.join(out_dir, 'spz.csv')
+        self._df_sp.to_csv(fp, index=False)
+
+
+    def _update_df_sp(self, best_sp):
+
+        args = self._args
         sys = spz_model(best_sp, *args[:-3], ret_sys=True)
         self._df_sp['f_cor'] = self._df_sp['f'] - sys
         resid = self._df_sp['f'] - spz_model(best_sp, *args[:-3])
         self._df_sp['resid'] = resid
-        fp = os.path.join(out_dir, 'spz.csv')
-        self._df_sp.to_csv(fp, index=False)
+
+
+    def dump(self):
+
+        self._output['ini'] = {}
+        for k,v in self._tr.items():
+            if k == 'u':
+                continue
+            self._output['ini'][k] = float(v)
+        fp = os.path.join(self._out_dir, 'output.yaml')
+        yaml.dump(self._output, open(fp, 'w'), default_flow_style=False)
 
 
     def plot_final(self):
@@ -596,8 +637,8 @@ class Fit(object):
             fp = os.path.join(self._out_dir, 'spz.csv')
             self._df_sp = pd.read_csv(fp)
 
-        t, f, s = self._spz_ts()
-        args = self._args()
+        t, f, s = self._spz_ts
+        args = self._args
         fc = self._fc
         tc = np.median(fc[:,4])
         df_sp = self._df_sp
