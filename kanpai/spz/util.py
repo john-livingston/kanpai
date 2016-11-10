@@ -58,7 +58,7 @@ def get_ld(teff, uteff, logg, ulogg):
 
     u_kep = u_kep.tolist()
     u_spz = u_spz.tolist()
-    print "uncertainty multiplier needed: {}".format(mult)
+    print "\nUncertainty multiplier needed: {}".format(mult)
     print "Kepler u1: {0:.4f}+/-{1:.4f}, u2: {2:.4f}+/-{3:.4f}".format(*u_kep)
     print "Spitzer u1: {0:.4f}+/-{1:.4f}, u2: {2:.4f}+/-{3:.4f}".format(*u_spz)
 

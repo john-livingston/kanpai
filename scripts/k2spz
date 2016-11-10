@@ -9,34 +9,34 @@ matplotlib.use('Agg')
 import kanpai
 
 
-K2_TIME_OFFSET = 2454833
-
 parser = argparse.ArgumentParser(description="Simultaneously fit"
     " K2 and Spitzer data")
 parser.add_argument('input', help='path to input yaml file', type=str)
-parser.add_argument('-k', '--k2', help='k2 folded lc file',
-    type=str, default=None)
 parser.add_argument('-o', '--out_dir', help='output dir',
     type=str, default=None)
 parser.add_argument('-d', '--data_dir', help='dir containing *_phot.pkl',
     type=str, default=None)
-parser.add_argument('-b', '--bin_size', help='bin size for'
+parser.add_argument('--k2_fp', help='k2 folded lc file',
+    type=str, default=None)
+parser.add_argument('--bin_size', help='bin size for'
     ' Spitzer data [seconds]', type=int, default=60)
-parser.add_argument('-c', '--clobber', dest='clobber', help='overwrite',
+parser.add_argument('--clobber', dest='clobber', help='overwrite',
     action='store_true')
-parser.add_argument('-s', '--save', dest='save', help='save MCMC samples',
+parser.add_argument('--save', dest='save', help='save MCMC samples',
     action='store_true')
-parser.add_argument('-r', '--restart', dest='restart', help='restart MCMC',
+parser.add_argument('--restart', dest='restart', help='restart MCMC',
     action='store_true')
-parser.add_argument('-m', '--method', type=str, default='base',
+parser.add_argument('--resume', dest='resume', help='resume MCMC'
+    ' from previous best position', action='store_true')
+parser.add_argument('--method', type=str, default='base',
     help='detrending method to use (base, cen, pld)')
 parser.add_argument('--nthreads', type=int, default=4,
     help='number of threads (processes) to use for MCMC')
-parser.add_argument('--nsteps1', type=int, default=1000,
+parser.add_argument('--nsteps1', type=int, default=2000,
     help='number of initialization MCMC steps')
-parser.add_argument('--nsteps2', type=int, default=1000,
+parser.add_argument('--nsteps2', type=int, default=2000,
     help='number of production MCMC steps')
-parser.add_argument('--max_steps', type=int, default=10000,
+parser.add_argument('--max_steps', type=int, default=20000,
     help='maximum number of MCMC steps')
 parser.add_argument('--gr_threshold', type=float, default=1.1,
     help='Gelmin-Rubin threshold')
@@ -49,7 +49,7 @@ parser.add_argument('--clip', help='sigma clip (upper, lower)',
 parser.add_argument('--refine', dest='refine', action='store_true',
     help='refine transit duration')
 
-parser.set_defaults(clobber=False, save=False, restart=False, refine=False)
+parser.set_defaults(clobber=False, save=False, restart=False, resume=False, refine=False)
 
 args = parser.parse_args()
 
@@ -65,6 +65,8 @@ max_steps = args.max_steps
 gr_threshold = args.gr_threshold
 nthreads = args.nthreads
 restart = args.restart
+resume = args.resume
+k2_kolded_fp = args.k2_fp
 pipeline = args.pipeline
 refine = args.refine
 
@@ -90,8 +92,8 @@ else:
     out_dir = setup['config']['star']
     if 'planet' in setup['config'].keys():
         out_dir += setup['config']['planet']
-    out_dir += '-{}'.format(method)
     out_dir += '-{}'.format(pipeline)
+    out_dir += '-{}'.format(method)
 
 if os.path.isdir(out_dir) and not clobber:
     raise IOError("Output directory exists and clobber set to False")
@@ -100,19 +102,9 @@ elif not os.path.isdir(out_dir):
 
 if args.data_dir:
     setup['config']['data_dir'] = args.data_dir
-
-if args.k2:
-    k2_kolded_fp = args.k2
-else:
-    import numpy as np
-    epic = int(setup['config']['star'].split('-')[1])
-    p, t0, t14 = tr['p'], tr['t0'], tr['t14']
-    t0 -= K2_TIME_OFFSET
-    width = t14*4 if t14 > 0.2 else 0.8
-    tf, ff = kanpai.k2.lc.folded(epic, p, t0, t14, pipeline=pipeline,
-        width=width, clip=clip, bl=True, skip=skip, refine=refine)
-    k2_kolded_fp = os.path.join(out_dir, 'k2_lc_{}.csv'.format(epic))
-    np.savetxt(k2_kolded_fp, np.c_[tf, ff], delimiter=',')
-
-kanpai.spz.go(setup, method, bin_size, nsteps1, nsteps2, max_steps,
-    gr_threshold, out_dir, save, nthreads, k2_kolded_fp, restart)
+import pdb ; pdb.set_trace()
+fit = kanpai.spz.Fit(setup, out_dir, method, bin_size)
+fit.load_k2(k2_kolded_fp, pipeline, clip=clip, skip=skip, refine=refine)
+fit.max_apo()
+fit.run_mcmc(nthreads, nsteps1, nsteps2, max_steps, gr_threshold, save, restart, resume)
+fit.plot_final()

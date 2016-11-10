@@ -14,6 +14,7 @@ PIPELINES = 'everest k2sff k2sc'.split()
 def folded(epic, p, t0, t14, pipeline='everest',
     width=0.8, clip=False, bl=False, skip=None, refine=False):
 
+    epic = int(epic)
     if pipeline == 'everest':
         star = Everest(epic)
         star.set_mask(transits = [(p, t0, t14)])
@@ -25,7 +26,7 @@ def folded(epic, p, t0, t14, pipeline='everest',
         star = kplr.K2SC(epic)
         t, f = star.time, star.pdcflux
     else:
-        raise ValueError('pipeline must be one of: {}'.format(PIPELINES))
+        raise ValueError('Pipeline must be one of: {}'.format(PIPELINES))
 
     idx = np.isnan(t) | np.isnan(f)
     t, f = t[~idx], f[~idx]
@@ -38,6 +39,6 @@ def folded(epic, p, t0, t14, pipeline='everest',
         t14 = fit.t14()
         tf, ff = util.fold(t, f, p, t0, t14=t14,
             width=width, clip=clip, bl=bl, skip=skip)
-        print "refined transit duration: {} [days]".format(t14)
+        print "Refined transit duration: {} [days]".format(t14)
 
     return tf, ff

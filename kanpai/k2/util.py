@@ -65,8 +65,8 @@ def fold(t, f, p, t0, width=0.8, clip=False, bl=False, t14=0.2, skip=None):
                 res = sm.RLM(fi[idx], sm.add_constant(ti[idx])).fit()
 
                 if np.abs(res.params[1]) > 1e-2:
-                    print "bad data probably causing poor fit"
-                    print "transit {} baseline params: {}".format(i, res.params)
+                    print "Bad data possibly causing poor fit"
+                    print "Transit {} baseline params: {}".format(i, res.params)
                     continue
 
                 model = res.params[0] + res.params[1] * ti
@@ -74,8 +74,8 @@ def fold(t, f, p, t0, width=0.8, clip=False, bl=False, t14=0.2, skip=None):
 
             except:
 
-                print "error computing baseline for transit {}".format(i)
-                print "num. points: {}".format(idx.sum())
+                print "Error computing baseline for transit {}".format(i)
+                print "Num. datapoints: {}".format(idx.sum())
                 print ti
 
         tf = np.append(tf, ti)
@@ -87,7 +87,7 @@ def fold(t, f, p, t0, width=0.8, clip=False, bl=False, t14=0.2, skip=None):
 
     if clip:
         fc = sigma_clip(ff, sigma_upper=clip[0], sigma_lower=clip[1])
-        print "clipped {} outliers".format(fc.mask.sum())
+        print "Clipped {} outliers".format(fc.mask.sum())
         tf, ff = tf[~fc.mask], ff[~fc.mask]
 
     idx = (tf < -t14/2.) | (t14/2. < tf)

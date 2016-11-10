@@ -8,8 +8,10 @@ from corner import corner as triangle
 def errorbar(t, f, s, fp=None, **kwargs):
     with sb.axes_style('white'):
         fig, ax = pl.subplots(1, 1, figsize=(10,3))
-        ax.errorbar(t, f, s, marker='o', linestyle='none', **kwargs)
-        pl.setp(ax, xlim=[t.min(), t.max()])
+        ax.errorbar(t, f, s, marker='o', color='b', linestyle='none', **kwargs)
+        pl.setp(ax, xlim=[t.min(), t.max()], xlabel='Time [BJD]',
+            ylabel='Normalized flux')
+        fig.tight_layout()
         if fp:
             fig.savefig(fp)
             pl.close()
@@ -18,7 +20,10 @@ def errorbar(t, f, s, fp=None, **kwargs):
 def pixels(pix, fp=None):
     with sb.axes_style('white'):
         fig, ax = pl.subplots(1, 1, figsize=(5,5))
-        pl.imshow(pix, interpolation='none')
+        ax.imshow(pix, interpolation='none')
+        ax.xaxis.set_visible(False)
+        ax.yaxis.set_visible(False)
+        fig.tight_layout()
         if fp:
             fig.savefig(fp)
             pl.close()
@@ -30,7 +35,9 @@ def centroids(t, x, y, fp=None):
         ax.plot(t, x, label='x', color='b')
         ax.plot(t, y, label='y', color='r')
         ax.legend()
-        pl.setp(ax, xlim=[t.min(), t.max()])
+        pl.setp(ax, xlim=[t.min(), t.max()], xlabel='Time [BJD]',
+            ylabel='Centroid')
+        fig.tight_layout()
         if fp:
             fig.savefig(fp)
             pl.close()
@@ -40,8 +47,9 @@ def simple_ts(t, f, fp=None, **kwargs):
     with sb.axes_style('white'):
         fig, ax = pl.subplots(1, 1, figsize=(10,3))
         ax.plot(t, f, 'bo', **kwargs)
-        pl.setp(ax, xlabel='Time [days]',
-            ylabel='Normalized Flux')
+        pl.setp(ax, xlim=[t.min(), t.max()], xlabel='Time [BJD]',
+            ylabel='Normalized flux')
+        fig.tight_layout()
         if fp:
             fig.savefig(fp)
             pl.close()
@@ -65,7 +73,8 @@ def corrected_ts(t, f, f_cor, mod_full, mod_ma, resid, fp=None):
 def gr_iter(gr_vals, fp=None):
     with sb.axes_style('white'):
         fig, ax = pl.subplots(1, 1, figsize=(7,3))
-        ax.plot(gr_vals, 'k-')
+        iterations = np.arange(len(gr_vals)).astype(int)+1
+        ax.plot(iterations, gr_vals, 'k-', lw=5, alpha=0.5)
         pl.setp(ax, xlabel='iterations', ylabel='G-R')
         fig.tight_layout()
         if fp:

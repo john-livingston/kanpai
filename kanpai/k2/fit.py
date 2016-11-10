@@ -70,6 +70,7 @@ class Fit(object):
         p = self._p
         return t, f, p
 
+
     def _map(self, method='nelder-mead'):
 
         initial = self._initial()
@@ -79,11 +80,12 @@ class Fit(object):
         return res
 
     def max_apo(self, methods=('nelder-mead', 'powell')):
+        print "Attempting maximum a posteriori optimization"
         results = []
         for method in methods:
             res = self._map(method=method)
             if res.success:
-                print "{} negative log probability: {}".format(method, res.fun)
+                print "Log probability ({}): {}".format(method, -res.fun)
                 results.append(res)
         if len(results) > 0:
             idx = np.argmin([r.fun for r in results])
@@ -124,3 +126,8 @@ class Fit(object):
         idx = mi < 1
         t14 = ti[idx][-1] - ti[idx][0]
         return t14
+
+
+    def final(self):
+        keys = 'k tc t14 i u k0 sig'.split()
+        return dict(zip(keys, self._pv_best))

@@ -9,7 +9,6 @@ import functools
 import matplotlib.pyplot as pl
 import numpy as np
 np.warnings.simplefilter('ignore')
-
 import pandas as pd
 import scipy.optimize as op
 from scipy import stats
@@ -24,11 +23,16 @@ import sxp
 from pytransit import MandelAgol
 
 from ..k2 import loglike1 as k2_loglike
+from ..k2 import lc as k2_lc
+from ..k2 import fit as k2_fit
+from ..k2 import plot as k2_plot
 from like import loglike as spz_loglike
 from like import model as spz_model
 import util
 import plot
 
+
+K2_TIME_OFFSET = 2454833
 
 METHODS = 'cen pld base'.split()
 
@@ -75,10 +79,10 @@ def logprob(theta, t, f, s, p, aux, k2data, u_kep, u_spz):
 
 def get_theta(theta, sub):
 
-    a,i,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k0_s,k1_s,k0_k,s2_k = theta[:14]
+    a,i,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k0_s,k1_s,k0_k,s_k = theta[:14]
     theta_aux = theta[14:]
     theta_sp = [k_s,tc_s,a,i,u1_s,u2_s,k0_s,k1_s] + theta_aux.tolist()
-    theta_k2 =  k_k,tc_k,a,i,u1_k,u2_k,k0_k,s2_k
+    theta_k2 =  k_k,tc_k,a,i,u1_k,u2_k,k0_k,s_k
 
     if sub == 'sp':
         return theta_sp
@@ -101,25 +105,31 @@ class Fit(object):
     setup ::
     """
 
-    def __init__(self, setup, out_dir, method='base', bin_size=60, k2_kolded_fp=None):
+    def __init__(self, setup, out_dir, method='base', bin_size=60):
 
         self._setup = setup
         self._out_dir = out_dir
         self._tr  = setup['transit']
-        self._pv_best_map = None
-        self._logprob_best_map = None
-        self._pv_best_mcmc = None
-        self._logprob_best_mcmc = None
         self._logprob = logprob
         self._method = method
+        self._pv_map = None
+        self._lp_map = None
+        self._max_apo_alg = None
+        self._pv_mcmc = None
+        self._lp_mcmc = None
+        self._epic = int(setup['config']['star'].split('-')[1])
 
         fp = os.path.join(out_dir, 'input.yaml')
         yaml.dump(setup, open(fp, 'w'))
 
         if self._tr['i'] > np.pi/2.:
             self._tr['i'] = np.pi - self._tr['i']
+        print "\nInitial parameter values:"
         for k,v in self._tr.items():
-            print "{} = {}".format(k,v)
+            if k == 'i':
+                print "{} = {}".format(k,v * 180./np.pi)
+            else:
+                print "{} = {}".format(k,v)
 
         # setup limb darkening priors
         teff, uteff = setup['stellar']['teff']
@@ -127,6 +137,7 @@ class Fit(object):
         self._u_kep, self._u_spz = util.get_ld(teff, uteff, logg, ulogg)
 
         # load spitzer data
+        print "\nLoading Spitzer data"
         self._radius = setup['config']['radius']
         self._aor = setup['config']['aor']
         self._data_dir = setup['config']['data_dir']
@@ -163,22 +174,13 @@ class Fit(object):
 
         # compute and plot centroids
         cx, cy = centroid_2dg(cubestacked)
-        print "cube centroids: {}, {}".format(cx, cy)
+        print "Cube centroids: {}, {}".format(cx, cy)
         cx, cy = map(int, map(round, [cx, cy]))
 
         self._xy = np.array([centroid_com(i) for i in cube])
         x, y = self._xy.T
         fp = os.path.join(out_dir, 'spz_cen.png')
         plot.centroids(t, x, y, fp)
-
-        # load k2 data
-        names = open(k2_kolded_fp).readline().split(',')
-        if len(names) == 3:
-            self._df_k2 = pd.read_csv(k2_kolded_fp, names='t f s'.split())
-        else:
-            self._df_k2 = pd.read_csv(k2_kolded_fp, names='t f'.split())
-        fp = os.path.join(out_dir, 'k2_folded.png')
-        plot.simple_ts(self._df_k2.t, self._df_k2.f, fp, color='b')
 
         # set up auxiliary regressors
         if method == 'cen':
@@ -189,6 +191,62 @@ class Fit(object):
             self._aux = None
         else:
             raise ValueError('method must be one of: {}'.format(METHODS))
+
+
+    def load_k2(self, k2_folded_fp=None, pipeline=None, width=None, clip=False,
+        baseline=True, skip=None, refine=False, plot=True):
+
+        if k2_folded_fp is not None:
+
+            print "\nLoading K2 data from file: {}".format(k2_folded_fp)
+            names = open(k2_kolded_fp).readline().split(',')
+            if len(names) == 3:
+                self._df_k2 = pd.read_csv(k2_kolded_fp, names='t f s'.split())
+            else:
+                self._df_k2 = pd.read_csv(k2_kolded_fp, names='t f'.split())
+
+        else:
+
+            assert pipeline is not None
+            print "\nLoading K2 data from {} pipeline".format(pipeline)
+            self._pipeline = pipeline
+            epic = self._epic
+            p, t0, t14 = self._tr['p'], self._tr['t0'], self._tr['t14']
+            t0 -= K2_TIME_OFFSET
+            if width is None:
+                width = t14*4 if t14 > 0.2 else 0.8
+            tf, ff = k2_lc.folded(epic, p, t0, t14,
+                pipeline=pipeline, width=width, clip=clip,
+                bl=baseline, skip=skip)
+
+            if refine:
+                fit = k2_fit.Fit(tf, ff, t14=t14, p=p)
+                fit.max_apo()
+                t14 = fit.t14()
+                print "Refined transit duration: {} [days]".format(t14)
+                fp = os.path.join(self._out_dir, 'k2_lc_{}-{}-fit.png'.format(epic, pipeline))
+                fit.plot(fp, lw=5, ms=10, nmodel=1000)
+                tf, ff = k2_lc.folded(epic, p, t0, t14, pipeline=pipeline,
+                    width=width, clip=clip, bl=baseline, skip=skip)
+                pvd = fit.final()
+                t14_refined = pvd['t14']
+                i_refined = pvd['i']
+                a_refined = util.scaled_a(self._tr['p'], pvd['t14'], pvd['k'], pvd['i'])
+                self._tr['a'] = a_refined
+                self._tr['t14'] = t14_refined
+                self._tr['i'] = i_refined
+                print "Refined scaled semi-major axis: {}".format(a_refined)
+                print "Refined inclination [degrees]: {}".format(i_refined * 180./np.pi)
+
+            elif plot:
+                idx = (tf < -t14/2.) | (t14/2. < tf)
+                title = "OOT std dev: {}".format(ff[idx].std())
+                fp = os.path.join(self._out_dir, 'k2_lc_{}-{}.png'.format(epic, pipeline))
+                k2_plot.simple_ts(tf, ff, fp=fp, title=title, lw=5, ms=10)
+
+            self._df_k2 = pd.DataFrame(dict(t=tf, f=ff))
+            k2_kolded_fp = os.path.join(self._out_dir, 'k2_lc_{}.csv'.format(epic))
+            np.savetxt(k2_kolded_fp, np.c_[tf, ff], delimiter=',')
 
 
     def _k2_sig(self):
@@ -266,6 +324,17 @@ class Fit(object):
         return np.array(initial)
 
 
+    def _pv_names(self, idx):
+
+        """
+        Parameter names for a given index.
+        """
+
+        pvn = 'a i k_s k_k tc_s tc_k u1_s u2_s u1_k u2_k k0_s k1_s k0_k s_k'
+        pvna = np.array(pvn.split())
+        return pvna[idx]
+
+
     def _map(self, method='nelder-mead'):
 
         """
@@ -280,29 +349,48 @@ class Fit(object):
         return res
 
 
-    def max_apo(self, methods=('nelder-mead', 'powell')):
+    def max_apo(self, methods=('nelder-mead', 'powell'), plot=True):
 
         """
         Attempt maximum a posteriori model fit using both Powell and Nelder-Mead.
         """
 
+        print "\nAttempting maximum a posteriori optimization"
         results = []
         for method in methods:
             res = self._map(method=method)
             if res.success:
-                print "{} negative log probability: {}".format(method, res.fun)
+                print "Log probability ({}): {}".format(method, -res.fun)
                 results.append(res)
+
         if len(results) > 0:
             idx = np.argmin([r.fun for r in results])
             map_best = np.array(results)[idx]
-            self._pv_best_map = map_best.x
-            self._logprob_best_map = -map_best.fun
-            self._max_apo_alg = np.array(methods)[idx]
+            lp_map = -map_best.fun
+            pv_map = map_best.x
+            lp_ini = self._logprob(self._initial(), *self._args())
+            if lp_map > lp_ini:
+                self._pv_map = pv_map
+                self._lp_map = lp_map
+                self._max_apo_alg = np.array(methods)[idx]
+                if plot:
+                    self._plot_max_apo()
         else:
-            print "All methods failed to converge."
+            print "All methods failed to converge"
+            return
+
+        delta = np.abs(self._initial() / self._pv_map)
+        threshold = 2
+        idx = ( (delta > threshold) | ((delta < 1./threshold) & (delta != 0)) )
+        if idx.any():
+            print "WARNING -- some MAP parameters changed by more than 2x:"
+            print self._pv_names(idx)
+            print "Overriding MAP parameters with initial guesses"
+            self._pv_map = self._initial()
+            self._lp_map = self._logprob(self._pv_map, *self._args())
 
 
-    def plot_max_apo(self, fp=None):
+    def _plot_max_apo(self):
 
         """
         Plot the result of max_apo().
@@ -313,7 +401,7 @@ class Fit(object):
         args = self._args()
         alg = self._max_apo_alg
         init_sp = get_theta(initial, 'sp')
-        best_sp = get_theta(self._pv_best_map, 'sp')
+        best_sp = get_theta(self._pv_map, 'sp')
 
         init_model = spz_model(init_sp, *args[:-3])
         max_apo_model = spz_model(best_sp, *args[:-3])
@@ -337,14 +425,13 @@ class Fit(object):
             pl.setp(axs[1], title='corrected')
 
             fig.tight_layout()
-            if fp is None:
-                fp = os.path.join(self._out_dir, 'fit-map.png')
+            fp = os.path.join(self._out_dir, 'fit-map.png')
             fig.savefig(fp)
             pl.close()
 
 
     def run_mcmc(self, nthreads=4, nsteps1=1000, nsteps2=1000, max_steps=1e4,
-        gr_threshold=1.1, save=False, restart=False):
+        gr_threshold=1.1, save=False, restart=False, resume=False):
 
         """
         Run MCMC.
@@ -352,120 +439,144 @@ class Fit(object):
 
         out_dir = self._out_dir
 
-        ndim = len(self._pv_best_map)
-        nwalkers = 8 * ndim if ndim > 12 else 16 * ndim
-        print "{} walkers exploring {} dimensions".format(nwalkers, ndim)
-
         args = self._args()
 
-        fp = os.path.join(out_dir, 'flatchain.npz')
-        if os.path.isfile(fp) and not restart:
-
-            print "using chain from previous run"
-            npz = np.load(fp)
-            self._fc = npz['flat_chain']
-            self._pv_best_mcmc = npz['pv_best']
-            self._logprob_best_mcmc = npz['logprob_best']
-
+        if self._pv_map is None:
+            pv_ini = self._initial()
+            logprob_ini = self._logprob(pv_ini, *args)
         else:
+            pv_ini = self._pv_map
+            logprob_ini = self._lp_map
 
-            sampler = EnsembleSampler(nwalkers, ndim, logprob,
-                args=args, threads=nthreads)
-            pos0 = sample_ball(self._pv_best_map, [1e-5]*ndim, nwalkers)
-            pos0[13] = np.abs(pos0[13])
+        ndim = len(pv_ini)
+        nwalkers = 8 * ndim if ndim > 12 else 16 * ndim
+        print "\nRunning MCMC"
+        print "{} walkers exploring {} dimensions".format(nwalkers, ndim)
 
-            print "\nstage 1"
-            for pos,_,_ in tqdm(sampler.sample(pos0, iterations=nsteps1)):
+
+        fp = os.path.join(out_dir, 'mcmc.npz')
+        if os.path.isfile(fp):
+
+            if resume:
+
+                print "Resuming from previous best position"
+                npz = np.load(fp)
+                pv_ini = npz['pv_best']
+                logprob_ini = npz['logprob_best']
+
+            elif not restart:
+
+                print "Loading chain from previous run"
+                npz = np.load(fp)
+                self._fc = npz['flat_chain']
+                self._pv_mcmc = npz['pv_best']
+                self._lp_mcmc = npz['logprob_best']
+
+                return
+
+        sampler = EnsembleSampler(nwalkers, ndim, logprob,
+            args=args, threads=nthreads)
+        pos0 = sample_ball(pv_ini, [1e-4]*ndim, nwalkers)
+        pos0[13] = np.abs(pos0[13])
+
+        print "\nstage 1"
+        for pos,_,_ in tqdm(sampler.sample(pos0, iterations=nsteps1)):
+            pass
+
+        labels = 'a,i,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k0_s,k1_s,k0_k,s_k'.split(',')
+        if self._aux is not None:
+            labels += ['c{}'.format(i) for i in range(len(self._aux))]
+        fp = os.path.join(out_dir, 'chain-initial.png')
+        plot.chain(sampler.chain, labels, fp)
+
+        idx = np.argmax(sampler.lnprobability)
+        new_best = sampler.flatchain[idx]
+        new_prob = sampler.lnprobability.flat[idx]
+        best = new_best if new_prob > logprob_ini else pv_ini
+        pos = sample_ball(best, [1e-6]*ndim, nwalkers)
+        pos[13] = np.abs(pos[13])
+        sampler.reset()
+
+        print "\nstage 2"
+        nsteps = 0
+        gr_vals = []
+        while nsteps < max_steps:
+            for pos,_,_ in tqdm(sampler.sample(pos, iterations=nsteps2)):
                 pass
+            nsteps += nsteps2
+            gr = util.gelman_rubin(sampler.chain)
+            gr_vals.append(gr)
+            msg = "After {} steps\n  Mean G-R: {}\n  Max G-R: {}"
+            print msg.format(nsteps, gr.mean(), gr.max())
+            if (gr < gr_threshold).all():
+                break
 
-            labels = 'a,i,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k0_s,k1_s,k0_k,s_k'.split(',')
-            if self._aux is not None:
-                labels += ['c{}'.format(i) for i in range(len(self._aux))]
-            fp = os.path.join(out_dir, 'chain-initial.png')
-            plot.chain(sampler.chain, labels, fp)
+        idx = gr_vals[-1] >= gr_threshold
+        if idx.any():
+            print "WARNING -- some parameters failed to converge below threshold:"
+            print self._pv_names(idx)
 
-            idx = np.argmax(sampler.lnprobability)
-            new_best = sampler.flatchain[idx]
-            new_prob = sampler.lnprobability.flat[idx]
-            best = new_best if new_prob > self._logprob_best_map else self._pv_best_map
-            pos = sample_ball(best, [1e-5]*ndim, nwalkers)
-            sampler.reset()
-            print "\nstage 2"
+        fp = os.path.join(out_dir, 'gr.png')
+        plot.gr_iter(gr_vals, fp)
 
-            nsteps = 0
-            gr_vals = []
-            while nsteps < max_steps:
-                for pos,_,_ in tqdm(sampler.sample(pos, iterations=nsteps2)):
-                    pass
-                nsteps += nsteps2
-                gr = util.gelman_rubin(sampler.chain)
-                gr_vals.append(gr)
-                msg = "After {} steps\n\tMean G-R: {}\n\tMax G-R: {}"
-                print msg.format(nsteps, gr.mean(), gr.max())
-                if (gr < gr_threshold).all():
-                    break
+        fp = os.path.join(out_dir, 'chain.png')
+        plot.chain(sampler.chain, labels, fp)
 
-            fp = os.path.join(out_dir, 'gr.png')
-            plot.gr_iter(gr_vals, fp)
+        burn = nsteps - nsteps2 if nsteps > nsteps2 else 0
+        thin = 1
+        self._fc = sampler.chain[:,burn::thin,:].reshape(-1, ndim)
+        fp = os.path.join(out_dir, 'corner.png')
+        plot.corner(self._fc, labels, fp)
 
-            fp = os.path.join(out_dir, 'chain.png')
-            plot.chain(sampler.chain, labels, fp)
+        self._lp_mcmc = sampler.lnprobability.flatten().max()
+        idx = np.argmax(sampler.lnprobability)
+        assert sampler.lnprobability.flat[idx] == self._lp_mcmc
+        self._pv_mcmc = sampler.flatchain[idx]
 
-            burn = nsteps - nsteps2 if nsteps > nsteps2 else 0
-            thin = 1
-            self._fc = sampler.chain[:,burn::thin,:].reshape(-1, ndim)
-            fp = os.path.join(out_dir, 'corner.png')
-            plot.corner(self._fc, labels, fp)
+        if save:
+            fp = os.path.join(out_dir, 'mcmc')
+            np.savez_compressed(
+                fp,
+                flat_chain=self._fc,
+                logprob_best=self._lp_mcmc,
+                pv_best=self._pv_mcmc,
+                gelman_rubin=np.array(gr_vals)
+                )
 
-            self._logprob_best_mcmc = sampler.lnprobability.flatten().max()
-            idx = np.argmax(sampler.lnprobability)
-            assert sampler.lnprobability.flat[idx] == self._logprob_best_mcmc
-            self._pv_best_mcmc = sampler.flatchain[idx]
+        fp = os.path.join(out_dir, 'opt.txt')
+        with open(fp, 'w') as o:
+            o.write("MAP log prob: {}".format(self._lp_map))
+            o.write("\n\tparams: ")
+            o.write(' '.join([str(i) for i in self._pv_map]))
+            o.write("\nMCMC log prob: {}".format(self._lp_mcmc))
+            o.write("\n\tparams: ")
+            o.write(' '.join([str(i) for i in self._pv_mcmc]))
 
-            if save:
-                fp = os.path.join(out_dir, 'flatchain')
-                np.savez_compressed(
-                    fp,
-                    flat_chain=self._fc,
-                    logprob_best=self._logprob_best_mcmc,
-                    pv_best=self._pv_best_mcmc,
-                    gelman_rubin=np.array(gr_vals)
-                    )
+        best_sp = get_theta(self._pv_mcmc, 'sp')
+        mod_full = spz_model(best_sp, *args[:-3])
+        t, f, s = self._spz_ts()
+        sys = spz_model(best_sp, *args[:-3], ret_sys=True)
+        f_cor = f - sys
+        mod_transit = spz_model(best_sp, *args[:-3], ret_ma=True)
+        resid = f - spz_model(best_sp, *args[:-3])
+        fp = os.path.join(out_dir, 'fit-mcmc-best.png')
+        plot.corrected_ts(t, f, f_cor, mod_full, mod_transit, resid, fp)
 
-            fp = os.path.join(out_dir, 'opt.txt')
-            with open(fp, 'w') as o:
-                o.write("MAP log prob: {}".format(self._logprob_best_map))
-                o.write("\n\tparams: ")
-                o.write(' '.join([str(i) for i in self._pv_best_map]))
-                o.write("\nMCMC log prob: {}".format(self._logprob_best_mcmc))
-                o.write("\n\tparams: ")
-                o.write(' '.join([str(i) for i in self._pv_best_mcmc]))
+        timestep = np.median(np.diff(t)) * 86400
+        rms = util.rms(resid)
+        beta = util.beta(resid, timestep)
+        print "RMS: {}".format(rms)
+        print "Beta: {}".format(beta)
+        fp = os.path.join(out_dir, 'stats.txt')
+        with open(fp, 'w') as o:
+            o.write("Method: {}\n".format(self._method))
+            o.write("RMS: {}\n".format(rms))
+            o.write("Beta: {}\n".format(beta))
 
-            best_sp = get_theta(self._pv_best_mcmc, 'sp')
-            mod_full = spz_model(best_sp, *args[:-3])
-            t, f, s = self._spz_ts()
-            sys = spz_model(best_sp, *args[:-3], ret_sys=True)
-            f_cor = f - sys
-            mod_transit = spz_model(best_sp, *args[:-3], ret_ma=True)
-            resid = f - spz_model(best_sp, *args[:-3])
-            fp = os.path.join(out_dir, 'fit-mcmc-best.png')
-            plot.corrected_ts(t, f, f_cor, mod_full, mod_transit, resid, fp)
-
-            timestep = np.median(np.diff(t)) * 86400
-            rms = util.rms(resid)
-            beta = util.beta(resid, timestep)
-            print "RMS: {}".format(rms)
-            print "Beta: {}".format(beta)
-            fp = os.path.join(out_dir, 'stats.txt')
-            with open(fp, 'w') as o:
-                o.write("Method: {}\n".format(self._method))
-                o.write("RMS: {}\n".format(rms))
-                o.write("Beta: {}\n".format(beta))
-
-        if self._logprob_best_mcmc > self._logprob_best_map:
-            best = self._pv_best_mcmc
+        if self._lp_mcmc > self._lp_map:
+            best = self._pv_mcmc
         else:
-            best = self._pv_best_map
+            best = self._pv_map
         best_sp = get_theta(best, 'sp')
         sys = spz_model(best_sp, *args[:-3], ret_sys=True)
         self._df_sp['f_cor'] = self._df_sp['f'] - sys
@@ -480,6 +591,10 @@ class Fit(object):
         """
         Make publication-ready plot.
         """
+
+        if 'f_cor' not in self._df_sp.columns:
+            fp = os.path.join(self._out_dir, 'spz.csv')
+            self._df_sp = pd.read_csv(fp)
 
         t, f, s = self._spz_ts()
         args = self._args()

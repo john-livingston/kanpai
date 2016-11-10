@@ -15,7 +15,7 @@ def simple_ts(t, f, tmodel=None, model=None, fp=None, title="", **kwargs):
             ax.plot(tmodel, model, 'r-', **kwargs)
         elif model is not None:
             ax.plot(t, model, 'r-', **kwargs)
-        pl.setp(ax, xlabel='Time [days]',
+        pl.setp(ax, xlabel='Time [BJD]',
             ylabel='Normalized Flux',
             title=title)
         ax.yaxis.get_major_formatter().set_useOffset(False)
