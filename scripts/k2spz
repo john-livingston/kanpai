@@ -92,6 +92,8 @@ else:
     out_dir = setup['config']['star']
     if 'planet' in setup['config'].keys():
         out_dir += setup['config']['planet']
+    if 'epoch' in setup['config'].keys():
+        out_dir += '_e' + str(setup['config']['epoch'])
     out_dir += '-{}'.format(pipeline)
     out_dir += '-{}'.format(method)
 

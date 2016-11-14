@@ -3,7 +3,6 @@ import sys
 import yaml
 import pickle
 import functools
-from collections import OrderedDict
 
 import matplotlib.pyplot as pl
 import numpy as np
@@ -117,6 +116,7 @@ class Fit(object):
         self._lp_mcmc = None
         self._epic = int(setup['config']['star'].split('-')[1])
         self._output = dict(method=method, bin_size=bin_size)
+        self._k2_tc_offset = None
 
         fp = os.path.join(out_dir, 'input.yaml')
         yaml.dump(setup, open(fp, 'w'))
@@ -228,6 +228,7 @@ class Fit(object):
                 tf, ff = k2_lc.folded(epic, p, t0, t14_refined, pipeline=pipeline,
                     width=width, clip=clip, bl=baseline, skip=skip)
                 pvd = fit.final()
+                tc_refined = pvd['tc']
                 i_refined = pvd['i']
                 k_refined = pvd['k']
                 a_refined = util.scaled_a(self._tr['p'],
@@ -236,7 +237,9 @@ class Fit(object):
                 self._tr['t14'] = t14_refined
                 self._tr['i'] = i_refined
                 self._tr['k'] = k_refined
-                print "Refined transit duration (t14): {} [days]".format(t14_refined)
+                self._k2_tc_offset = tc_refined
+                print "K2 transit center offset [days]: {}".format(tc_refined)
+                print "Refined transit duration (t14) [days]: {}".format(t14_refined)
                 print "Refined scaled semi-major axis (a): {}".format(a_refined)
                 print "Refined radius ratio (k): {}".format(k_refined)
                 print "Refined inclination (i) [degrees]: {}".format(i_refined * 180./np.pi)
@@ -248,6 +251,8 @@ class Fit(object):
                 fp = os.path.join(self._out_dir, 'k2_lc_{}-{}.png'.format(epic, pipeline))
                 k2_plot.simple_ts(tf, ff, fp=fp, title=title, lw=5, ms=10)
 
+            if self._k2_tc_offset is not None:
+                tf -= self._k2_tc_offset
             self._df_k2 = pd.DataFrame(dict(t=tf, f=ff))
             k2_kolded_fp = os.path.join(self._out_dir, 'k2_lc_{}.csv'.format(epic))
             np.savetxt(k2_kolded_fp, np.c_[tf, ff], delimiter=',')
@@ -570,7 +575,7 @@ class Fit(object):
             self._output['opt'] = {}
         self._output['opt']['mcmc'] = dict(
             logprob=float(self._lp_mcmc),
-            pv=dict(OrderedDict(zip(self._labels, self._pv_mcmc.tolist())))
+            pv=dict(zip(self._labels, self._pv_mcmc.tolist()))
             )
 
         best_sp = get_theta(self._pv_mcmc, 'sp')
