@@ -17,6 +17,7 @@ from tqdm import tqdm
 
 from like import model2, loglike2
 import plot
+import lc
 
 
 def logprob(theta, t, f, p):
@@ -107,6 +108,11 @@ class Fit(object):
         else:
             m = model2(self._pv_best, t, p)
         return m
+
+    @property
+    def resid(self):
+        t, f = self._data.T
+        return f - self.model()
 
     def plot(self, fp=None, nmodel=None, **kwargs):
         t, f = self._data.T

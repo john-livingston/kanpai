@@ -9,10 +9,13 @@ from fit import Fit
 
 
 PIPELINES = 'everest k2sff k2sc'.split()
+K2_TIME_OFFSET = 2454833
 
 
 def folded(epic, p, t0, t14, pipeline='everest',
     width=0.8, clip=False, bl=False, skip=None, refine=False):
+
+    t0 -= K2_TIME_OFFSET
 
     epic = int(epic)
     if pipeline == 'everest':
