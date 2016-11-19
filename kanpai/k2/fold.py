@@ -17,7 +17,7 @@ class Fold(object):
 
         self._epic = int(epic)
         self._p = p
-        self._t0 = t0
+        self._t0 = t0 - K2_TIME_OFFSET
         self._t14 = t14
         self._pipeline = pipeline
         self._width = width
@@ -29,21 +29,24 @@ class Fold(object):
 
     def _get_lc(self):
 
-        print("Retrieving light curve")
-        if self._pipeline == 'everest':
+        epic = self._epic
+        pipeline = self._pipeline
+        print("Retrieving {} light curve...".format(pipeline))
 
-            star = Everest(self._epic)
-            star.set_mask(transits = [(p, t0, t14)])
+        if pipeline == 'everest':
+
+            star = Everest(epic)
+            star.set_mask(transits = [(self._p, self._t0, self._t14)])
             t, f = star.time, star.flux
 
-        elif self._pipeline == 'k2sff':
+        elif pipeline == 'k2sff':
 
-            star = kplr.K2SFF(self._epic)
+            star = kplr.K2SFF(epic)
             t, f = star.time, star.fcor
 
-        elif self._pipeline == 'k2sc':
+        elif pipeline == 'k2sc':
 
-            star = kplr.K2SC(self._epic)
+            star = kplr.K2SC(epic)
             t, f = star.time, star.pdcflux
 
         else:
@@ -54,46 +57,79 @@ class Fold(object):
         self._t, self._f = t[~idx], f[~idx]
 
 
-    def run(self):
+    def run(self, refine=True):
 
+        # setup
         t, f = self._t, self._f
         p, t0, t14 = self._p, self._t0, self._t14
         w, bl, s = self._width, self._bl, self._skip
 
+        # initial fold
         tf, ff = util.fold(t, f, p, t0, t14=t14,
             width=w, bl=bl, skip=s)
 
-        self._fit = Fit(tf, ff, t14=t14, p=p)
-        self._fit.max_apo()
-        t14 = self._fit.t14()
+        # outlier rejection
+        idx = util.outliers(ff, sl=5, su=3, iterative=True)
+        tf, ff = tf[~idx], ff[~idx]
+        print("1st sigma clip: {}".format(idx.sum()))
 
+        if not refine:
+            self._tf, self._ff = tf, ff
+            return
+
+        # initial fit
+        fit = Fit(tf, ff, t14=t14, p=p)
+        fit.max_apo()
+        t14 = fit.t14()
+
+        # fold with refined t14 to ensure proper baseline removal
         tf, ff = util.fold(t, f, p, t0, t14=t14,
             width=w, bl=bl, skip=s)
 
-        self._fit = Fit(tf, ff, t14=t14, p=p)
-        self._fit.max_apo()
-        t14 = self._fit.t14()
-        print "refined transit duration: {} [days]".format(t14)
+        # outlier rejection
+        idx = util.outliers(ff, sl=5, su=3, iterative=True)
+        tf, ff = tf[~idx], ff[~idx]
+        print("2nd sigma clip: {}".format(idx.sum()))
 
-        idx = self._outliers(self._fit.resid)
-        self._tf, self._ff = tf[~idx], ff[~idx]
-        self._fit = Fit(self._tf, self._ff, t14=t14, p=p)
-        self._fit.max_apo()
-        print("Sigma-clipped {} outliers".format(idx.sum()))
+        # second fit to correct for any offset in initial T0
+        fit = Fit(tf, ff, t14=t14, p=p)
+        fit.max_apo()
+        t14 = fit.t14()
+        par = fit.final()
+        t0 -= par['tc']
+        print "Refined T0 [BJD]: {}".format(t0 + K2_TIME_OFFSET)
 
+        # fold with refined T0
+        tf, ff = util.fold(t, f, p, t0, t14=t14,
+            width=w, bl=bl, skip=s)
 
-    def _outliers(self, resid, iterative=True):
-
+        # identify final outliers by sigma clipping residuals
+        fit = Fit(tf, ff, t14=t14, p=p)
+        fit.max_apo()
         sl, su = self._clip
+        idx = util.outliers(fit.resid, sl=sl, su=su)
+        tf, ff = tf[~idx], ff[~idx]
+        print("3rd sigma clip: {}".format(idx.sum()))
 
-        if iterative:
-            clip = sigma_clip(resid, sigma_upper=su, sigma_lower=sl)
-            idx = clip.mask
-        else:
-            mu, sig = np.median(resid), np.std(resid)
-            idx = (resid > mu + su * sig) | (resid < mu - sl * sig)
+        # final fit to cleaned light curve
+        fit = Fit(tf, ff, t14=t14,
+            p=p, k=par['k'], i=par['i'], u=par['u'], k0=par['k0'])
+        fit.max_apo()
+        t14 = fit.t14()
+        par = fit.final()
+        fit_a = util.scaled_a(p, t14, par['k'], par['i'])
 
-        return idx
+        print "Transit duration (t14) [days]: {}".format(t14)
+        print "Scaled semi-major axis (a): {}".format(fit_a)
+        print "Radius ratio (k): {}".format(par['k'])
+        print "Inclination (i) [degrees]: {}".format(par['i'] * 180./np.pi)
+        print "Linear limb-darkening coefficient (u): {}".format(par['u'])
+        print "Baseline offset (k0): {}".format(par['k0'])
+        print "Sigma: {}".format(par['sig'])
+        print "Residual RMS: {}".format(util.rms(fit.resid))
+
+        self._fit = fit
+        self._tf, self._ff = tf, ff
 
 
     @property

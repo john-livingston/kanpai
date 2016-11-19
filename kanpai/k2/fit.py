@@ -24,7 +24,7 @@ def logprob(theta, t, f, p):
 
     k,tc,t14,i,u,k0,sig = theta
 
-    if u < 0 or u > 1 or i > np.pi/2:
+    if u < 0 or u > 1 or i < 0 or i > np.pi/2:
         return -np.inf
 
     ll = loglike2(theta, t, f, p)
@@ -49,6 +49,7 @@ class Fit(object):
         self._pv_best = None
         self._logprob_best = None
         self._logprob = logprob
+
 
     @property
     def _ini(self):

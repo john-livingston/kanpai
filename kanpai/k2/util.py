@@ -4,13 +4,31 @@ from astropy.stats import sigma_clip
 
 
 def rms(x):
+
     return np.sqrt((x**2).sum()/x.size)
 
 
 def scaled_a(p, t14, k, i=np.pi/2.):
+
     numer = np.sqrt( (k + 1) ** 2 )
     denom = np.sin(i) * np.sin(t14 * np.pi / p)
+
     return float(numer / denom)
+
+
+def outliers(x, iterative=True, sl=4, su=4):
+
+    if iterative:
+
+        clip = sigma_clip(x, sigma_upper=su, sigma_lower=sl)
+        idx = clip.mask
+
+    else:
+
+        mu, sig = np.median(x), np.std(x)
+        idx = (x > mu + su * sig) | (x < mu - sl * sig)
+
+    return idx
 
 
 def get_tns(t, p, t0):
@@ -86,9 +104,9 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None):
     ff = ff[idx]
 
     if clip:
-        fc = sigma_clip(ff, sigma_upper=clip[0], sigma_lower=clip[1])
-        print "Clipped {} outliers".format(fc.mask.sum())
-        tf, ff = tf[~fc.mask], ff[~fc.mask]
+        idx = outliers(ff, su=clip[0], sl=clip[1])
+        print "Clipped {} outliers".format(idx.sum())
+        tf, ff = tf[~idx], ff[~idx]
 
     idx = (tf < -t14/2.) | (t14/2. < tf)
     print "OOT std dev: {}".format(ff[idx].std())
