@@ -198,11 +198,11 @@ class Fit(object):
         if k2_folded_fp is not None:
 
             print "\nLoading K2 data from file: {}".format(k2_folded_fp)
-            names = open(k2_kolded_fp).readline().split(',')
+            names = open(k2_folded_fp).readline().split(',')
             if len(names) == 3:
-                self._df_k2 = pd.read_csv(k2_kolded_fp, names='t f s'.split())
+                self._df_k2 = pd.read_csv(k2_folded_fp, names='t f s'.split())
             else:
-                self._df_k2 = pd.read_csv(k2_kolded_fp, names='t f'.split())
+                self._df_k2 = pd.read_csv(k2_folded_fp, names='t f'.split())
 
         else:
 
@@ -254,8 +254,8 @@ class Fit(object):
             if self._k2_tc_offset is not None:
                 tf -= self._k2_tc_offset
             self._df_k2 = pd.DataFrame(dict(t=tf, f=ff))
-            k2_kolded_fp = os.path.join(self._out_dir, 'k2_lc_{}.csv'.format(epic))
-            np.savetxt(k2_kolded_fp, np.c_[tf, ff], delimiter=',')
+            k2_folded_fp = os.path.join(self._out_dir, 'k2_lc_{}.csv'.format(epic))
+            np.savetxt(k2_folded_fp, np.c_[tf, ff], delimiter=',')
 
 
     @property

@@ -69,12 +69,14 @@ class Fold(object):
             width=w, bl=bl, skip=s)
 
         # outlier rejection
-        idx = util.outliers(ff, sl=5, su=3, iterative=True)
+        idx = util.outliers(ff, su=3, sl=6, iterative=True)
         tf, ff = tf[~idx], ff[~idx]
         print("1st sigma clip: {}".format(idx.sum()))
 
         if not refine:
             self._tf, self._ff = tf, ff
+            idx = (tf < -t14/2.) | (tf > t14/2.)
+            self._sig = ff[idx].std()
             return
 
         # initial fit
@@ -87,7 +89,7 @@ class Fold(object):
             width=w, bl=bl, skip=s)
 
         # outlier rejection
-        idx = util.outliers(ff, sl=5, su=3, iterative=True)
+        idx = util.outliers(ff, su=3, sl=6, iterative=True)
         tf, ff = tf[~idx], ff[~idx]
         print("2nd sigma clip: {}".format(idx.sum()))
 
@@ -104,17 +106,17 @@ class Fold(object):
             width=w, bl=bl, skip=s)
 
         # outlier rejection
-        idx = util.outliers(ff, sl=5, su=3, iterative=True)
+        idx = util.outliers(ff, su=3, sl=6, iterative=True)
         tf, ff = tf[~idx], ff[~idx]
         print("3rd sigma clip: {}".format(idx.sum()))
 
         # identify final outliers by sigma clipping residuals
         fit = Fit(tf, ff, t14=t14, p=p)
         fit.max_apo()
-        sl, su = self._clip
-        idx = util.outliers(fit.resid, sl=sl, su=su)
+        su, sl = self._clip
+        idx = util.outliers(fit.resid, su=su, sl=sl)
         tf, ff = tf[~idx], ff[~idx]
-        print("Final sigma clip: {}".format(idx.sum()))
+        print("Final sigma clip ({},{}): {}".format(su, sl, idx.sum()))
 
         # re-normalize to median OOT flux
         idx = (tf < -t14/2.) | (tf > t14/2.)
@@ -139,12 +141,13 @@ class Fold(object):
 
         self._fit = fit
         self._tf, self._ff = tf, ff
+        self._sig = np.std(fit.resid)
 
 
     @property
     def results(self):
 
-        return self._tf, self._ff
+        return self._tf, self._ff, np.repeat(self._sig, self._ff.size)
 
 
     def plot_fit(self, fp):

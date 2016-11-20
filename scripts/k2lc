@@ -30,7 +30,7 @@ parser.add_argument('--no_baseline', dest='baseline', help="don't fit a"
 parser.add_argument('-r', '--refine', dest='refine', help="refine parameters"
     " the parameters", action='store_true')
 parser.add_argument('-c', '--clip', help='sigma clip (upper, lower)',
-    type=str, default='4,4')
+    type=str, default='3,4')
 parser.add_argument('-s', '--skip', help='individual K2 epochs to skip'
     ', comma-separated', type=str, default=None)
 parser.set_defaults(baseline=True, refine=False)
@@ -56,7 +56,7 @@ fold = kanpai.k2.Fold(epic, p, t0, t14, pipeline=pipeline,
     width=width, clip=clip, bl=baseline, skip=skip)
 
 fold.run(refine=args.refine)
-tf, ff = fold.results
+tf, ff, sig = fold.results
 
 fp = os.path.join(outdir, 'k2_lc_{}-{}.png'.format(epic, pipeline))
 if args.refine:
@@ -65,4 +65,4 @@ else:
     kanpai.k2.plot.simple_ts(tf, ff, fp=fp)
 
 fp = os.path.join(outdir, 'k2_lc_{}-{}.csv'.format(epic, pipeline))
-np.savetxt(fp, np.c_[tf, ff], delimiter=',')
+np.savetxt(fp, np.c_[tf, ff, sig], delimiter=',')

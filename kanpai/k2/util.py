@@ -16,7 +16,7 @@ def scaled_a(p, t14, k, i=np.pi/2.):
     return float(numer / denom)
 
 
-def outliers(x, iterative=True, sl=4, su=4):
+def outliers(x, iterative=True, su=4, sl=4):
 
     if iterative:
 
