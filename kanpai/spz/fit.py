@@ -52,23 +52,23 @@ METHODS = 'cen pld base'.split()
 
 def logprob(theta, t, f, s, p, aux, k2data, u_kep, u_spz):
 
-    a,i,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k0_s,k1_s,k0_k,s_k = theta[:14]
-    theta_aux = theta[14:]
+    a,i,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k1_s,k0_k = theta[:12]
+    theta_aux = theta[12:]
 
     if k_s < 0 or k_k < 0 or \
         tc_s < t.min() or tc_s > t.max() or \
-        i > np.pi/2:
+        i < 0 or i > np.pi/2:
         return -np.inf
     lp = np.log(stats.norm.pdf(u1_s, u_spz[0], u_spz[1]))
     lp += np.log(stats.norm.pdf(u2_s, u_spz[2], u_spz[3]))
     lp += np.log(stats.norm.pdf(u1_k, u_kep[0], u_kep[1]))
     lp += np.log(stats.norm.pdf(u2_k, u_kep[2], u_kep[3]))
 
-    theta_sp = [k_s,tc_s,a,i,u1_s,u2_s,k0_s,k1_s] + theta_aux.tolist()
-    theta_k2 =  k_k,tc_k,a,i,u1_k,u2_k,k0_k,s_k
+    theta_sp = [k_s,tc_s,a,i,u1_s,u2_s,k1_s] + theta_aux.tolist()
+    theta_k2 =  k_k,tc_k,a,i,u1_k,u2_k,k0_k
 
     ll = spz_loglike(theta_sp, t, f, s, p, aux)
-    ll += k2_loglike(theta_k2, k2data[0], k2data[1], p)
+    ll += k2_loglike(theta_k2, k2data[0], k2data[1], k2data[2], p)
 
     if np.isnan(ll).any():
         return -np.inf
@@ -77,10 +77,10 @@ def logprob(theta, t, f, s, p, aux, k2data, u_kep, u_spz):
 
 def get_theta(theta, sub):
 
-    a,i,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k0_s,k1_s,k0_k,s_k = theta[:14]
-    theta_aux = theta[14:]
-    theta_sp = [k_s,tc_s,a,i,u1_s,u2_s,k0_s,k1_s] + theta_aux.tolist()
-    theta_k2 =  k_k,tc_k,a,i,u1_k,u2_k,k0_k,s_k
+    a,i,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k1_s,k0_k = theta[:12]
+    theta_aux = theta[12:]
+    theta_sp = [k_s,tc_s,a,i,u1_s,u2_s,k1_s] + theta_aux.tolist()
+    theta_k2 =  k_k,tc_k,a,i,u1_k,u2_k,k0_k
 
     if sub == 'sp':
         return theta_sp
@@ -109,14 +109,13 @@ class Fit(object):
         self._tr  = setup['transit']
         self._logprob = logprob
         self._method = method
+        self._bin_size = bin_size
         self._pv_map = None
         self._lp_map = None
         self._max_apo_alg = None
         self._pv_mcmc = None
         self._lp_mcmc = None
-        self._epic = int(setup['config']['star'].split('-')[1])
         self._output = dict(method=method, bin_size=bin_size)
-        self._k2_tc_offset = None
 
         fp = os.path.join(out_dir, 'input.yaml')
         yaml.dump(setup, open(fp, 'w'))
@@ -131,20 +130,67 @@ class Fit(object):
                 print "{} = {}".format(k,v)
 
         # setup limb darkening priors
-        teff, uteff = setup['stellar']['teff']
-        logg, ulogg = setup['stellar']['logg']
-        self._u_kep, self._u_spz = util.get_ld(teff, uteff, logg, ulogg)
+        self._setup_ld()
+
+        # load k2 data
+        self._load_k2()
 
         # load spitzer data
+        self._load_spz()
+
+        # set up auxiliary regressors
+        if method == 'cen':
+            self._aux = self._xy.T
+        elif method == 'pld':
+            self._aux = self._pix.T
+        elif method == 'base':
+            n = self._xy.shape[0]
+            self._aux = np.repeat(1, n).reshape(1, n)
+        else:
+            raise ValueError('method must be one of: {}'.format(METHODS))
+
+
+    def _setup_ld(self):
+
+        teff, uteff = self._setup['stellar']['teff']
+        logg, ulogg = self._setup['stellar']['logg']
+        self._u_kep, self._u_spz = util.get_ld(teff, uteff, logg, ulogg)
+
+
+    def _load_k2(self):
+
+        k2_folded_fp = self._setup['config']['k2lc']
+
+        if os.path.isfile(k2_folded_fp):
+
+            try:
+
+                print "\nLoading K2 data from file: {}".format(k2_folded_fp)
+                names = open(k2_folded_fp).readline().split(',')
+                if len(names) == 3:
+                    self._df_k2 = pd.read_csv(k2_folded_fp, names='t f s'.split())
+                else:
+                    self._df_k2 = pd.read_csv(k2_folded_fp, names='t f'.split())
+                    self._add_k2_sig()
+
+            except:
+
+                raise ValueError('Invalid K2 light curve file format')
+
+
+    def _load_spz(self):
+
         print "\nLoading Spitzer data"
-        self._radius = setup['config']['radius']
-        self._aor = setup['config']['aor']
-        self._data_dir = setup['config']['data_dir']
+
+        self._radius = self._setup['config']['radius']
+        self._aor = self._setup['config']['aor']
+        self._data_dir = self._setup['config']['datadir']
+
         fp = os.path.join(self._data_dir, self._aor+'_phot.pkl')
         df_sp = sxp.util.df_from_pickle(fp, self._radius, pix=True)
 
         # plot
-        fp = os.path.join(out_dir, 'spz_raw.png')
+        fp = os.path.join(self._out_dir, 'spz_raw.png')
         plot.errorbar(df_sp.t, df_sp.f, df_sp.s, fp, alpha=0.5)
 
         # extract time series and bin
@@ -152,8 +198,7 @@ class Fit(object):
         pix = df_sp[keys].values
         t, f, s = df_sp.t, df_sp.f, df_sp.s
         timestep = np.median(np.diff(t)) * 24 * 3600
-        bs_sec = bin_size
-        bs = int(round(bs_sec/timestep))
+        bs = int(round(self._bin_size/timestep))
         binned = functools.partial(util.binned, binsize=bs)
         tb, fb, ub, pixb = map(binned, [t, f, s, pix])
         ub /= np.sqrt(bs)
@@ -163,12 +208,12 @@ class Fit(object):
         self._pix = pix
 
         # plot
-        fp = os.path.join(out_dir, 'spz_binned.png')
+        fp = os.path.join(self._out_dir, 'spz_binned.png')
         plot.errorbar(tb, fb, ub, fp)
 
         cube = pix.reshape(-1,3,3)
         cubestacked = np.median(cube, axis=0)
-        fp = os.path.join(out_dir, 'spz_pix.png')
+        fp = os.path.join(self._out_dir, 'spz_pix.png')
         plot.pixels(cubestacked, fp)
 
         # compute and plot centroids
@@ -178,99 +223,18 @@ class Fit(object):
 
         self._xy = np.array([centroid_com(i) for i in cube])
         x, y = self._xy.T
-        fp = os.path.join(out_dir, 'spz_cen.png')
+        fp = os.path.join(self._out_dir, 'spz_cen.png')
         plot.centroids(t, x, y, fp)
 
-        # set up auxiliary regressors
-        if method == 'cen':
-            self._aux = self._xy.T
-        elif method == 'pld':
-            self._aux = pix.T
-        elif method == 'base':
-            self._aux = None
-        else:
-            raise ValueError('method must be one of: {}'.format(METHODS))
 
-
-    def load_k2(self, k2_folded_fp=None, pipeline=None, width=None, clip=False,
-        baseline=True, skip=None, refine=False, plot=True):
-
-        if k2_folded_fp is not None:
-
-            print "\nLoading K2 data from file: {}".format(k2_folded_fp)
-            names = open(k2_folded_fp).readline().split(',')
-            if len(names) == 3:
-                self._df_k2 = pd.read_csv(k2_folded_fp, names='t f s'.split())
-            else:
-                self._df_k2 = pd.read_csv(k2_folded_fp, names='t f'.split())
-
-        else:
-
-            assert pipeline is not None
-            print "\nLoading K2 data from {} pipeline".format(pipeline)
-            self._pipeline = pipeline
-            epic = self._epic
-            p, t0, t14 = self._tr['p'], self._tr['t0'], self._tr['t14']
-            t0 -= K2_TIME_OFFSET
-            if width is None:
-                width = t14*4 if t14 > 0.2 else 0.8
-            tf, ff = k2_lc.folded(epic, p, t0, t14,
-                pipeline=pipeline, width=width, clip=clip,
-                bl=baseline, skip=skip)
-
-            if refine:
-
-                fit = k2_fit.Fit(tf, ff, t14=t14, p=p)
-                fit.max_apo()
-                t14_refined = fit.t14()
-                fp = os.path.join(self._out_dir, 'k2_lc_{}-{}-fit.png'.format(epic, pipeline))
-                fit.plot(fp, lw=5, ms=10, nmodel=1000)
-                tf, ff = k2_lc.folded(epic, p, t0, t14_refined, pipeline=pipeline,
-                    width=width, clip=clip, bl=baseline, skip=skip)
-                pvd = fit.final()
-                tc_refined = pvd['tc']
-                i_refined = pvd['i']
-                k_refined = pvd['k']
-                a_refined = util.scaled_a(self._tr['p'],
-                    t14_refined, k_refined, i_refined)
-                self._tr['a'] = a_refined
-                self._tr['t14'] = t14_refined
-                self._tr['i'] = i_refined
-                self._tr['k'] = k_refined
-                self._k2_tc_offset = tc_refined
-                print "K2 transit center offset [days]: {}".format(tc_refined)
-                print "Refined transit duration (t14) [days]: {}".format(t14_refined)
-                print "Refined scaled semi-major axis (a): {}".format(a_refined)
-                print "Refined radius ratio (k): {}".format(k_refined)
-                print "Refined inclination (i) [degrees]: {}".format(i_refined * 180./np.pi)
-
-            elif plot:
-
-                idx = (tf < -t14/2.) | (t14/2. < tf)
-                title = "OOT std dev: {}".format(ff[idx].std())
-                fp = os.path.join(self._out_dir, 'k2_lc_{}-{}.png'.format(epic, pipeline))
-                k2_plot.simple_ts(tf, ff, fp=fp, title=title, lw=5, ms=10)
-
-            if self._k2_tc_offset is not None:
-                tf -= self._k2_tc_offset
-            self._df_k2 = pd.DataFrame(dict(t=tf, f=ff))
-            k2_folded_fp = os.path.join(self._out_dir, 'k2_lc_{}.csv'.format(epic))
-            np.savetxt(k2_folded_fp, np.c_[tf, ff], delimiter=',')
-
-
-    @property
-    def _k2_sig(self):
-
-        """
-        Out of transit scatter of the K2 data.
-        """
+    def _add_k2_sig(self):
 
         t, f = self._df_k2[['t','f']].values.T
         t14 = self._tr['t14']
         idx = (t < -t14/2.) | (t > t14/2.)
         sig = f[idx].std()
+        self._df_k2['s'] = np.repeat(sig, f.size)
 
-        return sig
 
 
     @property
@@ -308,7 +272,7 @@ class Fit(object):
         t, f, s = self._spz_ts
         p = self._tr['p']
         aux = self._aux
-        k2data = self._df_k2[['t','f']].values.T
+        k2data = self._df_k2[['t','f','s']].values.T
         u_kep, u_spz = self._u_kep, self._u_spz
 
         return t, f, s, p, aux, k2data, u_kep, u_spz
@@ -322,16 +286,15 @@ class Fit(object):
         """
 
         n_aux = self._aux.shape[0] if self._aux is not None else 0
-        s_k = self._k2_sig
         a, i, k = self._tr['a'], self._tr['i'], self._tr['k']
         tc_s = self._spz_tc
         tc_k = 0
         u1_s, u2_s = self._u_spz[0], self._u_spz[2]
         u1_k, u2_k = self._u_kep[0], self._u_kep[2]
-        k0_s, k1_s, k0_k = 0, 0, 0
+        k1_s, k0_k = 0, 0
 
         initial = [a, i, k, k, tc_s, tc_k, u1_s, u2_s,
-            u1_k, u2_k, k0_s, k1_s, k0_k, s_k]
+            u1_k, u2_k, k1_s, k0_k]
 
         initial += [0] * n_aux
 
@@ -341,7 +304,7 @@ class Fit(object):
     @property
     def _labels(self):
 
-        labels = 'a i k_s k_k tc_s tc_k u1_s u2_s u1_k u2_k k0_s k1_s k0_k s_k'.split()
+        labels = 'a i k_s k_k tc_s tc_k u1_s u2_s u1_k u2_k k1_s k0_k'.split()
         if self._aux is not None:
             labels += ['c{}'.format(i) for i in range(len(self._aux))]
 
@@ -389,7 +352,7 @@ class Fit(object):
         if len(results) > 0:
             idx = np.argmin([r.fun for r in results])
             map_best = np.array(results)[idx]
-            lp_map = -map_best.fun
+            lp_map = -1 * map_best.fun
             pv_map = map_best.x
             lp_ini = self._logprob(self._ini, *self._args)
             if lp_map > lp_ini:
@@ -460,13 +423,17 @@ class Fit(object):
             pl.close()
 
 
-    def run_mcmc(self, nthreads=4, nsteps1=1000, nsteps2=1000, max_steps=1e4,
-        gr_threshold=1.1, save=False, restart=False, resume=False):
+    def run_mcmc(self, save=False, restart=False, resume=False):
 
         """
         Run MCMC.
         """
 
+        nthreads = self._setup['config']['nthreads']
+        nsteps1 = self._setup['config']['nsteps1']
+        nsteps2 = self._setup['config']['nsteps2']
+        max_steps = self._setup['config']['maxsteps']
+        gr_threshold = self._setup['config']['grthreshold']
         out_dir = self._out_dir
 
         args = self._args
@@ -655,6 +622,7 @@ class Fit(object):
         npercs = len(percs)
 
         df_k2.ti = np.linspace(df_k2.t.min(), df_k2.t.max(), 1000)
+        args_k2 = df_k2.ti, df_k2['f'], df_k2['s'], p
 
         flux_pr_k2, flux_pr_sp = [], []
         for theta in fc[np.random.permutation(fc.shape[0])[:1000]]:
@@ -663,13 +631,21 @@ class Fit(object):
             theta_k2 = get_theta(theta, 'k2')
 
             flux_pr_sp.append(spz_model(theta_sp, *args[:-3], ret_ma=True))
-            flux_pr_k2.append(k2_loglike(theta_k2, df_k2.ti, df_k2['f'], p, ret_mod=True))
+            flux_pr_k2.append(k2_loglike(theta_k2, *args_k2, ret_mod=True))
 
         flux_pr_sp, flux_pr_k2 = map(np.array, [flux_pr_sp, flux_pr_k2])
         flux_pc_sp = np.percentile(flux_pr_sp, percs, axis=0)
         flux_pc_k2 = np.percentile(flux_pr_k2, percs, axis=0)
 
         fp = os.path.join(self._out_dir, 'fit-final.png')
-        title = self._setup['config']['star'] + self._setup['config']['planet']
+
+        prefix = self._setup['config']['prefix']
+        starid = self._setup['config']['starid']
+        planet = self._setup['config']['planet']
+        title = '{}-{}{}'.format(prefix, starid, planet)
+        if 'epoch' in self._setup['config'].keys():
+            epoch = self._setup['config']['epoch']
+            title += '_{}'.format(epoch)
+
         plot.k2_spz_together(self._df_sp, self._df_k2, flux_pc_sp, flux_pc_k2,
             percs, self._fc[:,2], self._fc[:,3], fp, title=title)

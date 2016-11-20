@@ -12,18 +12,18 @@ import kanpai
 parser = argparse.ArgumentParser(description="Simultaneously fit"
     " K2 and Spitzer data")
 parser.add_argument('input', help='path to input yaml file', type=str)
-parser.add_argument('-o', '--out_dir', help='output dir',
+parser.add_argument('-o', '--outdir', help='output dir',
     type=str, default=None)
-parser.add_argument('-d', '--data_dir', help='dir containing *_phot.pkl',
+parser.add_argument('-d', '--datadir', help='dir containing *_phot.pkl',
     type=str, default=None)
-parser.add_argument('--k2_fp', help='k2 folded lc file',
+parser.add_argument('--k2lc', help='k2 folded lc file',
     type=str, default=None)
-parser.add_argument('--bin_size', help='bin size for'
+parser.add_argument('--binsize', help='bin size for'
     ' Spitzer data [seconds]', type=int, default=60)
 parser.add_argument('--clobber', dest='clobber', help='overwrite',
     action='store_true')
-parser.add_argument('--save', dest='save', help='save MCMC samples',
-    action='store_true')
+# parser.add_argument('--save', dest='save', help='save MCMC samples',
+#     action='store_true')
 parser.add_argument('--restart', dest='restart', help='restart MCMC',
     action='store_true')
 parser.add_argument('--resume', dest='resume', help='resume MCMC'
@@ -36,79 +36,92 @@ parser.add_argument('--nsteps1', type=int, default=2000,
     help='number of initialization MCMC steps')
 parser.add_argument('--nsteps2', type=int, default=2000,
     help='number of production MCMC steps')
-parser.add_argument('--max_steps', type=int, default=20000,
+parser.add_argument('--maxsteps', type=int, default=20000,
     help='maximum number of MCMC steps')
-parser.add_argument('--gr_threshold', type=float, default=1.1,
+parser.add_argument('--grthreshold', type=float, default=1.1,
     help='Gelmin-Rubin threshold')
-parser.add_argument('--pipeline', help='which pipeline to use',
-    type=str, default='everest')
-parser.add_argument('--skip', help='individual K2 epochs to skip'
-    ', comma-separated', type=str, default=None)
-parser.add_argument('--clip', help='sigma clip (upper, lower)',
-    type=str, default=None)
-parser.add_argument('--refine', dest='refine', action='store_true',
-    help='refine transit duration')
+# parser.add_argument('--pipeline', help='which pipeline to use',
+#     type=str, default='everest')
+# parser.add_argument('--skip', help='individual K2 epochs to skip'
+#     ', comma-separated', type=str, default=None)
+# parser.add_argument('--clip', help='sigma clip (upper, lower)',
+#     type=str, default=None)
+# parser.add_argument('--refine', dest='refine', action='store_true',
+#     help='refine transit duration')
 
-parser.set_defaults(clobber=False, save=False, restart=False, resume=False, refine=False)
+# parser.set_defaults(clobber=False, save=False, restart=False, resume=False, refine=False)
+parser.set_defaults(clobber=False, restart=False, resume=False)
 
 args = parser.parse_args()
 
 
 spz_setup_fp = args.input
-bin_size = args.bin_size
+binsize = args.binsize
 clobber = args.clobber
-save = args.save
+# save = args.save
 method = args.method
 nsteps1 = args.nsteps1
 nsteps2 = args.nsteps2
-max_steps = args.max_steps
-gr_threshold = args.gr_threshold
+maxsteps = args.maxsteps
+grthreshold = args.grthreshold
 nthreads = args.nthreads
 restart = args.restart
 resume = args.resume
-k2_kolded_fp = args.k2_fp
-pipeline = args.pipeline
-refine = args.refine
+k2lc = args.k2lc
+# pipeline = args.pipeline
+# refine = args.refine
 
-if args.clip:
-    clip = [float(i) for i in args.clip.split(',')]
-else:
-    clip = args.clip
+save = True
+pipeline = None
+refine = True
+clip = None
+skip = None
 
-if args.skip:
-    skip = [int(i) for i in args.skip.split(',')]
-else:
-    skip = args.skip
+# if args.clip:
+#     clip = [float(i) for i in args.clip.split(',')]
+# else:
+#     clip = args.clip
+#
+# if args.skip:
+#     skip = [int(i) for i in args.skip.split(',')]
+# else:
+#     skip = args.skip
 
 METHODS = 'base cen pld'.split()
 assert method in METHODS
 
 setup = kanpai.spz.util.parse_setup(spz_setup_fp)
-tr = setup['transit']
 
-if args.out_dir:
-    out_dir = args.out_dir
+if args.outdir:
+    outdir = args.outdir
 else:
-    out_dir = setup['config']['star']
+    prefix = setup['config']['prefix']
+    starid = setup['config']['starid']
+    outdir = '{}-{}'.format(prefix, starid)
     if 'planet' in setup['config'].keys():
-        out_dir += setup['config']['planet']
+        outdir += setup['config']['planet']
     if 'epoch' in setup['config'].keys():
-        out_dir += '_e' + str(setup['config']['epoch'])
-    out_dir += '-{}'.format(pipeline)
-    out_dir += '-{}'.format(method)
+        outdir += '_e' + str(setup['config']['epoch'])
+    # out_dir += '-{}'.format(pipeline)
+    outdir += '-{}'.format(method)
 
-if os.path.isdir(out_dir) and not clobber:
+if os.path.isdir(outdir) and not clobber:
     raise IOError("Output directory exists and clobber set to False")
-elif not os.path.isdir(out_dir):
-    os.mkdir(out_dir)
+elif not os.path.isdir(outdir):
+    os.mkdir(outdir)
 
-if args.data_dir:
-    setup['config']['data_dir'] = args.data_dir
+if args.datadir:
+    setup['config']['datadir'] = args.datadir
 
+args = 'k2lc binsize nsteps1 nsteps2 maxsteps grthreshold nthreads'.split()
+vals = k2lc, binsize, nsteps1, nsteps2, maxsteps, grthreshold, nthreads
+for k,v in zip(args, vals):
+    if k not in setup['config'].keys():
+        setup['config'][k] = v
 
-fit = kanpai.spz.Fit(setup, out_dir, method, bin_size)
-fit.load_k2(k2_kolded_fp, pipeline, clip=clip, skip=skip, refine=refine)
+fit = kanpai.spz.Fit(setup, outdir, method)
+# fit.load_k2(k2_kolded_fp, pipeline, clip=clip, skip=skip, refine=refine)
 fit.max_apo()
-fit.run_mcmc(nthreads, nsteps1, nsteps2, max_steps, gr_threshold, save, restart, resume)
+fit.run_mcmc(save, restart, resume)
 fit.plot_final()
 fit.dump()

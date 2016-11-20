@@ -6,10 +6,10 @@ MA = MandelAgol()
 
 
 def model(theta, t, f, s, p, aux, ret_ma=False, ret_sys=False):
-    k,tc,a,i,u1,u2,k0,k1 = theta[:8]
-    auxcoeff = theta[8:]
+    k,tc,a,i,u1,u2,k1 = theta[:7]
+    auxcoeff = theta[7:]
     ma = MA.evaluate(t, k, (u1, u2), tc, p, a, i)
-    bl = k0 + k1 * (t-t[0])
+    bl = k1 * (t-t[0])
     if aux is None:
         sys = 0
     elif aux.shape[0] == aux.size:
