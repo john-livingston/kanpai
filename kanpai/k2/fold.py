@@ -96,12 +96,17 @@ class Fold(object):
         fit.max_apo()
         t14 = fit.t14()
         par = fit.final()
-        t0 -= par['tc']
+        t0 += par['tc']
         print "Refined T0 [BJD]: {}".format(t0 + K2_TIME_OFFSET)
 
         # fold with refined T0
         tf, ff = util.fold(t, f, p, t0, t14=t14,
             width=w, bl=bl, skip=s)
+
+        # outlier rejection
+        idx = util.outliers(ff, sl=5, su=3, iterative=True)
+        tf, ff = tf[~idx], ff[~idx]
+        print("3rd sigma clip: {}".format(idx.sum()))
 
         # identify final outliers by sigma clipping residuals
         fit = Fit(tf, ff, t14=t14, p=p)
@@ -109,7 +114,11 @@ class Fold(object):
         sl, su = self._clip
         idx = util.outliers(fit.resid, sl=sl, su=su)
         tf, ff = tf[~idx], ff[~idx]
-        print("3rd sigma clip: {}".format(idx.sum()))
+        print("Final sigma clip: {}".format(idx.sum()))
+
+        # re-normalize to median OOT flux
+        idx = (tf < -t14/2.) | (tf > t14/2.)
+        ff /= np.median(ff[idx])
 
         # final fit to cleaned light curve
         fit = Fit(tf, ff, t14=t14,
