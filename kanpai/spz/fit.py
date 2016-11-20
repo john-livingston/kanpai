@@ -19,6 +19,7 @@ import corner
 from tqdm import tqdm
 import sxp
 from pytransit import MandelAgol
+from sklearn.decomposition import PCA
 
 from ..k2 import loglike1 as k2_loglike
 from ..k2 import lc as k2_lc
@@ -32,7 +33,7 @@ import plot
 
 K2_TIME_OFFSET = 2454833
 
-METHODS = 'cen pld base'.split()
+METHODS = 'cen pld base pca pca2 pca-quad'.split()
 
 # import logging
 # logger = logging.getLogger('scope.name')
@@ -102,23 +103,22 @@ class Fit(object):
     setup ::
     """
 
-    def __init__(self, setup, out_dir, method='base', bin_size=60):
+    def __init__(self, setup, out_dir, method='base'):
 
         self._setup = setup
         self._out_dir = out_dir
         self._tr  = setup['transit']
         self._logprob = logprob
         self._method = method
-        self._bin_size = bin_size
         self._pv_map = None
         self._lp_map = None
         self._max_apo_alg = None
         self._pv_mcmc = None
         self._lp_mcmc = None
-        self._output = dict(method=method, bin_size=bin_size)
+        self._output = dict(method=method)
 
         fp = os.path.join(out_dir, 'input.yaml')
-        yaml.dump(setup, open(fp, 'w'))
+        yaml.dump(setup, open(fp, 'w'), default_flow_style=False)
 
         if self._tr['i'] > np.pi/2.:
             self._tr['i'] = np.pi - self._tr['i']
@@ -139,15 +139,67 @@ class Fit(object):
         self._load_spz()
 
         # set up auxiliary regressors
+        self._setup_aux()
+
+
+    def _setup_aux(self):
+
+        method = self._method
+
         if method == 'cen':
-            self._aux = self._xy.T
-        elif method == 'pld':
-            self._aux = self._pix.T
-        elif method == 'base':
+
             n = self._xy.shape[0]
-            self._aux = np.repeat(1, n).reshape(1, n)
+            bias = np.repeat(1, n)
+            self._aux = np.c_[bias, self._xy].T
+
+        elif method == 'pld':
+
+            self._aux = self._pix.T
+
+        elif method == 'base':
+
+            n = self._xy.shape[0]
+            bias = np.repeat(1, n)
+            self._aux = bias.reshape(1, n)
+
+        elif method == 'pca':
+
+            n = self._xy.shape[0]
+            bias = np.repeat(1, n)
+            X = self._pix.T
+            top2 = self._pca(X, n=2)
+            self._aux = np.c_[bias, top2].T
+
+        elif method == 'pca2':
+
+            n = self._xy.shape[0]
+            bias = np.repeat(1, n)
+            X = np.c_[self._pix, self._pix**2].T
+            top2 = self._pca(X, n=2)
+            self._aux = np.c_[bias, top2].T
+
+        elif method == 'pca-quad':
+
+            n = self._xy.shape[0]
+            bias = np.repeat(1, n)
+            X = self._pix.T
+            top2 = self._pca(X, n=2)
+            self._aux = np.c_[bias, top2, top2**2].T
+
         else:
+
             raise ValueError('method must be one of: {}'.format(METHODS))
+
+
+    def _pca(self, X, n=2):
+
+        pca = PCA()
+        res = pca.fit(X)
+        ratio_exp = pca.explained_variance_ratio_
+        for i in range(n):
+            print "PCA BV{0} explained variance: {1:.4f}".format(i+1, ratio_exp[i])
+
+        return pca.components_[:n].T
 
 
     def _setup_ld(self):
@@ -198,7 +250,8 @@ class Fit(object):
         pix = df_sp[keys].values
         t, f, s = df_sp.t, df_sp.f, df_sp.s
         timestep = np.median(np.diff(t)) * 24 * 3600
-        bs = int(round(self._bin_size/timestep))
+        bin_size_sec = self._setup['config']['binsize']
+        bs = int(round(bin_size_sec/timestep))
         binned = functools.partial(util.binned, binsize=bs)
         tb, fb, ub, pixb = map(binned, [t, f, s, pix])
         ub /= np.sqrt(bs)
@@ -517,16 +570,16 @@ class Fit(object):
         fp = os.path.join(out_dir, 'chain.png')
         plot.chain(sampler.chain, labels, fp)
 
-        burn = nsteps - nsteps2 if nsteps > nsteps2 else 0
-        thin = 1
-        self._fc = sampler.chain[:,burn::thin,:].reshape(-1, ndim)
-        fp = os.path.join(out_dir, 'corner.png')
-        plot.corner(self._fc, labels, fp)
-
         self._lp_mcmc = sampler.lnprobability.flatten().max()
         idx = np.argmax(sampler.lnprobability)
         assert sampler.lnprobability.flat[idx] == self._lp_mcmc
         self._pv_mcmc = sampler.flatchain[idx]
+
+        burn = nsteps - nsteps2 if nsteps > nsteps2 else 0
+        thin = 1
+        self._fc = sampler.chain[:,burn::thin,:].reshape(-1, ndim)
+        fp = os.path.join(out_dir, 'corner.png')
+        plot.corner(self._fc, labels, fp=fp, truths=self._pv_mcmc)
 
         if save:
             fp = os.path.join(out_dir, 'mcmc')

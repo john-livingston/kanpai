@@ -19,7 +19,7 @@ parser.add_argument('-d', '--datadir', help='dir containing *_phot.pkl',
 parser.add_argument('--k2lc', help='k2 folded lc file',
     type=str, default=None)
 parser.add_argument('--binsize', help='bin size for'
-    ' Spitzer data [seconds]', type=int, default=60)
+    ' Spitzer data [seconds]', type=int, default=None)
 parser.add_argument('--clobber', dest='clobber', help='overwrite',
     action='store_true')
 # parser.add_argument('--save', dest='save', help='save MCMC samples',
@@ -30,15 +30,15 @@ parser.add_argument('--resume', dest='resume', help='resume MCMC'
     ' from previous best position', action='store_true')
 parser.add_argument('--method', type=str, default='base',
     help='detrending method to use (base, cen, pld)')
-parser.add_argument('--nthreads', type=int, default=4,
+parser.add_argument('--nthreads', type=int, default=None,
     help='number of threads (processes) to use for MCMC')
-parser.add_argument('--nsteps1', type=int, default=2000,
+parser.add_argument('--nsteps1', type=int, default=None,
     help='number of initialization MCMC steps')
-parser.add_argument('--nsteps2', type=int, default=2000,
+parser.add_argument('--nsteps2', type=int, default=None,
     help='number of production MCMC steps')
-parser.add_argument('--maxsteps', type=int, default=20000,
+parser.add_argument('--maxsteps', type=int, default=None,
     help='maximum number of MCMC steps')
-parser.add_argument('--grthreshold', type=float, default=1.1,
+parser.add_argument('--grthreshold', type=float, default=None,
     help='Gelmin-Rubin threshold')
 # parser.add_argument('--pipeline', help='which pipeline to use',
 #     type=str, default='everest')
@@ -87,7 +87,7 @@ skip = None
 # else:
 #     skip = args.skip
 
-METHODS = 'base cen pld'.split()
+METHODS = 'base cen pld pca pca2 pca-quad'.split()
 assert method in METHODS
 
 setup = kanpai.spz.util.parse_setup(spz_setup_fp)
@@ -116,7 +116,8 @@ if args.datadir:
 args = 'k2lc binsize nsteps1 nsteps2 maxsteps grthreshold nthreads'.split()
 vals = k2lc, binsize, nsteps1, nsteps2, maxsteps, grthreshold, nthreads
 for k,v in zip(args, vals):
-    if k not in setup['config'].keys():
+    if v is not None:
+    # if k not in setup['config'].keys():
         setup['config'][k] = v
 
 fit = kanpai.spz.Fit(setup, outdir, method)

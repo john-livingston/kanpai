@@ -93,12 +93,13 @@ def chain(chain, labels, fp=None, dpi=96):
             pl.close()
 
 
-def corner(fc, labels, fp=None, dpi=96):
+def corner(fc, labels, fp=None, truths=None, dpi=96):
     hist_kwargs = dict(lw=2, alpha=0.5)
     title_kwargs = dict(fontdict=dict(fontsize=12))
     with sb.axes_style('white'):
         triangle(fc,
             labels=labels,
+            truths=truths,
             hist_kwargs=hist_kwargs,
             title_kwargs=title_kwargs,
             show_titles=True,
