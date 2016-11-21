@@ -6,23 +6,19 @@ import functools
 
 import matplotlib.pyplot as pl
 import numpy as np
-np.warnings.simplefilter('ignore')
 import pandas as pd
 import scipy.optimize as op
 from scipy import stats
 from photutils.morphology import centroid_com, centroid_2dg
 import seaborn as sb
-sb.set_color_codes('muted')
 from emcee import MHSampler, EnsembleSampler, PTSampler
 from emcee.utils import sample_ball
 import corner
 from tqdm import tqdm
 import sxp
 from pytransit import MandelAgol
-from sklearn.decomposition import PCA
 
 from ..k2 import loglike1 as k2_loglike
-from ..k2 import lc as k2_lc
 from ..k2 import fit as k2_fit
 from ..k2 import plot as k2_plot
 from like import loglike as spz_loglike
@@ -30,10 +26,13 @@ from like import model as spz_model
 import util
 import plot
 
+np.warnings.simplefilter('ignore')
+sb.set_color_codes('muted')
+
 
 K2_TIME_OFFSET = 2454833
 
-METHODS = 'cen pld base pca pca2 pca-quad'.split()
+METHODS = 'cen pld base pca pca2 pca-quad cen-quad'.split()
 
 # import logging
 # logger = logging.getLogger('scope.name')
@@ -152,6 +151,12 @@ class Fit(object):
             bias = np.repeat(1, n)
             self._aux = np.c_[bias, self._xy].T
 
+        elif method == 'cen-quad':
+
+            n = self._xy.shape[0]
+            bias = np.repeat(1, n)
+            self._aux = np.c_[bias, self._xy, self._xy**2].T
+
         elif method == 'pld':
 
             self._aux = self._pix.T
@@ -167,7 +172,7 @@ class Fit(object):
             n = self._xy.shape[0]
             bias = np.repeat(1, n)
             X = self._pix.T
-            top2 = self._pca(X, n=2)
+            top2 = util.pca(X, n=2)
             self._aux = np.c_[bias, top2].T
 
         elif method == 'pca2':
@@ -175,7 +180,7 @@ class Fit(object):
             n = self._xy.shape[0]
             bias = np.repeat(1, n)
             X = np.c_[self._pix, self._pix**2].T
-            top2 = self._pca(X, n=2)
+            top2 = util.pca(X, n=2)
             self._aux = np.c_[bias, top2].T
 
         elif method == 'pca-quad':
@@ -189,17 +194,6 @@ class Fit(object):
         else:
 
             raise ValueError('method must be one of: {}'.format(METHODS))
-
-
-    def _pca(self, X, n=2):
-
-        pca = PCA()
-        res = pca.fit(X)
-        ratio_exp = pca.explained_variance_ratio_
-        for i in range(n):
-            print "PCA BV{0} explained variance: {1:.4f}".format(i+1, ratio_exp[i])
-
-        return pca.components_[:n].T
 
 
     def _setup_ld(self):
@@ -316,6 +310,46 @@ class Fit(object):
 
 
     @property
+    def _spz_args(self):
+
+        """
+        Spitzer likelihood args.
+        """
+
+        t, f, s = self._spz_ts
+        p = self._tr['p']
+        aux = self._aux
+
+        return t, f, s, p, aux
+
+
+    @property
+    def _k2_ts(self):
+
+        """
+        K2 photometric time series (time, flux, unc).
+        """
+
+        cols = 't f s'.split()
+        t, f, s = self._df_k2[cols].values.T
+
+        return t, f, s
+
+
+    @property
+    def _k2_args(self):
+
+        """
+        K2 likelihood args.
+        """
+
+        t, f, s = self._k2_ts
+        p = self._tr['p']
+
+        return t, f, s, p
+
+
+    @property
     def _args(self):
 
         """
@@ -372,6 +406,15 @@ class Fit(object):
 
         pvna = np.array(self._labels)
         return pvna[idx]
+
+
+    def _pn_idx(self, pname):
+
+        """
+        Index for a given parameter name.
+        """
+
+        return self._labels.index(pname)
 
 
     def _map(self, method='nelder-mead'):
@@ -449,10 +492,10 @@ class Fit(object):
         init_sp = get_theta(initial, 'sp')
         best_sp = get_theta(self._pv_map, 'sp')
 
-        init_model = spz_model(init_sp, *args[:-3])
-        max_apo_model = spz_model(best_sp, *args[:-3])
-        fcor = spz_model(best_sp, *args[:-3], ret_sys=True)
-        transit_model = spz_model(best_sp, *args[:-3], ret_ma=True)
+        init_model = spz_model(init_sp, *self._spz_args)
+        max_apo_model = spz_model(best_sp, *self._spz_args)
+        fcor = spz_model(best_sp, *self._spz_args, ret_sys=True)
+        transit_model = spz_model(best_sp, *self._spz_args, ret_ma=True)
 
         with sb.axes_style('white'):
 
@@ -521,7 +564,7 @@ class Fit(object):
                 self._fc = npz['flat_chain']
                 self._pv_mcmc = npz['pv_best']
                 self._lp_mcmc = npz['logprob_best']
-
+                self._post_mcmc()
                 return
 
         sampler = EnsembleSampler(nwalkers, ndim, logprob,
@@ -598,46 +641,108 @@ class Fit(object):
             pv=dict(zip(self._labels, self._pv_mcmc.tolist()))
             )
 
+        # chain stats
+        self._output['stats'] = dict(
+            acor=dict(zip(self._labels, sampler.acor.tolist())),
+            gr=dict(zip(self._labels, gr_vals[-1].tolist()))
+            )
+
+        self._post_mcmc()
+
+
+    def _post_mcmc(self):
+
+        # Spitzer stats
         best_sp = get_theta(self._pv_mcmc, 'sp')
-        mod_full = spz_model(best_sp, *args[:-3])
+        mod_full = spz_model(best_sp, *self._spz_args)
         t, f, s = self._spz_ts
-        sys = spz_model(best_sp, *args[:-3], ret_sys=True)
+        sys = spz_model(best_sp, *self._spz_args, ret_sys=True)
         f_cor = f - sys
-        mod_transit = spz_model(best_sp, *args[:-3], ret_ma=True)
-        resid = f - spz_model(best_sp, *args[:-3])
-        fp = os.path.join(out_dir, 'fit-mcmc-best.png')
+        mod_transit = spz_model(best_sp, *self._spz_args, ret_ma=True)
+        resid = f - spz_model(best_sp, *self._spz_args)
+        fp = os.path.join(self._out_dir, 'fit-mcmc-best.png')
         plot.corrected_ts(t, f, f_cor, mod_full, mod_transit, resid, fp)
 
         timestep = np.median(np.diff(t)) * 86400
         rms = util.rms(resid)
         beta = util.beta(resid, timestep)
-        acor = sampler.acor
-        rchisq = None # FIXME
+        nd, npar = len(s), len(best_sp)
+        rchisq = util.chisq(resid, s, nd, npar, reduced=True)
+        obj = lambda x: (1 - util.chisq(resid, s*x, nd, npar, reduced=True))**2
+        res = op.minimize(obj, 1, method='nelder-mead')
+        if res.success:
+            rescale_fac = float(res.x)
+        else:
+            rescale_fac = None
+        bic = util.bic(spz_loglike(best_sp, *self._spz_args), nd, npar)
+
         print "RMS: {}".format(rms)
         print "Beta: {}".format(beta)
-        self._output['stats'] = dict(rms=float(rms),
+        self._output['spz'] = dict(rms=float(rms),
             beta=float(beta),
-            reduced_chisq=rchisq,
-            acor=dict(zip(self._labels, acor.tolist())),
-            gr=dict(zip(self._labels, gr_vals[-1].tolist()))
+            reduced_chisq=float(rchisq),
+            rescale_fac=rescale_fac,
+            bic=float(bic)
             )
 
+        # update corrected Spitzer data
         if self._lp_mcmc > self._lp_map:
             best = self._pv_mcmc
         else:
             best = self._pv_map
         best_sp = get_theta(best, 'sp')
         self._update_df_sp(best_sp)
-        fp = os.path.join(out_dir, 'spz.csv')
+        fp = os.path.join(self._out_dir, 'spz.csv')
         self._df_sp.to_csv(fp, index=False)
+
+        # K2 stats
+        best_k2 = get_theta(self._pv_mcmc, 'k2')
+        df_k2 = self._df_k2
+        t, f, s = df_k2['t'], df_k2['f'], df_k2['s']
+        model = k2_loglike(best_k2, *self._k2_args, ret_mod=True)
+        resid = f - model
+        rms = util.rms(resid)
+        timestep = np.median(np.diff(t)) * 86400
+        beta = util.beta(resid, timestep)
+        nd, npar = len(s), len(best_k2)
+        rchisq = util.chisq(resid, s, nd, npar, reduced=True)
+        obj = lambda x: (1 - util.chisq(resid, s*x, nd, npar, reduced=True))**2
+        res = op.minimize(obj, 1, method='nelder-mead')
+        if res.success:
+            rescale_fac = float(res.x)
+        else:
+            rescale_fac = None
+        bic = util.bic(k2_loglike(best_k2, *self._k2_args), nd, npar)
+
+        self._output['k2'] = dict(rms=float(rms),
+            beta=float(beta),
+            reduced_chisq=float(rchisq),
+            rescale_fac=rescale_fac,
+            bic=float(bic)
+            )
+
+        # percentiles
+        percs = [15.87, 50.0, 84.13]
+        pc = np.percentile(self._fc, percs, axis=0).T.tolist()
+        self._output['percentiles'] = dict(zip(self._labels, pc))
+
+        # rhostar
+        p = self._tr['p']
+        idx = self._pn_idx('a')
+        a_samples = self._fc[:,idx]
+        rho = util.sample_rhostar(a_samples, p)
+        p0 = 1,rho.mean(),rho.std(), 1,np.median(rho),rho.std()
+        fp = os.path.join(self._out_dir, 'rhostar.png')
+        plot.multi_gauss_fit(rho, p0, fp=fp)
+
 
 
     def _update_df_sp(self, best_sp):
 
         args = self._args
-        sys = spz_model(best_sp, *args[:-3], ret_sys=True)
+        sys = spz_model(best_sp, *self._spz_args, ret_sys=True)
         self._df_sp['f_cor'] = self._df_sp['f'] - sys
-        resid = self._df_sp['f'] - spz_model(best_sp, *args[:-3])
+        resid = self._df_sp['f'] - spz_model(best_sp, *self._spz_args)
         self._df_sp['resid'] = resid
 
 
@@ -683,7 +788,7 @@ class Fit(object):
             theta_sp = get_theta(theta, 'sp')
             theta_k2 = get_theta(theta, 'k2')
 
-            flux_pr_sp.append(spz_model(theta_sp, *args[:-3], ret_ma=True))
+            flux_pr_sp.append(spz_model(theta_sp, *self._spz_args, ret_ma=True))
             flux_pr_k2.append(k2_loglike(theta_k2, *args_k2, ret_mod=True))
 
         flux_pr_sp, flux_pr_k2 = map(np.array, [flux_pr_sp, flux_pr_k2])
@@ -698,7 +803,7 @@ class Fit(object):
         title = '{}-{}{}'.format(prefix, starid, planet)
         if 'epoch' in self._setup['config'].keys():
             epoch = self._setup['config']['epoch']
-            title += '_{}'.format(epoch)
+            title += '_e{}'.format(epoch)
 
         plot.k2_spz_together(self._df_sp, self._df_k2, flux_pc_sp, flux_pc_k2,
             percs, self._fc[:,2], self._fc[:,3], fp, title=title)

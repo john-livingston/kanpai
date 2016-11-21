@@ -3,6 +3,12 @@ import matplotlib.pyplot as pl
 import seaborn as sb
 sb.set_color_codes('muted')
 from corner import corner as triangle
+import scipy.optimize as op
+from scipy import stats
+
+
+ncolors = 5
+cp = [sb.desaturate(pl.cm.gnuplot((j+1)/float(ncolors+1)), 0.75) for j in range(ncolors)]
 
 
 def errorbar(t, f, s, fp=None, **kwargs):
@@ -164,3 +170,58 @@ def k2_spz_together(df_sp, df_k2, flux_pc_sp, flux_pc_k2, percs,
         if fp:
             fig.savefig(fp, dpi=dpi)
             pl.close()
+
+
+def multi_gauss_fit(samples, p0, fp=None, return_popt=False):
+
+    def multi_gauss(x, *args):
+        n = len(args)
+        assert n % 3 == 0
+        g = np.zeros(len(x))
+        for i in range(0,n,3):
+            a, m, s = args[i:i+3]
+            g += a * stats.norm.pdf(x, m, s)
+        return g
+
+    hist, edges = np.histogram(samples, bins=100, normed=True)
+    bin_width = np.diff(edges).mean()
+    x, y = edges[:-1] + bin_width/2., hist
+    try:
+        popt, pcov = op.curve_fit(multi_gauss, x, y, p0=p0)
+    except RuntimeError as e:
+        print e
+        with sb.axes_style('white'):
+            fig,ax = pl.subplots(1,1, figsize=(7,3))
+            ax.hist(samples, bins=30, normed=True,
+                    histtype='stepfilled', color='gray', alpha=0.6)
+        return
+
+    ncomp = len(p0)/3
+    names = 'amp mu sigma'.split() * ncomp
+    comp = []
+    for i in range(ncomp):
+        comp += (np.zeros(3) + i).astype(int).tolist()
+    for i,(p,u) in enumerate(zip(popt, np.sqrt(np.diag(pcov)))):
+        print "{0}{1}: {2:.6f} +/- {3:.6f}".format(names[i], comp[i], p, u)
+
+    a_,mu_,sig_ =[],[],[]
+    for i in range(len(p0)/3):
+        a_.append(popt[i*3])
+        mu_.append(popt[i*3+1])
+        sig_.append(popt[i*3+2])
+
+    with sb.axes_style('white'):
+        fig,ax = pl.subplots(1,1, figsize=(7,3))
+        ax.hist(samples, bins=edges, normed=True,
+                histtype='stepfilled', color=cp[1], alpha=0.6)
+        for a,m,s in zip(a_,mu_,sig_):
+            ax.plot(x, a * stats.norm.pdf(x, m, s), linestyle='-', color=cp[0])
+        ax.plot(x, multi_gauss(x, *popt), linestyle='--', color=cp[4], lw=3)
+        pl.setp(ax, xlim=[x.min(), x.max()], yticks=[])
+        fig.tight_layout()
+        if fp:
+            fig.savefig(fp)
+            pl.close()
+
+    if return_popt:
+        return popt

@@ -2,6 +2,9 @@ import yaml
 import numpy as np
 
 import limbdark
+from astropy import constants as c
+from astropy import units as u
+import sklearn.decomposition as dc
 
 
 def impact(a, i):
@@ -129,3 +132,74 @@ def gelman_rubin(chains, verbose=False):
     W = var_j.mean(axis=0)
     R2 = ( W*(nn-1)/nn + B/nn ) / W
     return np.sqrt(R2)
+
+
+def pca(X, n=2):
+
+    pca = dc.PCA()
+    res = pca.fit(X)
+    ratio_exp = pca.explained_variance_ratio_
+    for i in range(n):
+        print "PCA BV{0} explained variance: {1:.4f}".format(i+1, ratio_exp[i])
+
+    return pca.components_[:n].T
+
+
+def chisq(resid, sig, ndata=None, nparams=None, reduced=False):
+    if reduced:
+        assert ndata is not None and nparams is not None
+        dof = ndata - nparams
+        return sum((resid / sig)**2) / (dof)
+    else:
+        return sum((resid / sig)**2)
+
+
+def bic(lnlike, ndata, nparam):
+    return -2 * lnlike + nparam * np.log(ndata)
+
+
+def rhostar(p, a):
+    """
+    Eq.4 of http://arxiv.org/pdf/1311.1170v3.pdf. Assumes circular orbit.
+    """
+    p = p * u.d
+    gpcc = u.g / u.cm ** 3
+    rho_mks = 3 * np.pi / c.G / p ** 2 * a ** 3
+    return rho_mks.to(gpcc)
+
+
+def logg(rho, r):
+    r = (r * u.R_sun).cgs
+    gpcc = u.g / u.cm ** 3
+    rho *= gpcc
+    g = 4 * np.pi / 3 * c.G.cgs * rho * r
+    return np.log10(g.value)
+
+
+def rho(logg, r):
+    r = (r * u.R_sun).cgs
+    g = 10 ** logg * u.cm / u.s ** 2
+    rho = 3 * g / (r * c.G.cgs * 4 * np.pi)
+    return rho
+
+
+def sample_rhostar(a_samples, p):
+    """
+    Given samples of the scaled semi-major axis and the period,
+    compute samples of rhostar
+    """
+    rho = []
+    n = int(1e4) if len(a_samples) > 1e4 else len(a_samples)
+    for a in a_samples[np.random.randint(len(a_samples), size=n)]:
+        rho.append(rhostar(p, a).value)
+    return np.array(rho)
+
+
+def sample_logg(rho_samples, rstar, urstar):
+    """
+    Given samples of the stellar density and the stellar radius
+    (and its uncertainty), compute samples of logg
+    """
+    rs = rstar + urstar * np.random.randn(len(rho_samples))
+    idx = rs > 0
+    return logg(rho_samples[idx], rs[idx])
