@@ -703,7 +703,10 @@ class Fit(object):
         resid = f - model
         rms = util.rms(resid)
         timestep = np.median(np.diff(t)) * 86400
-        beta = util.beta(resid, timestep)
+        try:
+            beta = float(util.beta(resid, timestep))
+        except:
+            beta = None
         nd, npar = len(s), len(best_k2)
         rchisq = util.chisq(resid, s, nd, npar, reduced=True)
         obj = lambda x: (1 - util.chisq(resid, s*x, nd, npar, reduced=True))**2
@@ -715,7 +718,7 @@ class Fit(object):
         bic = util.bic(k2_loglike(best_k2, *self._k2_args), nd, npar)
 
         self._output['k2'] = dict(rms=float(rms),
-            beta=float(beta),
+            beta=beta,
             reduced_chisq=float(rchisq),
             rescale_fac=rescale_fac,
             bic=float(bic)

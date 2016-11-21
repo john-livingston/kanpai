@@ -172,7 +172,7 @@ def k2_spz_together(df_sp, df_k2, flux_pc_sp, flux_pc_k2, percs,
             pl.close()
 
 
-def multi_gauss_fit(samples, p0, fp=None, return_popt=False):
+def multi_gauss_fit(samples, p0, fp=None, return_popt=False, verbose=True):
 
     def multi_gauss(x, *args):
         n = len(args)
@@ -201,8 +201,10 @@ def multi_gauss_fit(samples, p0, fp=None, return_popt=False):
     comp = []
     for i in range(ncomp):
         comp += (np.zeros(3) + i).astype(int).tolist()
-    for i,(p,u) in enumerate(zip(popt, np.sqrt(np.diag(pcov)))):
-        print "{0}{1}: {2:.6f} +/- {3:.6f}".format(names[i], comp[i], p, u)
+    if verbose:
+        print
+        for i,(p,u) in enumerate(zip(popt, np.sqrt(np.diag(pcov)))):
+            print "{0}{1}: {2:.6f} +/- {3:.6f}".format(names[i], comp[i], p, u)
 
     a_,mu_,sig_ =[],[],[]
     for i in range(len(p0)/3):
