@@ -21,6 +21,7 @@ from pytransit import MandelAgol
 from ..k2 import loglike1 as k2_loglike
 from ..k2 import fit as k2_fit
 from ..k2 import plot as k2_plot
+from ..k2 import util as k2_util
 from like import loglike as spz_loglike
 from like import model as spz_model
 import util
@@ -31,8 +32,9 @@ sb.set_color_codes('muted')
 
 
 K2_TIME_OFFSET = 2454833
+PI2 = np.pi/2
 
-METHODS = 'cen pld base pca pca2 pca-quad cen-quad'.split()
+METHODS = 'cen pld base pca pca2 pca-quad cen-quad pld-quad'.split()
 
 # import logging
 # logger = logging.getLogger('scope.name')
@@ -55,9 +57,9 @@ def logprob(theta, t, f, s, p, aux, k2data, u_kep, u_spz):
     a,i,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k1_s,k0_k = theta[:12]
     theta_aux = theta[12:]
 
-    if k_s < 0 or k_k < 0 or \
-        tc_s < t.min() or tc_s > t.max() or \
-        i < 0 or i > np.pi/2:
+    if k_s < -1 or k_s > 1 or k_k < -1 or k_k > 1 or \
+        tc_s < t[0] - 0.05 or tc_s > t[-1] + 0.05 or \
+        i < 0 or i > PI2:
         return -np.inf
     lp = np.log(stats.norm.pdf(u1_s, u_spz[0], u_spz[1]))
     lp += np.log(stats.norm.pdf(u2_s, u_spz[2], u_spz[3]))
@@ -161,6 +163,10 @@ class Fit(object):
 
             self._aux = self._pix.T
 
+        elif method == 'pld-quad':
+
+            self._aux = np.c_[self._pix, self._pix**2].T
+
         elif method == 'base':
 
             n = self._xy.shape[0]
@@ -200,7 +206,21 @@ class Fit(object):
 
         teff, uteff = self._setup['stellar']['teff']
         logg, ulogg = self._setup['stellar']['logg']
-        self._u_kep, self._u_spz = util.get_ld(teff, uteff, logg, ulogg)
+        feh, ufeh = self._setup['stellar']['feh']
+
+        try:
+            self._u_kep = self._setup['ld']['kep']
+        except KeyError as e:
+            print "Input file missing Kepler bandpass limb-darkening priors"
+            print "Using LDTk..."
+            self._u_kep = k2_util.get_ld_ldtk(teff, uteff, logg, ulogg, feh, ufeh)
+
+        try:
+            self._u_spz = self._setup['ld']['spz']
+        except KeyError as e:
+            print "Input file missing Spitzer bandpass limb-darkening priors"
+            print "Using Claret+2012..."
+            self._u_spz = util.get_ld_claret(teff, uteff, logg, ulogg, 'S2')
 
 
     def _load_k2(self):
@@ -541,12 +561,6 @@ class Fit(object):
             pv_ini = self._pv_map
             logprob_ini = self._lp_map
 
-        ndim = len(pv_ini)
-        nwalkers = 8 * ndim if ndim > 12 else 16 * ndim
-        print "\nRunning MCMC"
-        print "{} walkers exploring {} dimensions".format(nwalkers, ndim)
-
-
         fp = os.path.join(out_dir, 'mcmc.npz')
         if os.path.isfile(fp):
 
@@ -566,6 +580,11 @@ class Fit(object):
                 self._lp_mcmc = npz['logprob_best']
                 self._post_mcmc()
                 return
+
+        ndim = len(pv_ini)
+        nwalkers = 8 * ndim if ndim > 12 else 16 * ndim
+        print "\nRunning MCMC"
+        print "{} walkers exploring {} dimensions".format(nwalkers, ndim)
 
         sampler = EnsembleSampler(nwalkers, ndim, logprob,
             args=args, threads=nthreads)
@@ -738,6 +757,18 @@ class Fit(object):
         fp = os.path.join(self._out_dir, 'rhostar.png')
         plot.multi_gauss_fit(rho, p0, fp=fp)
 
+        # small corner
+        fp = os.path.join(self._out_dir, 'corner-small.png')
+        idx = []
+        for n in 'a i k_s k_k tc_s'.split():
+            idx += [self._pn_idx(n)]
+        fc = self._fc[:,idx].copy()
+        tc = int(fc[:,-1].mean())
+        fc[:,-1] -= tc
+        labels = r'$a/R_{\star}$ $i$ $R_p/R_{\star,S}$ $R_p/R_{\star,K}$'
+        labels += r' $T_[C,S]-{}$'.format(tc).replace('[','{').replace(']','}')
+        plot.corner(fc, labels.split(), fp=fp,
+            quantiles=None, plot_datapoints=False, dpi=256, tight=True)
 
 
     def _update_df_sp(self, best_sp):
@@ -800,13 +831,21 @@ class Fit(object):
 
         fp = os.path.join(self._out_dir, 'fit-final.png')
 
-        prefix = self._setup['config']['prefix']
-        starid = self._setup['config']['starid']
-        planet = self._setup['config']['planet']
-        title = '{}-{}{}'.format(prefix, starid, planet)
+        plot.k2_spz_together(self._df_sp, self._df_k2, flux_pc_sp, flux_pc_k2,
+            percs, self._fc[:,2], self._fc[:,3], fp, title=self._plot_title)
+
+
+    @property
+    def _plot_title(self):
+
+        if 'name' in self._setup['config'].keys():
+            title = self._setup['config']['name']
+        else:
+            prefix = self._setup['config']['prefix']
+            starid = self._setup['config']['starid']
+            planet = self._setup['config']['planet']
+            title = '{}-{}{}'.format(prefix, starid, planet)
         if 'epoch' in self._setup['config'].keys():
             epoch = self._setup['config']['epoch']
-            title += '_e{}'.format(epoch)
-
-        plot.k2_spz_together(self._df_sp, self._df_k2, flux_pc_sp, flux_pc_k2,
-            percs, self._fc[:,2], self._fc[:,3], fp, title=title)
+            title += ' epoch {}'.format(epoch)
+        return title

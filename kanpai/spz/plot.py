@@ -99,19 +99,33 @@ def chain(chain, labels, fp=None, dpi=96):
             pl.close()
 
 
-def corner(fc, labels, fp=None, truths=None, dpi=96):
-    hist_kwargs = dict(lw=2, alpha=0.5)
+def corner(fc, labels, fp=None, truths=None, quantiles=[0.16,0.5,0.84],
+    plot_datapoints=True, dpi=96, tight=False):
+
+    # hist_kwargs = dict(lw=2, alpha=0.5)
+    hist_kwargs = dict(lw=1, alpha=1)
     title_kwargs = dict(fontdict=dict(fontsize=12))
-    with sb.axes_style('white'):
+    with sb.axes_style('white', pl.rcParamsDefault):
+        # n = fc.shape[1]
+        # fig, axs = pl.subplots(n, n, figsize=(n*2, n*2))
         triangle(fc,
+            # fig=fig,
             labels=labels,
             truths=truths,
+            truth_color='b',
+            smooth=1,
+            smooth1d=1,
+            plot_datapoints=plot_datapoints,
+            data_kwargs={'alpha':0.01},
             hist_kwargs=hist_kwargs,
             title_kwargs=title_kwargs,
             show_titles=True,
-            quantiles=[0.16,0.5,0.84],
+            quantiles=quantiles,
             title_fmt='.4f')
+        # pl.setp(axs, xlabel=[], ylabel=[])
         if fp:
+            if tight:
+                pl.tight_layout()
             pl.savefig(fp, dpi=dpi)
             pl.close()
 

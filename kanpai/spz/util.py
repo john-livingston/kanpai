@@ -5,6 +5,10 @@ import limbdark
 from astropy import constants as c
 from astropy import units as u
 import sklearn.decomposition as dc
+from ldtk import LDPSetCreator, BoxcarFilter, TabulatedFilter
+
+from ..k2 import band as k2_band
+
 
 
 def impact(a, i):
@@ -49,28 +53,39 @@ def parse_setup(fp):
     return setup
 
 
-def get_ld(teff, uteff, logg, ulogg):
+def get_ld_claret(teff, uteff, logg, ulogg, band='S2'):
+
     mult = 1
-    u_kep, u_spz = np.repeat(np.nan, 4), np.repeat(np.nan, 4)
-    while np.isnan(u_kep).any() | np.isnan(u_spz).any():
-
+    u = np.repeat(np.nan, 4)
+    while np.isnan(u).any():
         mult += 1
+        u[:] = limbdark.get_ld(band, teff, mult * uteff, logg, mult * ulogg)
 
-        u_kep[:] = limbdark.get_ld('Kp', teff, mult * uteff, logg, mult * ulogg)
-        u_spz[:] = limbdark.get_ld('S2', teff, mult * uteff, logg, mult * ulogg)
+    u = u.tolist()
+    # boost uncertainties by factor of 2
+    u[1] *= 2
+    u[3] *= 2
 
-    u_kep = u_kep.tolist()
-    u_spz = u_spz.tolist()
-    print "\nUncertainty multiplier needed: {}".format(mult)
-    print "Kepler u1: {0:.4f}+/-{1:.4f}, u2: {2:.4f}+/-{3:.4f}".format(*u_kep)
-    print "Spitzer u1: {0:.4f}+/-{1:.4f}, u2: {2:.4f}+/-{3:.4f}".format(*u_spz)
+    print "{0} u1: {1:.4f}+/-{2:.4f}, u2: {3:.4f}+/-{4:.4f}".format(band, *u)
 
-    df = limbdark.get_ld_df('Kp', teff, mult * uteff, logg, mult * ulogg)
-    print "using {} models".format(df.shape[0])
+    df = limbdark.get_ld_df(band, teff, mult * uteff, logg, mult * ulogg)
+    print "Using {} models".format(df.shape[0])
     for key in "teff logg feh".split():
         print "{} range: {} - {}".format(key, df[key].min(), df[key].max())
 
-    return u_kep, u_spz
+    return u
+
+
+def get_ld_ldtk(teff, uteff, logg, ulogg, feh, ufeh):
+
+    filters = [TabulatedFilter('Kepler', k2_band.lam, k2_band.tra),
+        # BoxcarFilter('I1', 3179, 3955),
+        BoxcarFilter('I2', 3955, 5015)]
+    sc = LDPSetCreator(teff=(teff,uteff), logg=(logg,ulogg), z=(feh,ufeh), filters=filters)
+    ps = sc.create_profiles()
+    cq,eq = ps.coeffs_qd(do_mc=True)
+
+    return cq, eq
 
 
 def binned(a, binsize, fun=np.mean):

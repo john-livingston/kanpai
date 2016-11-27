@@ -87,7 +87,7 @@ skip = None
 # else:
 #     skip = args.skip
 
-METHODS = 'base cen pld pca pca2 pca-quad cen-quad'.split()
+METHODS = 'base cen pld pca pca2 pca-quad cen-quad pld-quad'.split()
 assert method in METHODS
 
 setup = kanpai.spz.util.parse_setup(spz_setup_fp)
