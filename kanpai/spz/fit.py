@@ -194,7 +194,7 @@ class Fit(object):
             n = self._xy.shape[0]
             bias = np.repeat(1, n)
             X = self._pix.T
-            top2 = self._pca(X, n=2)
+            top2 = util.pca(X, n=2)
             self._aux = np.c_[bias, top2, top2**2].T
 
         else:
@@ -253,16 +253,21 @@ class Fit(object):
         self._radius = self._setup['config']['radius']
         self._aor = self._setup['config']['aor']
         self._data_dir = self._setup['config']['datadir']
+        self._geom = self._setup['config']['geom']
+        if self._geom == '3x3':
+            self._npix = 9
+        elif self._geom == '5x5':
+            self._npix = 25
 
         fp = os.path.join(self._data_dir, self._aor+'_phot.pkl')
-        df_sp = sxp.util.df_from_pickle(fp, self._radius, pix=True)
+        df_sp = sxp.util.df_from_pickle(fp, self._radius, pix=True, geom=self._geom)
 
         # plot
         fp = os.path.join(self._out_dir, 'spz_raw.png')
         plot.errorbar(df_sp.t, df_sp.f, df_sp.s, fp, alpha=0.5)
 
         # extract time series and bin
-        keys = ['p{}'.format(i) for i in range(9)]
+        keys = ['p{}'.format(i) for i in range(self._npix)]
         pix = df_sp[keys].values
         t, f, s = df_sp.t, df_sp.f, df_sp.s
         timestep = np.median(np.diff(t)) * 24 * 3600
@@ -280,7 +285,8 @@ class Fit(object):
         fp = os.path.join(self._out_dir, 'spz_binned.png')
         plot.errorbar(tb, fb, ub, fp)
 
-        cube = pix.reshape(-1,3,3)
+        side = np.sqrt(self._npix)
+        cube = pix.reshape(-1,side,side)
         cubestacked = np.median(cube, axis=0)
         fp = os.path.join(self._out_dir, 'spz_pix.png')
         plot.pixels(cubestacked, fp)

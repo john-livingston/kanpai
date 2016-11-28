@@ -20,6 +20,8 @@ parser.add_argument('--k2lc', help='k2 folded lc file',
     type=str, default=None)
 parser.add_argument('--binsize', help='bin size for'
     ' Spitzer data [seconds]', type=int, default=None)
+parser.add_argument('--geom', help='pixel geometry for PLD',
+    type=str, default=None)
 parser.add_argument('--clobber', dest='clobber', help='overwrite',
     action='store_true')
 # parser.add_argument('--save', dest='save', help='save MCMC samples',
@@ -57,6 +59,7 @@ args = parser.parse_args()
 
 spz_setup_fp = args.input
 binsize = args.binsize
+geom = args.geom
 clobber = args.clobber
 # save = args.save
 method = args.method
@@ -90,6 +93,10 @@ skip = None
 METHODS = 'base cen pld pca pca2 pca-quad cen-quad pld-quad'.split()
 assert method in METHODS
 
+GEOMETRY = '3x3 5x5'
+if geom is not None:
+    assert geom in GEOMETRY
+
 setup = kanpai.spz.util.parse_setup(spz_setup_fp)
 
 if args.outdir:
@@ -104,6 +111,8 @@ else:
         outdir += '_e' + str(setup['config']['epoch'])
     # out_dir += '-{}'.format(pipeline)
     outdir += '-{}'.format(method)
+    if geom is not None:
+        outdir += '-{}'.format(geom)
 
 if os.path.isdir(outdir) and not clobber:
     raise IOError("Output directory exists and clobber set to False")
@@ -113,8 +122,8 @@ elif not os.path.isdir(outdir):
 if args.datadir:
     setup['config']['datadir'] = args.datadir
 
-args = 'k2lc binsize nsteps1 nsteps2 maxsteps grthreshold nthreads'.split()
-vals = k2lc, binsize, nsteps1, nsteps2, maxsteps, grthreshold, nthreads
+args = 'k2lc binsize geom nsteps1 nsteps2 maxsteps grthreshold nthreads'.split()
+vals = k2lc, binsize, geom, nsteps1, nsteps2, maxsteps, grthreshold, nthreads
 for k,v in zip(args, vals):
     if v is not None:
     # if k not in setup['config'].keys():
