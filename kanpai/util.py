@@ -23,6 +23,11 @@ def aggregate_results(list_of_output_dirs):
         utf.append(infile['stellar']['teff'][1])
 
         try:
+            method = outfile['method']
+            beta = outfile['spz']['beta']
+            bic = outfile['spz']['bic']
+            rchisq = outfile['spz']['reduced_chisq']
+
             a,b,c = outfile['percentiles']['k_k']
             k_k2.append(b)
             k_k2_plus.append(c-b)

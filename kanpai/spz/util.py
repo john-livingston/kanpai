@@ -66,7 +66,7 @@ def get_ld_claret(teff, uteff, logg, ulogg, band='S2'):
     u[1] *= 2
     u[3] *= 2
 
-    print "{0} u1: {1:.4f}+/-{2:.4f}, u2: {3:.4f}+/-{4:.4f}".format(band, *u)
+    print "{0} u1: {1:.4f} +/- {2:.4f}, u2: {3:.4f} +/- {4:.4f}".format(band, *u)
 
     df = limbdark.get_ld_df(band, teff, mult * uteff, logg, mult * ulogg)
     print "Using {} models".format(df.shape[0])

@@ -211,16 +211,18 @@ class Fit(object):
         try:
             self._u_kep = self._setup['ld']['kep']
         except KeyError as e:
-            print "Input file missing Kepler bandpass limb-darkening priors"
+            print "Input missing Kepler limb-darkening priors"
             print "Using LDTk..."
             self._u_kep = k2_util.get_ld_ldtk(teff, uteff, logg, ulogg, feh, ufeh)
 
         try:
             self._u_spz = self._setup['ld']['spz']
         except KeyError as e:
-            print "Input file missing Spitzer bandpass limb-darkening priors"
+            print "Input missing Spitzer limb-darkening priors"
             print "Using Claret+2012..."
             self._u_spz = util.get_ld_claret(teff, uteff, logg, ulogg, 'S2')
+
+        self._output['ld_priors'] = dict(kep=self._u_kep, spz=self._u_spz)
 
 
     def _load_k2(self):
@@ -765,6 +767,7 @@ class Fit(object):
         fc = self._fc[:,idx].copy()
         tc = int(fc[:,-1].mean())
         fc[:,-1] -= tc
+        fc[:,1] *= 180/np.pi
         labels = r'$a/R_{\star}$ $i$ $R_p/R_{\star,S}$ $R_p/R_{\star,K}$'
         labels += r' $T_[C,S]-{}$'.format(tc).replace('[','{').replace(']','}')
         plot.corner(fc, labels.split(), fp=fp,

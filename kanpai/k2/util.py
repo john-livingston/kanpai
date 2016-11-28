@@ -132,7 +132,7 @@ def get_ld_claret(teff, uteff, logg, ulogg, band='Kp'):
     u[1] *= 2
     u[3] *= 2
 
-    print "{0} u1: {1:.4f}+/-{2:.4f}, u2: {3:.4f}+/-{4:.4f}".format(band, *u)
+    print "{0} u1: {1:.4f} +/- {2:.4f}, u2: {3:.4f} +/- {4:.4f}".format(band, *u)
 
     df = limbdark.get_ld_df(band, teff, mult * uteff, logg, mult * ulogg)
     print "Using {} models".format(df.shape[0])
@@ -142,16 +142,25 @@ def get_ld_claret(teff, uteff, logg, ulogg, band='Kp'):
     return u
 
 
-def get_ld_ldtk(teff, uteff, logg, ulogg, feh, ufeh):
+def get_ld_ldtk(teff, uteff, logg, ulogg, feh, ufeh, kind='quadratic'):
 
     filters = [TabulatedFilter('Kepler', band.lam, band.tra)]
     sc = LDPSetCreator(teff=(teff,uteff), logg=(logg,ulogg), z=(feh,ufeh), filters=filters)
     ps = sc.create_profiles()
-    cq,eq = ps.coeffs_qd(do_mc=True)
-    # as in Crossfield et al. 2016, multiply the uncertainties by 5
-    eq *= 5
-    u = list(itertools.chain.from_iterable(zip(cq[0],eq[0])))
 
-    print "{0} u1: {1:.4f}+/-{2:.4f}, u2: {3:.4f}+/-{4:.4f}".format('Kp', *u)
+    if kind == 'quadratic':
+        cq,eq = ps.coeffs_qd(do_mc=True)
+        # as in Crossfield et al. 2016, multiply the uncertainties by 5
+        eq *= 5
+        u = list(itertools.chain.from_iterable(zip(cq[0],eq[0])))
+        print "{0} u1: {1:.4f} +/- {2:.4f}, u2: {3:.4f} +/- {4:.4f}".format('Kp', *u)
+    elif kind == 'linear':
+        cq,eq = ps.coeffs_ln(do_mc=True)
+        # as in Crossfield et al. 2016, multiply the uncertainties by 5
+        eq *= 5
+        u = [cq[0][0], eq[0]]
+        print "{0} u: {1:.4f} +/- {2:.4f}".format('Kp', *u)
+    else:
+        raise ValueError('kind must be one of: (linear, quadratic)')
 
     return u
