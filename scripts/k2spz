@@ -24,8 +24,6 @@ parser.add_argument('--geom', help='pixel geometry for PLD',
     type=str, default=None)
 parser.add_argument('--clobber', dest='clobber', help='overwrite',
     action='store_true')
-# parser.add_argument('--save', dest='save', help='save MCMC samples',
-#     action='store_true')
 parser.add_argument('--restart', dest='restart', help='restart MCMC',
     action='store_true')
 parser.add_argument('--resume', dest='resume', help='resume MCMC'
@@ -42,16 +40,6 @@ parser.add_argument('--maxsteps', type=int, default=None,
     help='maximum number of MCMC steps')
 parser.add_argument('--grthreshold', type=float, default=None,
     help='Gelmin-Rubin threshold')
-# parser.add_argument('--pipeline', help='which pipeline to use',
-#     type=str, default='everest')
-# parser.add_argument('--skip', help='individual K2 epochs to skip'
-#     ', comma-separated', type=str, default=None)
-# parser.add_argument('--clip', help='sigma clip (upper, lower)',
-#     type=str, default=None)
-# parser.add_argument('--refine', dest='refine', action='store_true',
-#     help='refine transit duration')
-
-# parser.set_defaults(clobber=False, save=False, restart=False, resume=False, refine=False)
 parser.set_defaults(clobber=False, restart=False, resume=False)
 
 args = parser.parse_args()
@@ -61,7 +49,6 @@ spz_setup_fp = args.input
 binsize = args.binsize
 geom = args.geom
 clobber = args.clobber
-# save = args.save
 method = args.method
 nsteps1 = args.nsteps1
 nsteps2 = args.nsteps2
@@ -71,24 +58,12 @@ nthreads = args.nthreads
 restart = args.restart
 resume = args.resume
 k2lc = args.k2lc
-# pipeline = args.pipeline
-# refine = args.refine
 
 save = True
 pipeline = None
 refine = True
 clip = None
 skip = None
-
-# if args.clip:
-#     clip = [float(i) for i in args.clip.split(',')]
-# else:
-#     clip = args.clip
-#
-# if args.skip:
-#     skip = [int(i) for i in args.skip.split(',')]
-# else:
-#     skip = args.skip
 
 METHODS = 'base cen pld pca pca2 pca-quad cen-quad pld-quad'.split()
 assert method in METHODS
@@ -109,7 +84,6 @@ else:
         outdir += setup['config']['planet']
     if 'epoch' in setup['config'].keys():
         outdir += '_e' + str(setup['config']['epoch'])
-    # out_dir += '-{}'.format(pipeline)
     outdir += '-{}'.format(method)
     if geom is not None:
         outdir += '-{}'.format(geom)
@@ -126,11 +100,9 @@ args = 'k2lc binsize geom nsteps1 nsteps2 maxsteps grthreshold nthreads'.split()
 vals = k2lc, binsize, geom, nsteps1, nsteps2, maxsteps, grthreshold, nthreads
 for k,v in zip(args, vals):
     if v is not None:
-    # if k not in setup['config'].keys():
         setup['config'][k] = v
 
 fit = kanpai.spz.Fit(setup, outdir, method)
-# fit.load_k2(k2_kolded_fp, pipeline, clip=clip, skip=skip, refine=refine)
 fit.max_apo()
 fit.run_mcmc(save, restart, resume)
 fit.plot_final()
