@@ -103,7 +103,7 @@ for k,v in zip(args, vals):
         setup['config'][k] = v
 
 fit = kanpai.spz.Fit(setup, outdir, method)
-fit.max_apo()
+fit.run_map(make_plots=True)
 fit.run_mcmc(save, restart, resume)
 fit.plot_final()
 fit.dump()

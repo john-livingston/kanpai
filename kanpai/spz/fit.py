@@ -90,18 +90,213 @@ def get_theta(theta, sub):
         return theta_k2
 
 
+
+class MAP(object):
+
+    def __init__(self, logprob, ini, args, methods=('nelder-mead', 'powell')):
+
+        """
+        Maximum a posteriori model fit. Defaults to Nelder-Mead and Powell.
+
+        :param logprob  : log-probability (posterior) function to maximize
+        :param ini      : initial parameter vector
+        :param args     : any additional args to be passed to logprob
+        :param methods  : list of methods to be used from scipy.optimize
+        """
+
+        self._logprob = logprob
+        self._ini = ini
+        self._args = args
+        self._methods = methods
+
+    def _map(self, method='nelder-mead'):
+
+        nlp = lambda *x: -self._logprob(*x)
+        initial = self._ini
+        args = self._args
+        res = op.minimize(nlp, initial, args=args, method=method)
+
+        return res
+
+    def run(self):
+
+        print "\nAttempting maximum a posteriori optimization"
+        results = []
+        for method in self._methods:
+            res = self._map(method=method)
+            if res.success:
+                print "Log probability ({}): {}".format(method, -res.fun)
+                results.append(res)
+
+        if len(results) > 0:
+            idx = np.argmin([r.fun for r in results])
+            map_best = np.array(results)[idx]
+            lp_map = -1 * map_best.fun
+            pv_map = map_best.x
+            lp_ini = self._logprob(self._ini, *self._args)
+            if lp_map > lp_ini:
+                method = np.array(self._methods)[idx]
+                self._pv, self._lp, self._method = pv_map, lp_map, method
+            else:
+                self._pv, self._lp, self._method = self._ini, lp_ini, 'initial'
+        else:
+            print "All methods failed to converge"
+
+        self._hasrun = True
+
+    @property
+    def results(self):
+
+        if not self._hasrun:
+            print "Need to call run() first!"
+
+        return self._pv, self._lp, self._method
+
+
+class MCMC(object):
+
+    def __init__(self, logprob, ini, args, names, outdir=None):
+
+        """
+        Affine invariant ensemble MCMC exploration of parameter space.
+
+        :param logprob  : log-probability (posterior) function to maximize
+        :param ini      : initial parameter vector
+        :param args     : any additional args to be passed to logprob
+        :param names    : list of parameter names
+        :param outdir   : path to output directory
+        """
+
+        self._logprob = logprob
+        self._ini = ini
+        self._args = args
+        self._names = names
+        self._outdir = outdir
+        self._logprob_ini = logprob(ini, *args)
+
+    def run(self, nproc=4, nsteps1=1e3, nsteps2=1e3, max_steps=1e4, gr_threshold=1.1, pos_idx=None, save=True, make_plots=True):
+
+        """
+        :param nproc        : number of processes to use for sampling
+        :param nsteps1      : number of steps to take during stage 1 exploration
+        :param nsteps2      : number of steps to take during each stage 2 iteration
+        :param max_steps    : maximum number of steps to take during stage 2
+        :param gr_threshold : Gelman-Rubin convergence threshold
+        :param pos_idx      : indices of any parameters that should always be positive
+        :param save         : whether or not to save MCMC samples and related output
+        :param plot         : whether or not to generate plots
+        """
+
+        logprob = self._logprob
+        pv_ini = self._ini
+        args = self._args
+        names = self._names
+        logprob_ini = self._logprob_ini
+
+        if save or plot:
+            assert self._outdir is not None
+
+        ndim = len(pv_ini)
+        nwalkers = 8 * ndim if ndim > 12 else 16 * ndim
+        print "\nRunning MCMC"
+        print "{} walkers exploring {} dimensions".format(nwalkers, ndim)
+
+        sampler = EnsembleSampler(nwalkers, ndim, logprob,
+            args=args, threads=nproc)
+        pos0 = sample_ball(pv_ini, [1e-4]*ndim, nwalkers) # FIXME use individual sigmas
+        if pos_idx is not None:
+            pos0[pos_idx] = np.abs(pos0[pos_idx])
+
+        print "\nstage 1"
+        for pos,_,_ in tqdm(sampler.sample(pos0, iterations=nsteps1)):
+            pass
+
+        if make_plots:
+            fp = os.path.join(self._outdir, 'chain-initial.png')
+            plot.chain(sampler.chain, names, fp)
+
+        idx = np.argmax(sampler.lnprobability)
+        new_best = sampler.flatchain[idx]
+        new_prob = sampler.lnprobability.flat[idx]
+        best = new_best if new_prob > logprob_ini else pv_ini
+        pos = sample_ball(best, [1e-6]*ndim, nwalkers) # FIXME use individual sigmas
+        if pos_idx is not None:
+            pos0[pos_idx] = np.abs(pos0[pos_idx])
+        sampler.reset()
+
+        print "\nstage 2"
+        nsteps = 0
+        gr_vals = []
+        while nsteps < max_steps:
+            for pos,_,_ in tqdm(sampler.sample(pos, iterations=nsteps2)):
+                pass
+            nsteps += nsteps2
+            gr = util.gelman_rubin(sampler.chain)
+            gr_vals.append(gr)
+            msg = "After {} steps\n  Mean G-R: {}\n  Max G-R: {}"
+            print msg.format(nsteps, gr.mean(), gr.max())
+            if (gr < gr_threshold).all():
+                break
+
+        idx = gr_vals[-1] >= gr_threshold
+        if idx.any():
+            print "WARNING -- some parameters failed to converge below threshold:"
+            print np.array(names)[idx]
+
+        self._lp = sampler.lnprobability.flatten().max()
+        idx = np.argmax(sampler.lnprobability)
+        assert sampler.lnprobability.flat[idx] == self._lp
+        self._pv = sampler.flatchain[idx]
+
+        burn = nsteps - nsteps2 if nsteps > nsteps2 else 0
+        thin = 1
+        self._fc = sampler.chain[:,burn::thin,:].reshape(-1, ndim)
+
+        if make_plots:
+            fp = os.path.join(self._outdir, 'gr.png')
+            plot.gr_iter(gr_vals, fp)
+
+            fp = os.path.join(self._outdir, 'chain.png')
+            plot.chain(sampler.chain, names, fp)
+
+            fp = os.path.join(self._outdir, 'corner.png')
+            plot.corner(self._fc, names, fp=fp, truths=self._pv)
+
+        if save:
+            fp = os.path.join(self._outdir, 'mcmc')
+            np.savez_compressed(
+                fp,
+                flat_chain=self._fc,
+                logprob_best=self._lp,
+                pv_best=self._pv,
+                pv_names=names,
+                gelman_rubin=np.array(gr_vals)
+                )
+
+        self._gr = gr_vals[-1]
+        self._acor = sampler.acor
+        self._hasrun = True
+
+    @property
+    def results(self):
+
+        if not self._hasrun:
+            print "Need to call run() first!"
+
+        return self._pv, self._lp, self._fc, self._gr, self._acor
+
+
 class Fit(object):
 
     """
     Data container and model fitting object for simultaneous analysis of
     K2 and Spitzer data.
 
-    :param dict setup: Parsed from setup YAML file.
-    :param str out_dir: Where to save all the output.
-    :param str method: One of [base, cen, pld].
-    :param int bin_size: Desired bin size for Spitzer data, in seconds.
+    :param dict setup   : Parsed from setup YAML file.
+    :param str out_dir  : Where to save all the output.
+    :param str method   : One of [base, cen, pld].
+    :param int bin_size : Desired bin size for Spitzer data, in seconds.
 
-    setup ::
     """
 
     def __init__(self, setup, out_dir, method='base'):
@@ -445,49 +640,19 @@ class Fit(object):
         return self._labels.index(pname)
 
 
-    def _map(self, method='nelder-mead'):
+    def run_map(self, methods=('nelder-mead', 'powell'), make_plots=True):
 
         """
-        Maximum a posteriori model fit.
+        Run a maximum a posteriori (MAP) fit using one or more methods.
+        Defaults to Nelder-Mead and Powell.
         """
 
-        nlp = lambda *x: -self._logprob(*x)
-        initial = self._ini
-        args = self._args
-        res = op.minimize(nlp, initial, args=args, method=method)
+        self._map = MAP(self._logprob, self._ini, self._args, methods=methods)
+        self._map.run()
+        self._pv_map, self._lp_map, self._max_apo_alg = self._map.results
 
-        return res
-
-
-    def max_apo(self, methods=('nelder-mead', 'powell'), plot=True):
-
-        """
-        Attempt maximum a posteriori model fit using both Powell and Nelder-Mead.
-        """
-
-        print "\nAttempting maximum a posteriori optimization"
-        results = []
-        for method in methods:
-            res = self._map(method=method)
-            if res.success:
-                print "Log probability ({}): {}".format(method, -res.fun)
-                results.append(res)
-
-        if len(results) > 0:
-            idx = np.argmin([r.fun for r in results])
-            map_best = np.array(results)[idx]
-            lp_map = -1 * map_best.fun
-            pv_map = map_best.x
-            lp_ini = self._logprob(self._ini, *self._args)
-            if lp_map > lp_ini:
-                self._pv_map = pv_map
-                self._lp_map = lp_map
-                self._max_apo_alg = np.array(methods)[idx]
-                if plot:
-                    self._plot_max_apo()
-        else:
-            print "All methods failed to converge"
-            return
+        if make_plots:
+            self._plot_max_apo()
 
         delta = np.abs(self._ini / self._pv_map)
         threshold = 2
@@ -547,7 +712,7 @@ class Fit(object):
             pl.close()
 
 
-    def run_mcmc(self, save=False, restart=False, resume=False):
+    def run_mcmc(self, save=False, restart=False, resume=False, make_plots=True):
 
         """
         Run MCMC.
@@ -559,12 +724,13 @@ class Fit(object):
         max_steps = self._setup['config']['maxsteps']
         gr_threshold = self._setup['config']['grthreshold']
         out_dir = self._out_dir
-
         args = self._args
+        logprob = self._logprob
+        names = self._labels
 
         if self._pv_map is None:
             pv_ini = self._ini
-            logprob_ini = self._logprob(pv_ini, *args)
+            logprob_ini = logprob(pv_ini, *args)
         else:
             pv_ini = self._pv_map
             logprob_ini = self._lp_map
@@ -589,89 +755,23 @@ class Fit(object):
                 self._post_mcmc()
                 return
 
-        ndim = len(pv_ini)
-        nwalkers = 8 * ndim if ndim > 12 else 16 * ndim
-        print "\nRunning MCMC"
-        print "{} walkers exploring {} dimensions".format(nwalkers, ndim)
-
-        sampler = EnsembleSampler(nwalkers, ndim, logprob,
-            args=args, threads=nthreads)
-        pos0 = sample_ball(pv_ini, [1e-4]*ndim, nwalkers) # FIXME use individual sigmas
-        pos0[13] = np.abs(pos0[13])
-
-        print "\nstage 1"
-        for pos,_,_ in tqdm(sampler.sample(pos0, iterations=nsteps1)):
-            pass
-
-        labels = self._labels
-        fp = os.path.join(out_dir, 'chain-initial.png')
-        plot.chain(sampler.chain, labels, fp)
-
-        idx = np.argmax(sampler.lnprobability)
-        new_best = sampler.flatchain[idx]
-        new_prob = sampler.lnprobability.flat[idx]
-        best = new_best if new_prob > logprob_ini else pv_ini
-        pos = sample_ball(best, [1e-6]*ndim, nwalkers) # FIXME use individual sigmas
-        pos[13] = np.abs(pos[13])
-        sampler.reset()
-
-        print "\nstage 2"
-        nsteps = 0
-        gr_vals = []
-        while nsteps < max_steps:
-            for pos,_,_ in tqdm(sampler.sample(pos, iterations=nsteps2)):
-                pass
-            nsteps += nsteps2
-            gr = util.gelman_rubin(sampler.chain)
-            gr_vals.append(gr)
-            msg = "After {} steps\n  Mean G-R: {}\n  Max G-R: {}"
-            print msg.format(nsteps, gr.mean(), gr.max())
-            if (gr < gr_threshold).all():
-                break
-
-        idx = gr_vals[-1] >= gr_threshold
-        if idx.any():
-            print "WARNING -- some parameters failed to converge below threshold:"
-            print self._pv_names(idx)
-
-        fp = os.path.join(out_dir, 'gr.png')
-        plot.gr_iter(gr_vals, fp)
-
-        fp = os.path.join(out_dir, 'chain.png')
-        plot.chain(sampler.chain, labels, fp)
-
-        self._lp_mcmc = sampler.lnprobability.flatten().max()
-        idx = np.argmax(sampler.lnprobability)
-        assert sampler.lnprobability.flat[idx] == self._lp_mcmc
-        self._pv_mcmc = sampler.flatchain[idx]
-
-        burn = nsteps - nsteps2 if nsteps > nsteps2 else 0
-        thin = 1
-        self._fc = sampler.chain[:,burn::thin,:].reshape(-1, ndim)
-        fp = os.path.join(out_dir, 'corner.png')
-        plot.corner(self._fc, labels, fp=fp, truths=self._pv_mcmc)
-
-        if save:
-            fp = os.path.join(out_dir, 'mcmc')
-            np.savez_compressed(
-                fp,
-                flat_chain=self._fc,
-                logprob_best=self._lp_mcmc,
-                pv_best=self._pv_mcmc,
-                gelman_rubin=np.array(gr_vals)
-                )
+        self._mcmc = MCMC(logprob, pv_ini, args, names, out_dir)
+        # pos_idx = np.array([13]) # sigma must be positive
+        self._mcmc.run(nthreads, nsteps1, nsteps2, max_steps, gr_threshold, save=True, make_plots=True)
+        pv, lp, fc, gr, acor = self._mcmc.results
+        self._pv_mcmc, self._lp_mcmc, self._fc = pv, lp, fc
 
         if 'opt' not in self._output.keys():
             self._output['opt'] = {}
+
         self._output['opt']['mcmc'] = dict(
             logprob=float(self._lp_mcmc),
             pv=dict(zip(self._labels, self._pv_mcmc.tolist()))
             )
 
-        # chain stats
         self._output['stats'] = dict(
-            acor=dict(zip(self._labels, sampler.acor.tolist())),
-            gr=dict(zip(self._labels, gr_vals[-1].tolist()))
+            acor=dict(zip(self._labels, acor.tolist())),
+            gr=dict(zip(self._labels, gr.tolist()))
             )
 
         self._post_mcmc()
