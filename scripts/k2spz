@@ -28,8 +28,8 @@ parser.add_argument('--restart', dest='restart', help='restart MCMC',
     action='store_true')
 parser.add_argument('--resume', dest='resume', help='resume MCMC'
     ' from previous best position', action='store_true')
-parser.add_argument('--method', type=str, default='base',
-    help='detrending method to use (base, cen, pld)')
+parser.add_argument('--method', type=str, default='pld',
+    help='detrending method to use')
 parser.add_argument('--nthreads', type=int, default=None,
     help='number of threads (processes) to use for MCMC')
 parser.add_argument('--nsteps1', type=int, default=None,
