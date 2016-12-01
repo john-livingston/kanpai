@@ -43,7 +43,10 @@ parser.add_argument('--grthreshold', type=float, default=None,
 parser.add_argument('--percentiles', type=str, default=None,
     help='Percentiles for final plot, comma-separated'
     ' (default is 50,16,84). Alternative: 50,2.5,97.5,16,84')
-parser.set_defaults(clobber=False, restart=False, resume=False)
+parser.add_argument('--plot_binned', dest='plot_binned', action='store_true',
+    help='include binned datapoints in final plot')
+
+parser.set_defaults(clobber=False, restart=False, resume=False, plot_binned=False)
 
 args = parser.parse_args()
 
@@ -61,6 +64,7 @@ nthreads = args.nthreads
 restart = args.restart
 resume = args.resume
 k2lc = args.k2lc
+plot_binned = args.plot_binned
 
 if args.percentiles is not None:
     percs = [float(i) for i in args.percentiles.split(',')]
@@ -113,5 +117,5 @@ for k,v in zip(args, vals):
 fit = kanpai.spz.Fit(setup, outdir, method)
 fit.run_map(make_plots=True)
 fit.run_mcmc(save, restart, resume)
-fit.plot_final(percs)
+fit.plot_final(percs, plot_binned)
 fit.dump()

@@ -82,7 +82,8 @@ def gr_iter(gr_vals, fp=None):
         fig, ax = pl.subplots(1, 1, figsize=(7,3))
         iterations = np.arange(len(gr_vals)).astype(int)+1
         ax.plot(iterations, gr_vals, 'k-', lw=5, alpha=0.5)
-        pl.setp(ax, xlabel='Iterations', ylabel='G-R')
+        pl.setp(ax, xlabel='Iterations', ylabel='G-R',
+            xlim=[iterations[0],iterations[-1]])
         fig.tight_layout()
         if fp:
             fig.savefig(fp)
@@ -132,7 +133,7 @@ def corner(fc, labels, fp=None, truths=None, quantiles=[0.16,0.5,0.84],
 
 
 def k2_spz_together(df_sp, df_k2, flux_pc_sp, flux_pc_k2, npercs,
-    k_s, k_k, fp=None, title='', alpha=0.8, dpi=256, show_binned=True):
+    k_s, k_k, fp=None, title='', alpha=0.8, dpi=256, plot_binned=False):
 
     rc = {'xtick.direction': 'in',
           'ytick.direction': 'in',
@@ -142,22 +143,28 @@ def k2_spz_together(df_sp, df_k2, flux_pc_sp, flux_pc_k2, npercs,
     t_k, f_k = df_k2.t * 24, df_k2.f
     t_s, f_s = df_sp.phase * 24, df_sp.f_cor
 
+    dfmt = 'k.'
+    bfmt = 'k.'
+    dms = 4
+    bms = 8
+    alpha = 0.6
+    
     with sb.axes_style('ticks', rc):
 
         fig, axs = pl.subplots(1, 3, figsize=(10,3), sharex=False, sharey=False)
 
-        axs.flat[0].plot(t_k, f_k, 'k.', alpha=alpha)
-        if show_binned:
+        axs.flat[0].plot(t_k, f_k, dfmt, ms=dms, alpha=alpha)
+        if plot_binned:
             tkb, fkb = util.binned_ts(t_k, f_k, 0.5, fun=np.median)
-            axs.flat[0].plot(tkb, fkb, 'y.')
+            axs.flat[0].plot(tkb, fkb, bfmt, ms=bms)
         [axs.flat[0].fill_between(df_k2.ti*24, *flux_pc_k2[i:i+2,:], alpha=0.5,
             facecolor='b', edgecolor='b') for i in range(1,npercs-1,2)]
         axs.flat[0].plot(df_k2.ti*24, flux_pc_k2[0], 'b-', lw=1)
 
-        axs.flat[1].plot(t_s, f_s, 'k.', alpha=alpha)
-        if show_binned:
+        axs.flat[1].plot(t_s, f_s, dfmt, ms=dms, alpha=alpha)
+        if plot_binned:
             tsb, fsb = util.binned_ts(t_s, f_s, 0.5, fun=np.median)
-            axs.flat[1].plot(tkb, fkb, 'y.')
+            axs.flat[1].plot(tsb, fsb, bfmt, ms=bms)
         [axs.flat[1].fill_between(t_s, *flux_pc_sp[i:i+2,:], alpha=0.5,
         facecolor='r', edgecolor='r') for i in range(1,npercs-1,2)]
         axs.flat[1].plot(t_s, flux_pc_sp[0], 'r-', lw=1)

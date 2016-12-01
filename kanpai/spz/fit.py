@@ -706,7 +706,7 @@ class Fit(object):
         yaml.dump(self._output, open(fp, 'w'), default_flow_style=False)
 
 
-    def plot_final(self, percs=(50, 16, 84)):
+    def plot_final(self, percs=(50, 16, 84), plot_binned=False):
 
         """
         Make publication-ready plot.
@@ -746,7 +746,8 @@ class Fit(object):
         fp = os.path.join(self._out_dir, 'fit-final.png')
 
         plot.k2_spz_together(self._df_sp, self._df_k2, flux_pc_sp, flux_pc_k2,
-            npercs, self._fc[:,2], self._fc[:,3], fp, title=self._plot_title)
+            npercs, self._fc[:,2], self._fc[:,3], fp, title=self._plot_title,
+            plot_binned=plot_binned)
 
 
     @property
