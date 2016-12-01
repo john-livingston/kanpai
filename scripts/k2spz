@@ -40,6 +40,9 @@ parser.add_argument('--maxsteps', type=int, default=None,
     help='maximum number of MCMC steps')
 parser.add_argument('--grthreshold', type=float, default=None,
     help='Gelmin-Rubin threshold')
+parser.add_argument('--percentiles', type=str, default=None,
+    help='Percentiles for final plot, comma-separated'
+    ' (default is 50,16,84). Alternative: 50,2.5,97.5,16,84')
 parser.set_defaults(clobber=False, restart=False, resume=False)
 
 args = parser.parse_args()
@@ -58,6 +61,11 @@ nthreads = args.nthreads
 restart = args.restart
 resume = args.resume
 k2lc = args.k2lc
+
+if args.percentiles is not None:
+    percs = [float(i) for i in args.percentiles.split(',')]
+else:
+    percs = [50,16,84]
 
 save = True
 pipeline = None
@@ -105,5 +113,5 @@ for k,v in zip(args, vals):
 fit = kanpai.spz.Fit(setup, outdir, method)
 fit.run_map(make_plots=True)
 fit.run_mcmc(save, restart, resume)
-fit.plot_final()
+fit.plot_final(percs)
 fit.dump()
