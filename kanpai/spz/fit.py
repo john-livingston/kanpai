@@ -38,21 +38,6 @@ PI2 = np.pi/2
 
 METHODS = 'cen pld base pca pca2 pca-quad cen-quad pld-quad'.split()
 
-# import logging
-# logger = logging.getLogger('scope.name')
-# file_log_handler = logging.FileHandler('logfile.log')
-#
-# logger.addHandler(file_log_handler)
-# stderr_log_handler = logging.StreamHandler()
-# logger.addHandler(stderr_log_handler)
-#
-# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-# file_log_handler.setFormatter(formatter)
-# stderr_log_handler.setFormatter(formatter)
-#
-# logger.info('Info message')
-# logger.error('Error message')
-
 
 def logprob(theta, t, f, s, p, aux, k2data, u_kep, u_spz):
 
@@ -122,9 +107,14 @@ class Fit(object):
         fp = os.path.join(out_dir, 'input.yaml')
         yaml.dump(setup, open(fp, 'w'), default_flow_style=False)
 
-        self._tr['i'] = self._tr['i'] * np.pi/180.
+        # check if inclination is in degrees and convert to radians if so
+        inc = self._tr['i']
+        if np.isclose(inc, 90, rtol=0.5):
+            self._tr['i'] = inc * np.pi/180.
+        # check if inclination is reflected about np.pi/2 and fix if so
         if self._tr['i'] > np.pi/2.:
             self._tr['i'] = np.pi - self._tr['i']
+
         print "\nInitial parameter values:"
         for k,v in self._tr.items():
             if k == 'i':
@@ -598,7 +588,6 @@ class Fit(object):
                 return
 
         self._mcmc = MCMC(logprob, pv_ini, args, names, out_dir)
-        # pos_idx = np.array([13]) # sigma must be positive
         self._mcmc.run(nthreads, nsteps1, nsteps2, max_steps, gr_threshold, save=True, make_plots=True)
         pv, lp, fc, gr, acor = self._mcmc.results
         self._pv_mcmc, self._lp_mcmc, self._fc = pv, lp, fc
