@@ -157,10 +157,11 @@ def save_to_latex(df, fp):
     df.to_latex(open('test_table.tex', 'w'))
 
 
-def check_radii(list_of_output_dirs):
+def check_radii(list_of_output_dirs, verbose=False):
 
     rads, betas, rmss, grs, lps, tc_sp, utc_sp_plus, utc_sp_minus = [],[],[],[],[],[],[],[]
     k_sp, uk_sp_plus, uk_sp_minus, k_k2, uk_k2_plus, uk_k2_minus = [],[],[],[],[],[]
+    tc_mp = []
     ds = []
     for d in list_of_output_dirs:
 
@@ -172,10 +173,10 @@ def check_radii(list_of_output_dirs):
             outfile = yaml.load(open(fp))
 
             r = infile['config']['radius']
-            stats = outfile['stats']
+            gr_tcs = outfile['stats']['gr']['tc_s']
             spz = outfile['spz']
-            beta, rms, gr_tcs = spz['beta'], spz['rms'], stats['gr']['tc_s']
-            lp, tcs = outfile['opt']['mcmc']['logprob'], outfile['percentiles']['tc_s']
+            beta, rms = spz['beta'], spz['rms'],
+            lp, tcs = outfile['opt']['mcmc']['logprob'], outfile['opt']['mcmc']['pv']['tc_s']
 
             a,b,c = outfile['percentiles']['tc_s']
             tc_sp.append(b)
@@ -197,19 +198,15 @@ def check_radii(list_of_output_dirs):
             rmss.append(rms)
             grs.append(gr_tcs)
             lps.append(lp)
-
-            # ukk = geom_mean(uk_k2_plus, uk_k2_minus)
-            # uks = geom_mean(uk_sp_plus, uk_sp_minus)
-            # k_sigma = np.abs(k_k2-k_sp) / np.sqrt(ukk**2+uks**2)
-            # k_sigmas.append(k_sigma)
-            #
+            tc_mp.append(tcs)
             ds.append(d)
 
         except Exception as e:
 
             print d, e
 
-    df = pd.DataFrame(dict(d=ds, r=rads, beta=betas, rms=rmss, gr=grs, lp=lps,
+    df = pd.DataFrame(dict(d=ds, r=rads, beta=betas, rms=rmss, max_lp=lps, tc_mp=tc_mp,
+        gr=grs,
         tc=tc_sp, utc_plus=utc_sp_plus, utc_minus=utc_sp_minus,
         k_sp=k_sp, uk_sp_plus=uk_sp_plus, uk_sp_minus=uk_sp_minus,
         k_k2=k_k2, uk_k2_plus=uk_k2_plus, uk_k2_minus=uk_k2_minus
@@ -221,13 +218,14 @@ def check_radii(list_of_output_dirs):
     total_unc = df[['uk_k2', 'uk_k2']].apply(quad_sum, axis=1, raw=True)
     df['k_sigma'] = (df['k_k2'] - df['k_sp']).abs() / total_unc
 
-    for i in df.index:
-
-        row = df.loc[i]
-        tcs = row[['tc', 'utc_plus', 'utc_minus']].tolist()
-        tcs_str = "${0:.6f}^(+{1:.6f})_(-{2:.6f})$".format(*tcs).replace('(','{').replace(')','}')
-        text = "r = {0}, beta = {1:.4f}, rms = {2:.8f}, gr_tcs = {3:.4f}, lp = {4:.4f}, tc_s = {5}"
-        text += ", k agreement = {6:.4f} [sigma]"
-        print text.format(row['r'], row['beta'], row['rms'], row['gr'], row['lp'], tcs_str, row['k_sigma'])
+    if verbose:
+        for i in df.index:
+            row = df.loc[i]
+            tcs = row[['tc', 'utc_plus', 'utc_minus']].tolist()
+            tcs_str = "${0:.6f}^(+{1:.6f})_(-{2:.6f})$".format(*tcs).replace('(','{').replace(')','}')
+            text = "r = {0}, beta = {1:.4f}, rms = {2:.8f}, gr_tcs = {3:.4f}, lp = {4:.4f}, tc_mp = {5:.6f}"
+            text += ", tc_s = {6}, k agreement = {7:.4f} [sigma]"
+            print text.format(row['r'], row['beta'], row['rms'], row['gr'],
+                row['max_lp'], row['tc_mp'], tcs_str, row['k_sigma'])
 
     return df

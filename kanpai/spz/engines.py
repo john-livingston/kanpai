@@ -169,7 +169,7 @@ class MCMC(object):
         burn = nsteps - nsteps2 if nsteps > nsteps2 else 0
         thin = 1
         self._fc = sampler.chain[:,burn::thin,:].reshape(-1, ndim)
-        self._lps = sampler.lnprobability[:,burn::thin,:].reshape(-1, ndim)
+        self._lps = sampler.lnprobability[:,burn::thin].reshape(-1)
 
         if make_plots:
             fp = os.path.join(self._outdir, 'gr.png')

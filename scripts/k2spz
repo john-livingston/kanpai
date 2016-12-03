@@ -24,6 +24,8 @@ parser.add_argument('--bin_k2', help='bin size for K2 data [seconds]',
     type=int, default=None)
 parser.add_argument('--geom', help='pixel geometry for PLD',
     type=str, default=None)
+parser.add_argument('--radius', help='Spitzer photometric aperture radius',
+    type=float, default=None)
 parser.add_argument('--clobber', dest='clobber', help='overwrite',
     action='store_true')
 parser.add_argument('--restart', dest='restart', help='restart MCMC',
@@ -68,6 +70,7 @@ resume = args.resume
 k2lc = args.k2lc
 plot_binned = args.plot_binned
 bin_k2 = args.bin_k2
+radius = args.radius
 
 if args.percentiles is not None:
     percs = [float(i) for i in args.percentiles.split(',')]
@@ -102,6 +105,8 @@ else:
     outdir += '-{}'.format(method)
     if geom is not None:
         outdir += '-{}'.format(geom)
+    if radius is not None:
+        outdir += '-r{}'.format(radius)
 
 clobbering = False
 if os.path.isdir(outdir) and not clobber:
@@ -114,8 +119,8 @@ else:
 if args.datadir:
     setup['config']['datadir'] = args.datadir
 
-args = 'k2lc binsize geom nsteps1 nsteps2 maxsteps grthreshold nthreads bin_k2'.split()
-vals = k2lc, binsize, geom, nsteps1, nsteps2, maxsteps, grthreshold, nthreads, bin_k2
+args = 'k2lc binsize geom nsteps1 nsteps2 maxsteps grthreshold nthreads bin_k2 radius'.split()
+vals = k2lc, binsize, geom, nsteps1, nsteps2, maxsteps, grthreshold, nthreads, bin_k2, radius
 for k,v in zip(args, vals):
     if v is not None:
         setup['config'][k] = v

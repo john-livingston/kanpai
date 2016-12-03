@@ -122,6 +122,7 @@ class Fit(object):
         fp = os.path.join(out_dir, 'input.yaml')
         yaml.dump(setup, open(fp, 'w'), default_flow_style=False)
 
+        self._tr['i'] = self._tr['i'] * np.pi/180.
         if self._tr['i'] > np.pi/2.:
             self._tr['i'] = np.pi - self._tr['i']
         print "\nInitial parameter values:"
@@ -284,20 +285,19 @@ class Fit(object):
         keys = ['p{}'.format(i) for i in range(self._npix)]
         pix = df_sp[keys].values
         t, f, s = df_sp.t, df_sp.f, df_sp.s
-        timestep = np.median(np.diff(t)) * 24 * 3600
         bin_size_sec = self._setup['config']['binsize']
-        bs = int(round(bin_size_sec/timestep))
-        binned = functools.partial(util.binned, binsize=bs)
-        tb, fb, ub, pixb = map(binned, [t, f, s, pix])
-        ub /= np.sqrt(bs)
-        t, f, s, pix = tb, fb, ub, pixb
+        if bin_size_sec > 0:
+            timestep = np.median(np.diff(t)) * 24 * 3600
+            bs = int(round(bin_size_sec/timestep))
+            binned = functools.partial(util.binned, binsize=bs)
+            tb, fb, ub, pixb = map(binned, [t, f, s, pix])
+            ub /= np.sqrt(bs)
+            t, f, s, pix = tb, fb, ub, pixb
+            fp = os.path.join(self._out_dir, 'spz_binned.png')
+            plot.errorbar(tb, fb, ub, fp)
         d_sp = {k:v for k,v in zip('t f s'.split(), [t, f, s])}
         self._df_sp = pd.DataFrame(d_sp)
         self._pix = pix
-
-        # plot
-        fp = os.path.join(self._out_dir, 'spz_binned.png')
-        plot.errorbar(tb, fb, ub, fp)
 
         side = np.sqrt(self._npix)
         cube = pix.reshape(-1,side,side)
@@ -509,21 +509,34 @@ class Fit(object):
         fcor = spz_model(best_sp, *self._spz_args, ret_sys=True)
         transit_model = spz_model(best_sp, *self._spz_args, ret_ma=True)
 
-        with sb.axes_style('white'):
+        rc = {'xtick.direction': 'in',
+              'ytick.direction': 'in',
+              'xtick.major.size': 5,
+              'ytick.major.size': 5}
+
+        with sb.axes_style('white', rc):
 
             fig, axs = pl.subplots(1, 2, figsize=(10,3), sharex=True, sharey=True)
             axs[0].plot(t, f, 'k.')
-            axs[0].plot(t, init_model, 'b-', lw=5, label='initial')
-            axs[0].plot(t, max_apo_model, 'r-', lw=5, label='optimized')
+            axs[0].plot(t, init_model, 'b-', lw=2, label='initial')
+            axs[0].plot(t, max_apo_model, 'r-', lw=1.5, label='optimized')
             axs[0].legend(loc=4)
             axs[1].plot(t, f - fcor, 'k.')
-            axs[1].plot(t, transit_model, 'r-', lw=5)
+            axs[1].plot(t, transit_model, 'r-', lw=3)
 
-            pl.setp(axs, xlim=[t.min(), t.max()], xticks=[], yticks=[])
+            axs.flat[0].xaxis.get_major_formatter().set_useOffset(False)
+            axs.flat[1].xaxis.get_major_formatter().set_useOffset(False)
+            axs.flat[0].yaxis.get_major_formatter().set_useOffset(False)
+            axs.flat[1].yaxis.get_major_formatter().set_useOffset(False)
+            pl.setp(axs.flat[0].xaxis.get_majorticklabels(), rotation=20)
+            pl.setp(axs.flat[1].xaxis.get_majorticklabels(), rotation=20)
+
+            pl.setp(axs, xlim=[t.min(), t.max()])
             xl, yl = axs[0].get_xlim(), axs[1].get_ylim()
             axs[0].text(xl[0]+0.1*np.diff(xl), yl[0]+0.1*np.diff(yl), alg)
-            pl.setp(axs[0], title='raw')
-            pl.setp(axs[1], title='corrected')
+            pl.setp(axs.flat[0], title='Raw data', ylabel='Normalized flux')
+            pl.setp(axs.flat[1], title='Corrected', ylabel='Normalized flux')
+            pl.setp(axs, xlim=[t.min(), t.max()], xlabel='Time [BJD]')
 
             fig.tight_layout()
             fp = os.path.join(self._out_dir, 'fit-map.png')
@@ -571,7 +584,17 @@ class Fit(object):
                 self._fc = npz['flat_chain']
                 self._pv_mcmc = npz['pv_best']
                 self._lp_mcmc = npz['logprob_best']
+
+                self._output['opt']['mcmc'] = dict(
+                    logprob=float(self._lp_mcmc),
+                    pv=dict(zip(self._labels, self._pv_mcmc.tolist()))
+                    )
+
+                self._update_df_sp()
+                fp = os.path.join(self._out_dir, 'spz.csv')
+                self._df_sp.to_csv(fp, index=False)
                 self._post_mcmc()
+
                 return
 
         self._mcmc = MCMC(logprob, pv_ini, args, names, out_dir)
@@ -579,6 +602,7 @@ class Fit(object):
         self._mcmc.run(nthreads, nsteps1, nsteps2, max_steps, gr_threshold, save=True, make_plots=True)
         pv, lp, fc, gr, acor = self._mcmc.results
         self._pv_mcmc, self._lp_mcmc, self._fc = pv, lp, fc
+        self._update_df_sp()
 
         if 'opt' not in self._output.keys():
             self._output['opt'] = {}
@@ -596,23 +620,38 @@ class Fit(object):
         self._post_mcmc()
 
 
-    def _post_mcmc(self):
+    @property
+    def _pv_best(self):
+        if self._lp_mcmc > self._lp_map:
+            best = self._pv_mcmc
+        else:
+            best = self._pv_map
+        return best
 
-        # Spitzer stats
-        best_sp = get_theta(self._pv_mcmc, 'sp')
-        mod_full = spz_model(best_sp, *self._spz_args)
+
+    def _plot_best(self):
         t, f, s = self._spz_ts
-        sys = spz_model(best_sp, *self._spz_args, ret_sys=True)
-        f_cor = f - sys
-        mod_transit = spz_model(best_sp, *self._spz_args, ret_ma=True)
-        resid = f - spz_model(best_sp, *self._spz_args)
-        fp = os.path.join(self._out_dir, 'fit-mcmc-best.png')
+        mod_transit = self._df_sp['mod_transit'].values
+        mod_full = self._df_sp['mod_full'].values
+        f_cor = self._df_sp['f_cor'].values
+        resid = self._df_sp['resid'].values
+        fp = os.path.join(self._out_dir, 'fit-best.png')
         plot.corrected_ts(t, f, f_cor, mod_full, mod_transit, resid, fp)
 
+
+    def _post_mcmc(self):
+
+        self._plot_best()
+
+        # Spitzer stats
+        t = self._df_sp['t']
+        s = self._df_sp['s']
+        resid = self._df_sp['resid']
+        best_sp = get_theta(self._pv_best, 'sp')
         timestep = np.median(np.diff(t)) * 86400
         rms = util.rms(resid)
         beta = util.beta(resid, timestep)
-        nd, npar = len(s), len(best_sp)
+        nd, npar = len(t), len(best_sp)
         rchisq = util.chisq(resid, s, nd, npar, reduced=True)
         obj = lambda x: (1 - util.chisq(resid, s*x, nd, npar, reduced=True))**2
         res = op.minimize(obj, 1, method='nelder-mead')
@@ -631,18 +670,8 @@ class Fit(object):
             bic=float(bic)
             )
 
-        # update corrected Spitzer data
-        if self._lp_mcmc > self._lp_map:
-            best = self._pv_mcmc
-        else:
-            best = self._pv_map
-        best_sp = get_theta(best, 'sp')
-        self._update_df_sp(best_sp)
-        fp = os.path.join(self._out_dir, 'spz.csv')
-        self._df_sp.to_csv(fp, index=False)
-
         # K2 stats
-        best_k2 = get_theta(self._pv_mcmc, 'k2')
+        best_k2 = get_theta(self._pv_best, 'k2')
         df_k2 = self._df_k2
         t, f, s = df_k2['t'], df_k2['f'], df_k2['s']
         model = k2_loglike(best_k2, *self._k2_args, ret_mod=True)
@@ -699,13 +728,20 @@ class Fit(object):
             quantiles=None, plot_datapoints=False, dpi=256, tight=True)
 
 
-    def _update_df_sp(self, best_sp):
+    def _update_df_sp(self):
 
         args = self._args
-        sys = spz_model(best_sp, *self._spz_args, ret_sys=True)
-        self._df_sp['f_cor'] = self._df_sp['f'] - sys
-        resid = self._df_sp['f'] - spz_model(best_sp, *self._spz_args)
+        best_sp = get_theta(self._pv_best, 'sp')
+        mod_full = spz_model(best_sp, *self._spz_args)
+        mod_transit = spz_model(best_sp, *self._spz_args, ret_ma=True)
+        mod_sys = spz_model(best_sp, *self._spz_args, ret_sys=True)
+        resid = self._df_sp['f'] - mod_full
+        fcor = self._df_sp['f'] - mod_sys
+        self._df_sp['f_cor'] = fcor
         self._df_sp['resid'] = resid
+        self._df_sp['mod_full'] = mod_full
+        self._df_sp['mod_transit'] = mod_transit
+        self._df_sp['mod_sys'] = mod_sys
 
 
     def dump(self):
