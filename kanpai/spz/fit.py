@@ -246,6 +246,19 @@ class Fit(object):
 
                 raise ValueError('Invalid K2 light curve file format')
 
+        if 'bin_k2' in self._setup['config'].keys():
+
+            bin_k2 = self._setup['config']['bin_k2']
+            bin_k2 /= 86400.
+
+            t, f, s = self._k2_ts
+            tb, fb = util.binned_ts(t, f, bin_k2)
+            tb, sb = util.binned_ts(t, s, bin_k2)
+            sb /= np.sqrt(bin_k2)
+
+            self._df_k2 = pd.DataFrame(dict(t=tb, f=fb, s=sb))
+            # import pdb; pdb.set_trace()
+
 
     def _load_spz(self):
 

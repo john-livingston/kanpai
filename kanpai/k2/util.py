@@ -163,4 +163,4 @@ def get_ld_ldtk(teff, uteff, logg, ulogg, feh, ufeh, kind='quadratic'):
     else:
         raise ValueError('kind must be one of: (linear, quadratic)')
 
-    return u
+    return [float(i) for i in u]

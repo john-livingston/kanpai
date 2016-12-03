@@ -20,6 +20,8 @@ parser.add_argument('--k2lc', help='k2 folded lc file',
     type=str, default=None)
 parser.add_argument('--binsize', help='bin size for'
     ' Spitzer data [seconds]', type=int, default=None)
+parser.add_argument('--bin_k2', help='bin size for K2 data [seconds]',
+    type=int, default=None)
 parser.add_argument('--geom', help='pixel geometry for PLD',
     type=str, default=None)
 parser.add_argument('--clobber', dest='clobber', help='overwrite',
@@ -65,6 +67,7 @@ restart = args.restart
 resume = args.resume
 k2lc = args.k2lc
 plot_binned = args.plot_binned
+bin_k2 = args.bin_k2
 
 if args.percentiles is not None:
     percs = [float(i) for i in args.percentiles.split(',')]
@@ -100,16 +103,19 @@ else:
     if geom is not None:
         outdir += '-{}'.format(geom)
 
+clobbering = False
 if os.path.isdir(outdir) and not clobber:
     raise IOError("Output directory exists and clobber set to False")
 elif not os.path.isdir(outdir):
     os.mkdir(outdir)
+else:
+    clobbering = True
 
 if args.datadir:
     setup['config']['datadir'] = args.datadir
 
-args = 'k2lc binsize geom nsteps1 nsteps2 maxsteps grthreshold nthreads'.split()
-vals = k2lc, binsize, geom, nsteps1, nsteps2, maxsteps, grthreshold, nthreads
+args = 'k2lc binsize geom nsteps1 nsteps2 maxsteps grthreshold nthreads bin_k2'.split()
+vals = k2lc, binsize, geom, nsteps1, nsteps2, maxsteps, grthreshold, nthreads, bin_k2
 for k,v in zip(args, vals):
     if v is not None:
         setup['config'][k] = v
@@ -119,3 +125,10 @@ fit.run_map(make_plots=True)
 fit.run_mcmc(save, restart, resume)
 fit.plot_final(percs, plot_binned)
 fit.dump()
+
+# if not clobbering:
+#     fit.run_map(make_plots=True)
+# fit.run_mcmc(save, restart, resume)
+# fit.plot_final(percs, plot_binned)
+# if not clobbering:
+#     fit.dump()

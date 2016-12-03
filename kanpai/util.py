@@ -106,8 +106,8 @@ def add_mass(df):
     df['re_sp'] = df['k_sp'] * df['rstar'] * SOLRAD
     df['re_k2'] = df['k_k2'] * df['rstar'] * SOLRAD
 
-    df['uk_k2'] = df[['k_k2_plus', 'k_k2_minus']].apply(geom_mean, axis=1, raw=True)
-    df['uk_sp'] = df[['k_sp_plus', 'k_sp_minus']].apply(geom_mean, axis=1, raw=True)
+    df['uk_k2'] = df[['uk_k2_plus', 'uk_k2_minus']].apply(geom_mean, axis=1, raw=True)
+    df['uk_sp'] = df[['uk_sp_plus', 'uk_sp_minus']].apply(geom_mean, axis=1, raw=True)
 
     urstar_frac = df['urstar'] / df['rstar']
     uk_k2_frac = df['uk_k2'] / df['k_k2']
@@ -155,3 +155,79 @@ def make_table2(df):
 
 def save_to_latex(df, fp):
     df.to_latex(open('test_table.tex', 'w'))
+
+
+def check_radii(list_of_output_dirs):
+
+    rads, betas, rmss, grs, lps, tc_sp, utc_sp_plus, utc_sp_minus = [],[],[],[],[],[],[],[]
+    k_sp, uk_sp_plus, uk_sp_minus, k_k2, uk_k2_plus, uk_k2_minus = [],[],[],[],[],[]
+    ds = []
+    for d in list_of_output_dirs:
+
+        try:
+
+            fp = os.path.join(d, 'input.yaml')
+            infile = yaml.load(open(fp))
+            fp = os.path.join(d, 'output.yaml')
+            outfile = yaml.load(open(fp))
+
+            r = infile['config']['radius']
+            stats = outfile['stats']
+            spz = outfile['spz']
+            beta, rms, gr_tcs = spz['beta'], spz['rms'], stats['gr']['tc_s']
+            lp, tcs = outfile['opt']['mcmc']['logprob'], outfile['percentiles']['tc_s']
+
+            a,b,c = outfile['percentiles']['tc_s']
+            tc_sp.append(b)
+            utc_sp_plus.append(c-b)
+            utc_sp_minus.append(b-a)
+
+            a,b,c = outfile['percentiles']['k_k']
+            k_k2.append(b)
+            uk_k2_plus.append(c-b)
+            uk_k2_minus.append(b-a)
+
+            a,b,c = outfile['percentiles']['k_s']
+            k_sp.append(b)
+            uk_sp_plus.append(c-b)
+            uk_sp_minus.append(b-a)
+
+            rads.append(r)
+            betas.append(beta)
+            rmss.append(rms)
+            grs.append(gr_tcs)
+            lps.append(lp)
+
+            # ukk = geom_mean(uk_k2_plus, uk_k2_minus)
+            # uks = geom_mean(uk_sp_plus, uk_sp_minus)
+            # k_sigma = np.abs(k_k2-k_sp) / np.sqrt(ukk**2+uks**2)
+            # k_sigmas.append(k_sigma)
+            #
+            ds.append(d)
+
+        except Exception as e:
+
+            print d, e
+
+    df = pd.DataFrame(dict(d=ds, r=rads, beta=betas, rms=rmss, gr=grs, lp=lps,
+        tc=tc_sp, utc_plus=utc_sp_plus, utc_minus=utc_sp_minus,
+        k_sp=k_sp, uk_sp_plus=uk_sp_plus, uk_sp_minus=uk_sp_minus,
+        k_k2=k_k2, uk_k2_plus=uk_k2_plus, uk_k2_minus=uk_k2_minus
+        ))
+
+    df['uk_k2'] = df[['uk_k2_plus', 'uk_k2_minus']].apply(geom_mean, axis=1, raw=True)
+    df['uk_sp'] = df[['uk_sp_plus', 'uk_sp_minus']].apply(geom_mean, axis=1, raw=True)
+    quad_sum = lambda x: np.sqrt(np.sum(x**2))
+    total_unc = df[['uk_k2', 'uk_k2']].apply(quad_sum, axis=1, raw=True)
+    df['k_sigma'] = (df['k_k2'] - df['k_sp']).abs() / total_unc
+
+    for i in df.index:
+
+        row = df.loc[i]
+        tcs = row[['tc', 'utc_plus', 'utc_minus']].tolist()
+        tcs_str = "${0:.6f}^(+{1:.6f})_(-{2:.6f})$".format(*tcs).replace('(','{').replace(')','}')
+        text = "r = {0}, beta = {1:.4f}, rms = {2:.8f}, gr_tcs = {3:.4f}, lp = {4:.4f}, tc_s = {5}"
+        text += ", k agreement = {6:.4f} [sigma]"
+        print text.format(row['r'], row['beta'], row['rms'], row['gr'], row['lp'], tcs_str, row['k_sigma'])
+
+    return df
