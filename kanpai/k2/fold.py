@@ -13,7 +13,7 @@ K2_TIME_OFFSET = 2454833
 class Fold(object):
 
     def __init__(self, epic, p, t0, t14=0.2, pipeline='everest',
-        width=0.8, clip=[3,3], bl=True, skip=None):
+        width=0.8, clip=[3,3], bl=True, skip=None, lcfp=None):
 
         self._epic = int(epic)
         self._p = p
@@ -24,35 +24,44 @@ class Fold(object):
         self._clip = clip
         self._bl = bl
         self._skip = skip
+        self._lcfp = lcfp
         self._get_lc()
 
 
     def _get_lc(self):
 
-        epic = self._epic
-        pipeline = self._pipeline
-        print("Retrieving {} light curve...".format(pipeline))
+        if self._lcfp is None:
 
-        if pipeline == 'everest':
+            epic = self._epic
+            pipeline = self._pipeline
+            print("Retrieving {} light curve...".format(pipeline))
 
-            star = Everest(epic)
-            star.set_mask(transits = [(self._p, self._t0, self._t14)])
-            t, f = star.time, star.flux
+            if pipeline == 'everest':
 
-        elif pipeline == 'k2sff':
+                star = Everest(epic)
+                star.set_mask(transits = [(self._p, self._t0, self._t14)])
+                t, f = star.time, star.flux
 
-            star = kplr.K2SFF(epic)
-            t, f = star.time, star.fcor
+            elif pipeline == 'k2sff':
 
-        elif pipeline == 'k2sc':
+                star = kplr.K2SFF(epic)
+                t, f = star.time, star.fcor
 
-            star = kplr.K2SC(epic)
-            t, f = star.time, star.pdcflux
+            elif pipeline == 'k2sc':
+
+                star = kplr.K2SC(epic)
+                t, f = star.time, star.pdcflux
+
+            else:
+
+                raise ValueError('Pipeline must be one of: {}'.format(PIPELINES))
 
         else:
 
-            raise ValueError('Pipeline must be one of: {}'.format(PIPELINES))
-
+            t, f = np.loadtxt(self._lcfp, unpack=True)
+            t -= K2_TIME_OFFSET
+            self._pipeline = 'user'
+            
         idx = np.isnan(t) | np.isnan(f)
         self._t, self._f = t[~idx], f[~idx]
 

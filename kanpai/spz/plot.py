@@ -85,7 +85,7 @@ def corrected_ts(t, f, f_cor, mod_full, mod_ma, resid, fp=None):
           'xtick.minor.size': 2,
           'ytick.minor.size': 2}
 
-    # t_offset = int(t)
+    # t_offset = int(t[0])
     # t_offset = 2450000
     # t -= t_offset
 

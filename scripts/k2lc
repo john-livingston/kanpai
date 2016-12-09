@@ -33,6 +33,8 @@ parser.add_argument('-c', '--clip', help='sigma clip (upper, lower)',
     type=str, default='3,4')
 parser.add_argument('-s', '--skip', help='individual K2 epochs to skip'
     ', comma-separated', type=str, default=None)
+parser.add_argument('-i', '--infile', help='path to text file containing'
+    ' light curve, (2 cols, no header row: time, flux)', type=str, default=None)
 parser.set_defaults(baseline=True, refine=False)
 args = parser.parse_args()
 
@@ -44,6 +46,10 @@ width = args.width
 outdir = args.outdir
 baseline = args.baseline
 pipeline = args.pipeline
+infile = args.infile
+
+if infile is not None:
+    pipeline = 'user'
 
 clip = [float(i) for i in args.clip.split(',')]
 
@@ -53,7 +59,7 @@ else:
     skip = args.skip
 
 fold = kanpai.k2.Fold(epic, p, t0, t14, pipeline=pipeline,
-    width=width, clip=clip, bl=baseline, skip=skip)
+    width=width, clip=clip, bl=baseline, skip=skip, lcfp=infile)
 
 fold.run(refine=args.refine)
 tf, ff, sig = fold.results
