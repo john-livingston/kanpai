@@ -289,7 +289,7 @@ class Fit(object):
         self._df_sp = pd.DataFrame(d_sp)
         self._pix = pix
 
-        side = np.sqrt(self._npix)
+        side = int(np.sqrt(self._npix))
         cube = pix.reshape(-1,side,side)
         cubestacked = np.median(cube, axis=0)
         fp = os.path.join(self._out_dir, 'spz_pix.png')

@@ -15,6 +15,10 @@ def geom_mean(x):
 
 def aggregate_results(list_of_output_dirs):
 
+    """
+    df = aggregate_results(open('pld_runs.txt').read().split('\n')[:-1]).sort('starid')
+    """
+
     starids,planets,rs,urs,tf,utf = [],[],[],[],[],[]
 
     ars,uars_plus,uars_minus = [],[],[]
