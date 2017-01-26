@@ -9,7 +9,21 @@ import util
 import plot
 
 
-class MAP(object):
+
+class Engine(object):
+
+    def __init__(self):
+        pass
+
+    def run(self):
+        raise NotImplementedError
+
+    @property
+    def results(self):
+        raise NotImplementedError
+
+
+class MAP(Engine):
 
     def __init__(self, logprob, ini, args, methods=('nelder-mead', 'powell')):
 
@@ -71,7 +85,7 @@ class MAP(object):
         return self._pv, self._lp, self._method
 
 
-class MCMC(object):
+class MCMC(Engine):
 
     def __init__(self, logprob, ini, args, names, outdir=None):
 
@@ -194,7 +208,10 @@ class MCMC(object):
                 )
 
         self._gr = gr_vals[-1]
-        self._acor = sampler.acor
+        try:
+            self._acor = sampler.acor
+        except:
+            self._acor = None
         self._hasrun = True
 
     @property

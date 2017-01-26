@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import scipy.optimize as op
 from scipy import stats
-from photutils.morphology import centroid_com, centroid_2dg
+from photutils.centroids import centroid_com, centroid_2dg
 import seaborn as sb
 from emcee import MHSampler, EnsembleSampler, PTSampler
 from emcee.utils import sample_ball
@@ -266,6 +266,11 @@ class Fit(object):
 
         fp = os.path.join(self._data_dir, self._aor+'_phot.pkl')
         df_sp = sxp.util.df_from_pickle(fp, self._radius, pix=True, geom=self._geom)
+
+        # rescale errorbars if desired
+        if 'rescale' in self._setup['config'].keys():
+            rescale_fac = self._setup['config']['rescale']
+            df_sp['s'] *= rescale_fac
 
         # plot
         fp = os.path.join(self._out_dir, 'spz_raw.png')
@@ -602,9 +607,10 @@ class Fit(object):
             )
 
         self._output['stats'] = dict(
-            acor=dict(zip(self._labels, acor.tolist())),
             gr=dict(zip(self._labels, gr.tolist()))
             )
+        if acor is not None:
+            self._output['stats']['acor']=dict(zip(self._labels, acor.tolist()))
 
         self._post_mcmc()
 
