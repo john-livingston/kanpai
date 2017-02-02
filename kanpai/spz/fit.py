@@ -9,7 +9,10 @@ import numpy as np
 import pandas as pd
 import scipy.optimize as op
 from scipy import stats
-from photutils.centroids import centroid_com, centroid_2dg
+try:
+    from photutils.centroids import centroid_com, centroid_2dg
+except:
+    from photutils.morphology import centroid_com, centroid_2dg
 import seaborn as sb
 from emcee import MHSampler, EnsembleSampler, PTSampler
 from emcee.utils import sample_ball
@@ -26,7 +29,7 @@ from ..k2 import plot as k2_plot
 from ..k2 import util as k2_util
 from like import loglike as spz_loglike
 from like import model as spz_model
-from engines import MAP, MCMC
+from ..engines import MAP, MCMC
 
 
 np.warnings.simplefilter('ignore')

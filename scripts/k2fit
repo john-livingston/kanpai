@@ -1,0 +1,39 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import argparse
+
+import numpy as np
+import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
+
+import kanpai
+from kanpai.k2.fit import logprob
+
+
+cwd = os.path.abspath('.')
+
+parser = argparse.ArgumentParser(description="Fit K2 light curve")
+parser.add_argument('-i', '--input', help='light curve file (CSV)', type=str)
+parser.add_argument('-o', '--outdir', help='output directory', type=str, default=cwd)
+parser.add_argument('-p', '--period', help='period [days]', type=float)
+args = parser.parse_args()
+
+p = args.period
+outdir = args.outdir
+
+df = pd.read_csv(args.input, names='t f s'.split())
+t, f, s = df.values.T
+sig = s.mean()
+
+fit = kanpai.k2.Fit(t, f)
+fit.max_apo()
+par = fit.final()
+args = (t, f, p)
+ini = [par[k] for k in 'k,tc,t14,i,u,k0'.split(',')]+[sig]
+names = 'k,tc,t14,i,u,k0,sig'.split(',')
+
+eng = kanpai.engines.MCMC(logprob, ini, args, names, outdir=outdir)
+eng.run()

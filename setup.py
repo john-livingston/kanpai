@@ -43,7 +43,7 @@ setup(
                     + "---------\n\n",
     package_dir={"kanpai": "kanpai" },
     package_data={"kanpai": []},
-    scripts=['scripts/k2spz', 'scripts/k2lc'],
+    scripts=['scripts/k2spz', 'scripts/k2lc', 'scripts/k2fit'],
     include_package_data=True,
     keywords=[],
     classifiers = [
