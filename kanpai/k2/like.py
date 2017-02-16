@@ -1,21 +1,11 @@
 import numpy as np
-from pytransit import MandelAgol
 
-import util
-
-
-MA = MandelAgol(supersampling=8, exptime=0.02)
-
-
-def model1(theta, t, p):
-    k,tc,a,i,u1,u2,_ = theta
-    m = MA.evaluate(t, k, (u1, u2), tc, p, a, i)
-    return m
+from model import model1, model2
 
 
 def loglike1(theta, t, f, s, p, ret_mod=False):
-    _,_,_,_,_,_,k0 = theta
-    m = model1(theta, t, p) + k0
+    k0 = theta[-1]
+    m = model1(theta[:-1], t, p) + k0
     if ret_mod:
         return m
     resid = f - m
@@ -23,17 +13,9 @@ def loglike1(theta, t, f, s, p, ret_mod=False):
     return -0.5*(np.sum((resid)**2 * inv_sig2 - np.log(inv_sig2)))
 
 
-
-def model2(theta, t, p):
-    k,tc,t14,i,u,_,_ = theta
-    a = util.scaled_a(p, t14, k, i)
-    m = MA.evaluate(t, k, (u, 0), tc, p, a, i)
-    return m
-
-
 def loglike2(theta, t, f, p, ret_mod=False):
-    _,_,_,_,_,k0,sig = theta
-    m = model2(theta, t, p) + k0
+    k0,sig = theta[-2:]
+    m = model2(theta[:-2], t, p) + k0
     if ret_mod:
         return m
     resid = f - m

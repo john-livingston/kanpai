@@ -9,22 +9,6 @@ import forecaster
 SOLRAD = (u.Rsun / u.Rearth).to(u.dimensionless_unscaled)
 
 
-def gelman_rubin(chains, verbose=False):
-    assert chains.ndim == 3
-    nn = chains.shape[1]
-    mean_j = chains.mean(axis=1)
-    var_j = chains.var(axis=1)
-    B = nn * mean_j.var(axis=0)
-    W = var_j.mean(axis=0)
-    R2 = ( W*(nn-1)/nn + B/nn ) / W
-    return np.sqrt(R2)
-
-
-def geom_mean(x):
-    x = np.abs(x)
-    gm = np.sqrt(np.product(x)) if x.size > 1 else x
-    return gm
-
 def aggregate_results(list_of_output_dirs):
 
     """
