@@ -6,6 +6,8 @@ from .. import util
 def parse_setup(fp):
     setup = yaml.load(open(fp))
     transit = setup['transit']
+    if not transit['b']:
+        transit['b'] = 0
     if not transit['t14']:
         try:
             transit['t14'] = util.transit.tdur_circ(transit['p'],

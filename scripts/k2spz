@@ -11,7 +11,7 @@ import kanpai
 
 parser = argparse.ArgumentParser(description="Simultaneously fit"
     " K2 and Spitzer data")
-parser.add_argument('input', help='path to input yaml file', type=str)
+parser.add_argument('-i', '--input', help='path to input yaml file', type=str, default=None)
 parser.add_argument('-o', '--outdir', help='output dir',
     type=str, default=None)
 parser.add_argument('-d', '--datadir', help='dir containing *_phot.pkl',

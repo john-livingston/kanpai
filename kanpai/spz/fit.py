@@ -21,7 +21,7 @@ from tqdm import tqdm
 import sxp
 from pytransit import MandelAgol
 
-from util import get_ld_claret
+from ld import get_ld_claret
 from .. import util
 
 import plot
@@ -46,20 +46,20 @@ METHODS = 'cen pld base pca pca2 pca-quad cen-quad pld-quad'.split()
 
 def logprob(theta, t, f, s, p, aux, k2data, u_kep, u_spz):
 
-    a,i,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k1_s,k0_k = theta[:12]
+    a,b,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k1_s,k0_k = theta[:12]
     theta_aux = theta[12:]
 
     if k_s < -1 or k_s > 1 or k_k < -1 or k_k > 1 or \
         tc_s < t[0] - 0.05 or tc_s > t[-1] + 0.05 or \
-        i < 0 or i > PI2:
+        b < 0 or b > 1+k:
         return -np.inf
     lp = np.log(stats.norm.pdf(u1_s, u_spz[0], u_spz[1]))
     lp += np.log(stats.norm.pdf(u2_s, u_spz[2], u_spz[3]))
     lp += np.log(stats.norm.pdf(u1_k, u_kep[0], u_kep[1]))
     lp += np.log(stats.norm.pdf(u2_k, u_kep[2], u_kep[3]))
 
-    theta_sp = [k_s,tc_s,a,i,u1_s,u2_s,k1_s] + theta_aux.tolist()
-    theta_k2 =  k_k,tc_k,a,i,u1_k,u2_k,k0_k
+    theta_sp = [k_s,tc_s,a,b,u1_s,u2_s,k1_s] + theta_aux.tolist()
+    theta_k2 =  k_k,tc_k,a,b,u1_k,u2_k,k0_k
 
     ll = spz_loglike(theta_sp, t, f, s, p, aux)
     ll += k2_loglike(theta_k2, k2data[0], k2data[1], k2data[2], p)
@@ -112,20 +112,17 @@ class Fit(object):
         fp = os.path.join(out_dir, 'input.yaml')
         yaml.dump(setup, open(fp, 'w'), default_flow_style=False)
 
-        # check if inclination is in degrees and convert to radians if so
-        inc = self._tr['i']
-        if np.isclose(inc, 90, rtol=0.5):
-            self._tr['i'] = inc * np.pi/180.
-        # check if inclination is reflected about np.pi/2 and fix if so
-        if self._tr['i'] > np.pi/2.:
-            self._tr['i'] = np.pi - self._tr['i']
+        # # check if inclination is in degrees and convert to radians if so
+        # inc = self._tr['i']
+        # if np.isclose(inc, 90, rtol=0.5):
+        #     self._tr['i'] = inc * np.pi/180.
+        # # check if inclination is reflected about np.pi/2 and fix if so
+        # if self._tr['i'] > np.pi/2.:
+        #     self._tr['i'] = np.pi - self._tr['i']
 
         print "\nInitial parameter values:"
         for k,v in self._tr.items():
-            if k == 'i':
-                print "{} = {}".format(k,v * 180./np.pi)
-            else:
-                print "{} = {}".format(k,v)
+            print "{} = {}".format(k,v)
 
         # setup limb darkening priors
         self._setup_ld()
@@ -415,14 +412,14 @@ class Fit(object):
         """
 
         n_aux = self._aux.shape[0] if self._aux is not None else 0
-        a, i, k = self._tr['a'], self._tr['i'], self._tr['k']
+        a, b, k = self._tr['a'], self._tr['b'], self._tr['k']
         tc_s = self._spz_tc
         tc_k = 0
         u1_s, u2_s = self._u_spz[0], self._u_spz[2]
         u1_k, u2_k = self._u_kep[0], self._u_kep[2]
         k1_s, k0_k = 0, 0
 
-        initial = [a, i, k, k, tc_s, tc_k, u1_s, u2_s,
+        initial = [a, b, k, k, tc_s, tc_k, u1_s, u2_s,
             u1_k, u2_k, k1_s, k0_k]
 
         initial += [0] * n_aux
@@ -433,7 +430,7 @@ class Fit(object):
     @property
     def _labels(self):
 
-        labels = 'a i k_s k_k tc_s tc_k u1_s u2_s u1_k u2_k k1_s k0_k'.split()
+        labels = 'a b k_s k_k tc_s tc_k u1_s u2_s u1_k u2_k k1_s k0_k'.split()
         if self._aux is not None:
             labels += ['c{}'.format(i) for i in range(len(self._aux))]
 

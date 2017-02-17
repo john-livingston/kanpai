@@ -9,7 +9,8 @@ MA = MandelAgol(supersampling=8, exptime=0.02)
 
 
 def model1(theta, t, p):
-    k,tc,a,i,u1,u2 = theta
+    k,tc,a,b,u1,u2 = theta
+    i = util.transit.inclination(a, b)
     m = MA.evaluate(t, k, (u1, u2), tc, p, a, i)
     return m
 

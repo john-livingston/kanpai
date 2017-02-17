@@ -1,14 +1,16 @@
 import numpy as np
 from pytransit import MandelAgol
 
+from .. import util
 
 MA = MandelAgol()
 
 
 def model(theta, t, f, s, p, aux, ret_ma=False, ret_sys=False):
-    k,tc,a,i,u1,u2,k1 = theta[:7]
+    k,tc,a,b,u1,u2,k1 = theta[:7]
     auxcoeff = theta[7:]
-    ma = MA.evaluate(t, k, (u1, u2), tc, p, a, i)
+    i = util.transit.inclination(a, b)
+    ma = MA.evaluate(t, k, (u1, u2), tc, p, a, b)
     bl = k1 * (t-t[0])
     if aux is None:
         sys = 0
