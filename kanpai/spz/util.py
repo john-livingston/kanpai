@@ -25,6 +25,7 @@ def parse_setup(fp):
             msg = "{} is missing! unable to compute scaled semi-major axis"
             print(msg.format(e))
     if 'i' not in transit.keys() or transit['i'] is None:
-        transit['i'] = util.transit.inclination(transit['a'], transit['b'])
+        a, b = transit['a'], transit['b']
+        transit['i'] = float(util.transit.inclination(a, b))
     setup['transit'] = transit
     return setup
