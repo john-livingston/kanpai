@@ -8,9 +8,6 @@ from scipy import stats
 import util
 from ..plot import corner
 
-ncolors = 5
-cp = [sb.desaturate(pl.cm.gnuplot((j+1)/float(ncolors+1)), 0.75) for j in range(ncolors)]
-
 
 def errorbar(t, f, s, fp=None, **kwargs):
     with sb.axes_style('white'):

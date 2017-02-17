@@ -8,6 +8,9 @@ from scipy import stats
 
 import util
 
+ncolors = 5
+cp = [sb.desaturate(pl.cm.gnuplot((j+1)/float(ncolors+1)), 0.75) for j in range(ncolors)]
+
 
 def gr_iter(gr_vals, fp=None):
     with sb.axes_style('white'):
