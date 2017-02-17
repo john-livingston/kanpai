@@ -8,8 +8,6 @@ def parse_setup(fp):
     transit = setup['transit']
     if 'b' not in transit.keys() or transit['b'] is None:
         transit['b'] = 0
-    if 'i' not in transit.keys() or transit['i'] is None:
-        transit['i'] = util.transit.inclination(a, transit['b'])
     if 't14' not in transit.keys():
         try:
             transit['t14'] = util.transit.tdur_circ(transit['p'],
@@ -26,5 +24,7 @@ def parse_setup(fp):
         except KeyError as e:
             msg = "{} is missing! unable to compute scaled semi-major axis"
             print(msg.format(e))
+    if 'i' not in transit.keys() or transit['i'] is None:
+        transit['i'] = util.transit.inclination(transit['a'], transit['b'])
     setup['transit'] = transit
     return setup
