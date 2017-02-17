@@ -52,7 +52,7 @@ def logprob(theta, t, f, s, p, aux, k2data, u_kep, u_spz):
 
     if k_s < -1 or k_s > 1 or k_k < -1 or k_k > 1 or \
         tc_s < t[0] - 0.05 or tc_s > t[-1] + 0.05 or \
-        b < 0 or b > 1+k_k:
+        b < 0 or b > 1:
         return -np.inf
     lp = np.log(stats.norm.pdf(u1_s, u_spz[0], u_spz[1]))
     lp += np.log(stats.norm.pdf(u2_s, u_spz[2], u_spz[3]))
