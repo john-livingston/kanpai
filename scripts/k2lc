@@ -61,14 +61,14 @@ else:
 fold = kanpai.k2.Fold(epic, p, t0, t14, pipeline=pipeline,
     width=width, clip=clip, bl=baseline, skip=skip, lcfp=infile)
 
-fold.run(refine=args.refine)
+fold.run(outdir, refine=args.refine)
 tf, ff, sig = fold.results
 
 fp = os.path.join(outdir, 'k2_lc_{}-{}.png'.format(epic, pipeline))
 if args.refine:
     fold.plot_fit(fp)
 else:
-    kanpai.k2.plot.simple_ts(tf, ff, fp=fp)
+    kanpai.plot.simple_ts(tf, ff, fp=fp)
 
 fp = os.path.join(outdir, 'k2_lc_{}-{}.csv'.format(epic, pipeline))
 np.savetxt(fp, np.c_[tf, ff, sig], delimiter=',')

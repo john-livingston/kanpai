@@ -125,7 +125,7 @@ class MCMC(Engine):
         names = self._names
         logprob_ini = self._logprob_ini
 
-        if save or plot:
+        if save or make_plots:
             assert self._outdir is not None
 
         ndim = len(pv_ini)
@@ -163,7 +163,7 @@ class MCMC(Engine):
             for pos,_,_ in tqdm(sampler.sample(pos, iterations=nsteps2)):
                 pass
             nsteps += nsteps2
-            gr = util.gelman_rubin(sampler.chain)
+            gr = util.stats.gelman_rubin(sampler.chain)
             gr_vals.append(gr)
             msg = "After {} steps\n  Mean G-R: {}\n  Max G-R: {}"
             print msg.format(nsteps, gr.mean(), gr.max())

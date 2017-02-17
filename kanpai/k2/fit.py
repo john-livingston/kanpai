@@ -15,41 +15,27 @@ from emcee.utils import sample_ball
 import corner
 from tqdm import tqdm
 
-from like import model2, loglike2
-import plot
-import lc
-
-
-def logprob(theta, t, f, p):
-
-    k,tc,t14,i,u,k0,sig = theta
-
-    if u < 0 or u > 1 or i < 0 or i > np.pi/2:
-        return -np.inf
-
-    ll = loglike2(theta, t, f, p)
-
-    if np.isnan(ll).any():
-        return -np.inf
-    return ll
+from like import logprob2, logprob3
+from .. import plot
+from .. import util
+from ..engines import MAP, MCMC
 
 
 class Fit(object):
 
-    def __init__(self, t, f, k=None, tc=0, t14=0.1, p=20, i=np.pi/2., u=0.5, k0=0):
+    def __init__(self, t, f, k=None, tc=0, t14=0.1, p=20, b=0, u=0.5, k0=0, out_dir=None):
 
         self._data = np.c_[t,f]
         self._k = k
         self._tc = tc
         self._t14 = t14
         self._p = p
-        self._i = i
+        # self._i = i
+        self._b = b
         self._u = u
         self._k0 = k0
-        self._pv_best = None
-        self._logprob_best = None
-        self._logprob = logprob
-
+        self._logprob = logprob3
+        self._out_dir = out_dir
 
     @property
     def _ini(self):
@@ -58,56 +44,55 @@ class Fit(object):
             f = self._data.T[1]
             k = np.sqrt(np.median(f)-f.min())
         tc = self._tc
+        p = self._p
         t14 = self._t14
-        i = self._i
+        # i = self._i
+        b = self._b
         # FIXME: upgrade limbdark to get linear LD coeff from LDTk
         u = self._u
         k0 = self._k0
         t, f = self._data.T
         idx = (t < tc - t14/2.) | (tc + t14/2. < t)
         sig = f[idx].std()
-        return k,tc,t14,i,u,k0,sig
+        i = np.pi/2
+        # FIXME check how weak dependence of a is on i or replace with alternate using b
+        a = util.transit.scaled_a(p, t14, k, i)
+        # b = util.transit.impact(a, i)
+        # return k,tc,t14,i,u,k0,sig
+        return k,tc,a,b,u,k0,sig
 
+    @property
     def _args(self):
         t, f = self._data.T
         p = self._p
         return t, f, p
 
 
-    def _map(self, method='nelder-mead'):
+    def run_map(self, methods=('nelder-mead', 'powell'), make_plots=True):
 
-        initial = self._ini
-        nlp = lambda *x: -self._logprob(*x)
-        args = self._args()
-        res = op.minimize(nlp, initial, args=args, method=method)
-        return res
+        """
+        Run a maximum a posteriori (MAP) fit using one or more methods.
+        Defaults to Nelder-Mead and Powell.
+        """
 
-    def max_apo(self, methods=('nelder-mead', 'powell')):
-        print "Attempting maximum a posteriori optimization"
-        results = []
-        for method in methods:
-            res = self._map(method=method)
-            if res.success:
-                print "Log probability ({}): {}".format(method, -res.fun)
-                results.append(res)
-        if len(results) > 0:
-            idx = np.argmin([r.fun for r in results])
-            map_best = np.array(results)[idx]
-            self._pv_best = map_best.x
-            self._logprob_best = map_best.fun
-        else:
-            print "All methods failed to converge."
-        return
+        self._map = MAP(self._logprob, self._ini, self._args, methods=methods)
+        self._map.run()
+        self._pv_map, self._lp_map, self._max_apo_alg = self._map.results
+        self._pv_best = self._pv_map
 
-    def model(self, t=None, include_offset=True):
+        if make_plots:
+            t, f, p = self._args
+            m = self._logprob(self._pv_map, t, f, p, ret_mod=True)
+            fp = os.path.join(self._out_dir, 'map-bestfit.png')
+            plot.simple_ts(t, f, model=m, fp=fp)
+
+
+    def model(self, t=None):
         p = self._p
         if t is None:
             t = self._data[:,0]
-        if include_offset:
-            f = np.ones_like(t)
-            m = loglike2(self._pv_best, t, f, p, ret_mod=True)
-        else:
-            m = model2(self._pv_best, t, p)
+        f = np.ones_like(t)
+        m = self._logprob(self._pv_best, t, f, p, ret_mod=True)
         return m
 
     @property
@@ -117,9 +102,7 @@ class Fit(object):
 
     def plot(self, fp=None, nmodel=None, **kwargs):
         t, f = self._data.T
-        m = self.model()
-        resid = f - m
-        title = "Std. dev. of residuals: {}".format(np.std(resid))
+        title = "Std. dev. of residuals: {}".format(np.std(self.resid))
         if nmodel is not None:
             ti = np.linspace(t.min(), t.max(), nmodel)
             m = self.model(t=ti)
@@ -130,12 +113,39 @@ class Fit(object):
     def t14(self, nmodel=1000):
         t = self._data.T[0]
         ti = np.linspace(t.min(), t.max(), nmodel)
-        mi = self.model(ti, include_offset=False)
+        mi = self.model(ti)
         idx = mi < 1
         t14 = ti[idx][-1] - ti[idx][0]
         return t14
 
+    @property
+    def _pv_names(self):
+        return self._logprob(1, 1, 1, 1, ret_pvnames=True)
 
-    def final(self):
-        keys = 'k tc t14 i u k0 sig'.split()
-        return dict(zip(keys, self._pv_best))
+    @property
+    def best(self):
+        return dict(zip(self._pv_names, self._pv_best))
+
+    def run_mcmc(self, make_plots=True, **kwargs):
+
+        ini = self._pv_map
+        args = self._args
+        names = self._pv_names
+        t, f, p = args
+
+        eng = MCMC(self._logprob, ini, args, names, outdir=self._out_dir)
+        sig_idx = self._pv_names.index('sig')
+        eng.run(make_plots=make_plots, pos_idx=sig_idx, **kwargs)
+        pv, lp, fc, gr, acor = eng.results
+        if lp > self._lp_map:
+            self._pv_best = pv
+
+        if make_plots:
+
+            m = self._logprob(pv, t, f, p, ret_mod=True)
+            fp = os.path.join(self._out_dir, 'mcmc-bestfit.png')
+            plot.simple_ts(t, f, model=m, fp=fp)
+
+            fp = os.path.join(self._out_dir, 'mcmc-samples.png')
+            ps = [self._logprob(s, t, f, p, ret_mod=True) for s in fc[np.random.randint(len(fc), size=100)]]
+            plot.samples(t, f, ps, fp=fp)

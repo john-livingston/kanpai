@@ -1,10 +1,8 @@
 import numpy as np
 from everest import Everest
 import k2plr as kplr
-import statsmodels.api as sm
-from astropy.stats import sigma_clip
 
-import util
+from .. import util
 from fit import Fit
 
 
@@ -33,14 +31,14 @@ def folded(epic, p, t0, t14, pipeline='everest',
 
     idx = np.isnan(t) | np.isnan(f)
     t, f = t[~idx], f[~idx]
-    tf, ff = util.fold(t, f, p, t0, t14=t14,
+    tf, ff = util.lc.fold(t, f, p, t0, t14=t14,
         width=width, clip=clip, bl=bl, skip=skip)
 
     if refine:
         fit = Fit(tf, ff, t14=t14, p=p)
-        fit.max_apo()
+        fit.run_map()
         t14 = fit.t14()
-        tf, ff = util.fold(t, f, p, t0, t14=t14,
+        tf, ff = util.lc.fold(t, f, p, t0, t14=t14,
             width=width, clip=clip, bl=bl, skip=skip)
         print "Refined transit duration: {} [days]".format(t14)
 

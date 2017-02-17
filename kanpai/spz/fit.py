@@ -21,12 +21,14 @@ from tqdm import tqdm
 import sxp
 from pytransit import MandelAgol
 
-import util
+from util import get_ld_claret
+from .. import util
+
 import plot
 from ..k2 import loglike1 as k2_loglike
 from ..k2 import fit as k2_fit
 from ..k2 import plot as k2_plot
-from ..k2 import util as k2_util
+from ..k2 import ld as k2_ld
 from like import loglike as spz_loglike
 from like import model as spz_model
 from ..engines import MAP, MCMC
@@ -208,14 +210,14 @@ class Fit(object):
         except KeyError as e:
             print "Input missing Kepler limb-darkening priors"
             print "Using LDTk..."
-            self._u_kep = k2_util.get_ld_ldtk(teff, uteff, logg, ulogg, feh, ufeh)
+            self._u_kep = k2_ld.get_ld_ldtk(teff, uteff, logg, ulogg, feh, ufeh)
 
         try:
             self._u_spz = self._setup['ld']['spz']
         except KeyError as e:
             print "Input missing Spitzer limb-darkening priors"
             print "Using Claret+2012..."
-            self._u_spz = util.get_ld_claret(teff, uteff, logg, ulogg, 'S2')
+            self._u_spz = get_ld_claret(teff, uteff, logg, ulogg, 'S2')
 
         self._output['ld_priors'] = dict(kep=self._u_kep, spz=self._u_spz)
 
@@ -246,8 +248,8 @@ class Fit(object):
             bin_k2 /= 86400.
 
             t, f, s = self._k2_ts
-            tb, fb = util.binned_ts(t, f, bin_k2)
-            tb, sb = util.binned_ts(t, s, bin_k2)
+            tb, fb = util.ts.binned_ts(t, f, bin_k2)
+            tb, sb = util.ts.binned_ts(t, s, bin_k2)
             sb /= np.sqrt(bin_k2)
 
             self._df_k2 = pd.DataFrame(dict(t=tb, f=fb, s=sb))
@@ -287,7 +289,7 @@ class Fit(object):
         if bin_size_sec > 0:
             timestep = np.median(np.diff(t)) * 24 * 3600
             bs = int(round(bin_size_sec/timestep))
-            binned = functools.partial(util.binned, binsize=bs)
+            binned = functools.partial(util.ts.binned, binsize=bs)
             tb, fb, ub, pixb = map(binned, [t, f, s, pix])
             ub /= np.sqrt(bs)
             t, f, s, pix = tb, fb, ub, pixb
@@ -647,17 +649,17 @@ class Fit(object):
         resid = self._df_sp['resid']
         best_sp = get_theta(self._pv_best, 'sp')
         timestep = np.median(np.diff(t)) * 86400
-        rms = util.rms(resid)
-        beta = util.beta(resid, timestep)
+        rms = util.stats.rms(resid)
+        beta = util.stats.beta(resid, timestep)
         nd, npar = len(t), len(best_sp)
-        rchisq = util.chisq(resid, s, nd, npar, reduced=True)
-        obj = lambda x: (1 - util.chisq(resid, s*x, nd, npar, reduced=True))**2
+        rchisq = util.stats.chisq(resid, s, nd, npar, reduced=True)
+        obj = lambda x: (1 - util.stats.chisq(resid, s*x, nd, npar, reduced=True))**2
         res = op.minimize(obj, 1, method='nelder-mead')
         if res.success:
             rescale_fac = float(res.x)
         else:
             rescale_fac = None
-        bic = util.bic(spz_loglike(best_sp, *self._spz_args), nd, npar)
+        bic = util.stats.bic(spz_loglike(best_sp, *self._spz_args), nd, npar)
 
         print "RMS: {}".format(rms)
         print "Beta: {}".format(beta)
@@ -674,21 +676,21 @@ class Fit(object):
         t, f, s = df_k2['t'], df_k2['f'], df_k2['s']
         model = k2_loglike(best_k2, *self._k2_args, ret_mod=True)
         resid = f - model
-        rms = util.rms(resid)
+        rms = util.stats.rms(resid)
         timestep = np.median(np.diff(t)) * 86400
         try:
-            beta = float(util.beta(resid, timestep))
+            beta = float(util.stats.beta(resid, timestep))
         except:
             beta = None
         nd, npar = len(s), len(best_k2)
-        rchisq = util.chisq(resid, s, nd, npar, reduced=True)
-        obj = lambda x: (1 - util.chisq(resid, s*x, nd, npar, reduced=True))**2
+        rchisq = util.stats.chisq(resid, s, nd, npar, reduced=True)
+        obj = lambda x: (1 - util.stats.chisq(resid, s*x, nd, npar, reduced=True))**2
         res = op.minimize(obj, 1, method='nelder-mead')
         if res.success:
             rescale_fac = float(res.x)
         else:
             rescale_fac = None
-        bic = util.bic(k2_loglike(best_k2, *self._k2_args), nd, npar)
+        bic = util.stats.bic(k2_loglike(best_k2, *self._k2_args), nd, npar)
 
         self._output['k2'] = dict(rms=float(rms),
             beta=beta,
@@ -706,7 +708,7 @@ class Fit(object):
         p = self._tr['p']
         idx = self._pn_idx('a')
         a_samples = self._fc[:,idx]
-        rho = util.sample_rhostar(a_samples, p)
+        rho = util.transit.sample_rhostar(a_samples, p)
         p0 = 1,rho.mean(),rho.std(), 1,np.median(rho),rho.std()
         fp = os.path.join(self._out_dir, 'rhostar.png')
         plot.multi_gauss_fit(rho, p0, fp=fp)

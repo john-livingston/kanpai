@@ -3,6 +3,7 @@
 import os
 import sys
 import argparse
+import multiprocessing
 
 import numpy as np
 import pandas as pd
@@ -10,30 +11,46 @@ import matplotlib
 matplotlib.use('Agg')
 
 import kanpai
-from kanpai.k2.fit import logprob
+from kanpai.k2.fit import logprob2
 
 
 cwd = os.path.abspath('.')
 
 parser = argparse.ArgumentParser(description="Fit K2 light curve")
 parser.add_argument('-i', '--input', help='light curve file (CSV)', type=str)
-parser.add_argument('-o', '--outdir', help='output directory', type=str, default=cwd)
+parser.add_argument('-o', '--out_dir', help='output directory', type=str, default=cwd)
 parser.add_argument('-p', '--period', help='period [days]', type=float)
+parser.add_argument('-n', '--nproc', help='number of processes to use', type=int, default=None)
+parser.add_argument('-s', '--save', help='save MCMC samples', dest='save', action='store_true')
+parser.add_argument('--gr', type=float, default=None,
+    help='Gelmin-Rubin threshold')
+parser.add_argument('--nsteps1', type=int, default=int(1e3),
+    help='number of initialization MCMC steps')
+parser.add_argument('--nsteps2', type=int, default=int(1e3),
+    help='number of production MCMC steps')
+parser.add_argument('--max_steps', type=int, default=int(1e4),
+    help='maximum number of MCMC steps')
+
+parser.set_defaults(save_samples=False)
+
 args = parser.parse_args()
 
 p = args.period
-outdir = args.outdir
-
+out_dir = args.out_dir
+if not os.path.isdir(out_dir):
+    os.mkdir(out_dir)
+if args.nproc is not None:
+    nproc = args.nproc
+else:
+    nproc = multiprocessing.cpu_count()
+save = args.save
+gr_threshold = args.gr
+ns1 = args.nsteps1
+ns2 = args.nsteps2
+ms = args.max_steps
 df = pd.read_csv(args.input, names='t f s'.split())
 t, f, s = df.values.T
-sig = s.mean()
 
-fit = kanpai.k2.Fit(t, f)
-fit.max_apo()
-par = fit.final()
-args = (t, f, p)
-ini = [par[k] for k in 'k,tc,t14,i,u,k0'.split(',')]+[sig]
-names = 'k,tc,t14,i,u,k0,sig'.split(',')
-
-eng = kanpai.engines.MCMC(logprob, ini, args, names, outdir=outdir)
-eng.run()
+fit = kanpai.k2.Fit(t, f, out_dir=out_dir)
+fit.run_map()
+fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms, gr_threshold=gr_threshold)
