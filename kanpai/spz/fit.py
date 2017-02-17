@@ -32,6 +32,7 @@ from ..k2 import ld as k2_ld
 from like import loglike as spz_loglike
 from like import model as spz_model
 from ..engines import MAP, MCMC
+from ..plot import multi_gauss_fit
 
 
 np.warnings.simplefilter('ignore')
@@ -708,18 +709,18 @@ class Fit(object):
         rho = util.transit.sample_rhostar(a_samples, p)
         p0 = 1,rho.mean(),rho.std(), 1,np.median(rho),rho.std()
         fp = os.path.join(self._out_dir, 'rhostar.png')
-        plot.multi_gauss_fit(rho, p0, fp=fp)
+        multi_gauss_fit(rho, p0, fp=fp)
 
         # small corner
         fp = os.path.join(self._out_dir, 'corner-small.png')
         idx = []
-        for n in 'a i k_s k_k tc_s'.split():
+        for n in 'a b k_s k_k tc_s'.split():
             idx += [self._pn_idx(n)]
         fc = self._fc[:,idx].copy()
         tc = int(fc[:,-1].mean())
         fc[:,-1] -= tc
-        fc[:,1] *= 180/np.pi
-        labels = r'$a/R_{\star}$ $i$ $R_p/R_{\star,S}$ $R_p/R_{\star,K}$'
+        # fc[:,1] *= 180/np.pi
+        labels = r'$a/R_{\star}$ $b$ $R_p/R_{\star,S}$ $R_p/R_{\star,K}$'
         labels += r' $T_[C,S]-{}$'.format(tc).replace('[','{').replace(']','}')
         plot.corner(fc, labels.split(), fp=fp,
             quantiles=None, plot_datapoints=False, dpi=256, tight=True)
