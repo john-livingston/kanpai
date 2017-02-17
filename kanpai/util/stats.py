@@ -1,7 +1,7 @@
 import numpy as np
 import sklearn.decomposition as dc
 from astropy.stats import sigma_clip
-
+import ts
 
 def gelman_rubin(chains, verbose=False):
     assert chains.ndim == 3
@@ -82,7 +82,7 @@ def beta(residuals, timestep, start_min=5, stop_min=20):
     for bs in range(min_bs, max_bs + 1):
         nbins = ndata / bs
         sigmaN_theory = sigma1 / np.sqrt(bs) * np.sqrt( nbins / (nbins - 1) )
-        sigmaN_actual = np.std(binned(residuals, bs))
+        sigmaN_actual = np.std(ts.binned(residuals, bs))
         beta = sigmaN_actual / sigmaN_theory
         betas.append(beta)
 
