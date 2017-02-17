@@ -8,6 +8,8 @@ def parse_setup(fp):
     transit = setup['transit']
     if 'b' not in transit.keys():
         transit['b'] = 0
+    if 'i' not in transit.keys():
+        transit['i'] = util.transit.inclination(a, transit['b'])
     if 't14' not in transit.keys():
         try:
             transit['t14'] = util.transit.tdur_circ(transit['p'],
