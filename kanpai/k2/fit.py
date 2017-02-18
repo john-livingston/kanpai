@@ -30,7 +30,6 @@ class Fit(object):
         self._tc = tc
         self._t14 = t14
         self._p = p
-        # self._i = i
         self._b = b
         self._u = u
         self._k0 = k0
@@ -46,7 +45,6 @@ class Fit(object):
         tc = self._tc
         p = self._p
         t14 = self._t14
-        # i = self._i
         b = self._b
         # FIXME: upgrade limbdark to get linear LD coeff from LDTk
         u = self._u
@@ -55,10 +53,8 @@ class Fit(object):
         idx = (t < tc - t14/2.) | (tc + t14/2. < t)
         sig = f[idx].std()
         i = np.pi/2
-        # FIXME check how weak dependence of a is on i or replace with alternate using b
+        # FIXME check how weak dependence of a is on i
         a = util.transit.scaled_a(p, t14, k, i)
-        # b = util.transit.impact(a, i)
-        # return k,tc,t14,i,u,k0,sig
         return k,tc,a,b,u,k0,sig
 
     @property

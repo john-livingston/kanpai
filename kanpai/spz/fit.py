@@ -21,19 +21,18 @@ from tqdm import tqdm
 import sxp
 from pytransit import MandelAgol
 
-from ld import get_ld_claret
-from .. import util
 
 import plot
+from like import loglike as spz_loglike
+from like import model as spz_model
+from ld import get_ld_claret
+from .. import util
 from ..k2 import loglike1 as k2_loglike
 from ..k2 import fit as k2_fit
 from ..k2 import plot as k2_plot
 from ..k2 import ld as k2_ld
-from like import loglike as spz_loglike
-from like import model as spz_model
 from ..engines import MAP, MCMC
 from ..plot import multi_gauss_fit
-
 
 np.warnings.simplefilter('ignore')
 sb.set_color_codes('muted')
@@ -45,7 +44,13 @@ PI2 = np.pi/2
 METHODS = 'cen pld base pca pca2 pca-quad cen-quad pld-quad'.split()
 
 
-def logprob(theta, t, f, s, p, aux, k2data, u_kep, u_spz):
+def logprob(theta, t, f, s, p, aux, k2data, u_kep, u_spz, ret_pvnames=False):
+
+    if ret_pvnames:
+        pvn = 'a,b,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k1_s,k0_k'.split(',')
+        if aux is not None:
+            pvn += ['c{}'.format(i) for i in range(len(aux))]
+        return pvn
 
     a,b,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k1_s,k0_k = theta[:12]
     theta_aux = theta[12:]
@@ -72,10 +77,10 @@ def logprob(theta, t, f, s, p, aux, k2data, u_kep, u_spz):
 
 def get_theta(theta, sub):
 
-    a,i,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k1_s,k0_k = theta[:12]
+    a,b,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k1_s,k0_k = theta[:12]
     theta_aux = theta[12:]
-    theta_sp = [k_s,tc_s,a,i,u1_s,u2_s,k1_s] + theta_aux.tolist()
-    theta_k2 =  k_k,tc_k,a,i,u1_k,u2_k,k0_k
+    theta_sp = [k_s,tc_s,a,b,u1_s,u2_s,k1_s] + theta_aux.tolist()
+    theta_k2 =  k_k,tc_k,a,b,u1_k,u2_k,k0_k
 
     if sub == 'sp':
         return theta_sp
@@ -112,14 +117,6 @@ class Fit(object):
 
         fp = os.path.join(out_dir, 'input.yaml')
         yaml.dump(setup, open(fp, 'w'), default_flow_style=False)
-
-        # # check if inclination is in degrees and convert to radians if so
-        # inc = self._tr['i']
-        # if np.isclose(inc, 90, rtol=0.5):
-        #     self._tr['i'] = inc * np.pi/180.
-        # # check if inclination is reflected about np.pi/2 and fix if so
-        # if self._tr['i'] > np.pi/2.:
-        #     self._tr['i'] = np.pi - self._tr['i']
 
         print "\nInitial parameter values:"
         for k,v in self._tr.items():
@@ -251,7 +248,6 @@ class Fit(object):
             sb /= np.sqrt(bin_k2)
 
             self._df_k2 = pd.DataFrame(dict(t=tb, f=fb, s=sb))
-            # import pdb; pdb.set_trace()
 
 
     def _load_spz(self):
@@ -430,11 +426,8 @@ class Fit(object):
 
     @property
     def _labels(self):
-
-        labels = 'a b k_s k_k tc_s tc_k u1_s u2_s u1_k u2_k k1_s k0_k'.split()
-        if self._aux is not None:
-            labels += ['c{}'.format(i) for i in range(len(self._aux))]
-
+        # FIXME hacky
+        labels = self._logprob(self._ini, *self._args, ret_pvnames=True)
         return labels
 
 
