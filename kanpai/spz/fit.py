@@ -464,8 +464,10 @@ class Fit(object):
         self._map.run()
         self._pv_map, self._lp_map, self._max_apo_alg = self._map.results
 
-        if make_plots:
-            self._plot_max_apo()
+        if self._pv_map is None:
+            self._pv_map = self._ini
+            self._lp_map = self._logprob(self._pv_map, *self._args)
+            self._max_apo_alg = 'none'
 
         delta = np.abs(self._ini / self._pv_map)
         threshold = 2
@@ -483,6 +485,9 @@ class Fit(object):
             logprob=float(self._lp_map),
             pv=dict(zip(self._labels, self._pv_map.tolist()))
             )
+
+        if make_plots:
+            self._plot_max_apo()
 
 
     def _plot_max_apo(self):

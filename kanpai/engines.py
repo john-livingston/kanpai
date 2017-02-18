@@ -40,6 +40,9 @@ class MAP(Engine):
         self._ini = ini
         self._args = args
         self._methods = methods
+        self._pv = None
+        self._lp = None
+        self._method = None
 
     def _map(self, method='nelder-mead'):
 
