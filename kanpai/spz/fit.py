@@ -44,19 +44,20 @@ PI2 = np.pi/2
 METHODS = 'cen pld base pca pca2 pca-quad cen-quad pld-quad'.split()
 
 
-def logprob(theta, t, f, s, p, aux, k2data, u_kep, u_spz, ret_pvnames=False):
+def logprob(theta, t, f, p, aux, k2data, u_kep, u_spz, ret_pvnames=False):
 
     if ret_pvnames:
-        pvn = 'a,b,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k1_s,k0_k'.split(',')
+        pvn = 'a,b,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,s_s,s_k,k1_s,k0_k'.split(',')
         if aux is not None:
             pvn += ['c{}'.format(i) for i in range(len(aux))]
         return pvn
 
-    a,b,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k1_s,k0_k = theta[:12]
-    theta_aux = theta[12:]
+    a,b,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,s_s,s_k,k1_s,k0_k = theta[:14]
+    theta_aux = theta[14:]
 
     if k_s < -1 or k_s > 1 or k_k < -1 or k_k > 1 or \
         tc_s < t[0] - 0.05 or tc_s > t[-1] + 0.05 or \
+        s_s < 0 or s_s > 1 or s_k < 0 or s_k > 1 or \
         b < 0 or b > 1:
         return -np.inf
     lp = np.log(stats.norm.pdf(u1_s, u_spz[0], u_spz[1]))
@@ -64,11 +65,11 @@ def logprob(theta, t, f, s, p, aux, k2data, u_kep, u_spz, ret_pvnames=False):
     lp += np.log(stats.norm.pdf(u1_k, u_kep[0], u_kep[1]))
     lp += np.log(stats.norm.pdf(u2_k, u_kep[2], u_kep[3]))
 
-    theta_sp = [k_s,tc_s,a,b,u1_s,u2_s,k1_s] + theta_aux.tolist()
-    theta_k2 =  k_k,tc_k,a,b,u1_k,u2_k,k0_k
+    theta_sp = [k_s,tc_s,a,b,u1_s,u2_s,s_s,k1_s] + theta_aux.tolist()
+    theta_k2 =  k_k,tc_k,a,b,u1_k,u2_k,s_s,k0_k
 
-    ll = spz_loglike(theta_sp, t, f, s, p, aux)
-    ll += k2_loglike(theta_k2, k2data[0], k2data[1], k2data[2], p)
+    ll = spz_loglike(theta_sp, t, f, p, aux)
+    ll += k2_loglike(theta_k2, k2data[0], k2data[1], p)
 
     if np.isnan(ll).any():
         return -np.inf
@@ -77,10 +78,10 @@ def logprob(theta, t, f, s, p, aux, k2data, u_kep, u_spz, ret_pvnames=False):
 
 def get_theta(theta, sub):
 
-    a,b,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,k1_s,k0_k = theta[:12]
-    theta_aux = theta[12:]
-    theta_sp = [k_s,tc_s,a,b,u1_s,u2_s,k1_s] + theta_aux.tolist()
-    theta_k2 =  k_k,tc_k,a,b,u1_k,u2_k,k0_k
+    a,b,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,s_s,s_k,k1_s,k0_k = theta[:14]
+    theta_aux = theta[14:]
+    theta_sp = [k_s,tc_s,a,b,u1_s,u2_s,s_s,k1_s] + theta_aux.tolist()
+    theta_k2 =  k_k,tc_k,a,b,u1_k,u2_k,s_k,k0_k
 
     if sub == 'sp':
         return theta_sp
@@ -356,7 +357,7 @@ class Fit(object):
         p = self._tr['p']
         aux = self._aux
 
-        return t, f, s, p, aux
+        return t, f, p, aux
 
 
     @property
@@ -382,7 +383,7 @@ class Fit(object):
         t, f, s = self._k2_ts
         p = self._tr['p']
 
-        return t, f, s, p
+        return t, f, p
 
 
     @property
@@ -398,7 +399,7 @@ class Fit(object):
         k2data = self._df_k2[['t','f','s']].values.T
         u_kep, u_spz = self._u_kep, self._u_spz
 
-        return t, f, s, p, aux, k2data, u_kep, u_spz
+        return t, f, p, aux, k2data, u_kep, u_spz
 
 
     @property
@@ -414,10 +415,12 @@ class Fit(object):
         tc_k = 0
         u1_s, u2_s = self._u_spz[0], self._u_spz[2]
         u1_k, u2_k = self._u_kep[0], self._u_kep[2]
+        s_s = self._df_sp['f'].std()
+        s_k = self._df_k2['f'].std()
         k1_s, k0_k = 0, 0
 
         initial = [a, b, k, k, tc_s, tc_k, u1_s, u2_s,
-            u1_k, u2_k, k1_s, k0_k]
+            u1_k, u2_k, s_s, s_k, k1_s, k0_k]
 
         initial += [0] * n_aux
 
@@ -707,13 +710,13 @@ class Fit(object):
         # small corner
         fp = os.path.join(self._out_dir, 'corner-small.png')
         idx = []
-        for n in 'a b k_s k_k tc_s'.split():
+        for n in 'a b k_s k_k s_s s_k tc_s'.split():
             idx += [self._pn_idx(n)]
         fc = self._fc[:,idx].copy()
         tc = int(fc[:,-1].mean())
         fc[:,-1] -= tc
         # fc[:,1] *= 180/np.pi
-        labels = r'$a/R_{\star}$ $b$ $R_p/R_{\star,S}$ $R_p/R_{\star,K}$'
+        labels = r'$a/R_{\star}$ $b$ $R_p/R_{\star,S}$ $R_p/R_{\star,K}$ $\sigma_{S}$ $\sigma_{K}$'
         labels += r' $T_[C,S]-{}$'.format(tc).replace('[','{').replace(']','}')
         plot.corner(fc, labels.split(), fp=fp,
             quantiles=None, plot_datapoints=False, dpi=256, tight=True)
@@ -768,7 +771,7 @@ class Fit(object):
         npercs = len(percs)
 
         df_k2.ti = np.linspace(df_k2.t.min(), df_k2.t.max(), 1000)
-        args_k2 = df_k2.ti, df_k2['f'], df_k2['s'], p
+        args_k2 = df_k2.ti, df_k2['f'], p
 
         flux_pr_k2, flux_pr_sp = [], []
         for theta in fc[np.random.permutation(fc.shape[0])[:1000]]:

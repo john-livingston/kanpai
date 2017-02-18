@@ -15,7 +15,7 @@ from emcee.utils import sample_ball
 import corner
 from tqdm import tqdm
 
-from like import logprob2, logprob3
+from like import logprob1, logprob2, logprob3, logprob4
 from .. import plot
 from .. import util
 from ..engines import MAP, MCMC
@@ -33,7 +33,7 @@ class Fit(object):
         self._b = b
         self._u = u
         self._k0 = k0
-        self._logprob = logprob3
+        self._logprob = logprob4
         self._out_dir = out_dir
 
     @property
@@ -47,7 +47,11 @@ class Fit(object):
         t14 = self._t14
         b = self._b
         # FIXME: upgrade limbdark to get linear LD coeff from LDTk
-        u = self._u
+        # u = self._u
+        # u1 = self._u
+        # u2 = self._u
+        q1 = 0.5
+        q2 = 0.5
         k0 = self._k0
         t, f = self._data.T
         idx = (t < tc - t14/2.) | (tc + t14/2. < t)
@@ -55,7 +59,9 @@ class Fit(object):
         i = np.pi/2
         # FIXME check how weak dependence of a is on i
         a = util.transit.scaled_a(p, t14, k, i)
-        return k,tc,a,b,u,k0,sig
+        # return k,tc,a,b,u,k0,sig
+        # return k,tc,a,b,u1,u2,k0,sig
+        return k,tc,a,b,q1,q2,k0,sig
 
     @property
     def _args(self):
