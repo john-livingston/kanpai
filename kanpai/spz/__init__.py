@@ -5,3 +5,4 @@ from . import ld
 from . import like
 from . import plot
 from . import simfit
+from .fit import FitSpz

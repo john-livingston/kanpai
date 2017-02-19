@@ -22,7 +22,7 @@ from like import model1 as spz_model
 from io import load_spz
 from ld import get_ld_claret
 from .. import util
-from ..k2 import loglike1 as k2_loglike
+from ..k2.like import loglike1 as k2_loglike
 from ..k2 import fit as k2_fit
 from ..k2 import plot as k2_plot
 from ..k2 import ld as k2_ld

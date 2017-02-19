@@ -69,7 +69,7 @@ elif args.pld:
     aux = pix.T
 
 p = setup['transit']['p']
-fit = kanpai.spz.fit.Fit(t, f, p=p, aux=aux, out_dir=out_dir)
+fit = kanpai.spz.FitSpz(t, f, p=p, aux=aux, out_dir=out_dir)
 if args.ldp:
     teff, uteff = [float(i) for i in args.teff.split(',')]
     logg, ulogg = [float(i) for i in args.logg.split(',')]

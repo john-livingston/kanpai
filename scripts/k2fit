@@ -60,7 +60,7 @@ ms = args.max_steps
 df = kanpai.k2.io.load_k2(args.input)
 t, f = df['t f'.split()].values.T
 
-fit = kanpai.k2.fit.Fit(t, f, out_dir=out_dir)
+fit = kanpai.k2.FitK2(t, f, out_dir=out_dir)
 if args.ldp:
     teff, uteff = [float(i) for i in args.teff.split(',')]
     logg, ulogg = [float(i) for i in args.logg.split(',')]
