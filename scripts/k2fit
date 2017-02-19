@@ -48,7 +48,7 @@ gr_threshold = args.gr
 ns1 = args.nsteps1
 ns2 = args.nsteps2
 ms = args.max_steps
-df = pd.read_csv(args.input, names='t f s'.split())
+df = kanpai.k2.io.load_k2(args.input)
 t, f, s = df.values.T
 
 fit = kanpai.k2.Fit(t, f, out_dir=out_dir)

@@ -38,419 +38,52 @@ np.warnings.simplefilter('ignore')
 sb.set_color_codes('muted')
 
 
-K2_TIME_OFFSET = 2454833
-PI2 = np.pi/2
-
-METHODS = 'cen pld base pca pca2 pca-quad cen-quad pld-quad'.split()
-
-
-def logprob(theta, t, f, p, aux, k2data, u_kep, u_spz, ret_pvnames=False):
-
-    if ret_pvnames:
-        pvn = 'a,b,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,s_s,s_k,k1_s,k0_k'.split(',')
-        if aux is not None:
-            pvn += ['c{}'.format(i) for i in range(len(aux))]
-        return pvn
-
-    a,b,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,s_s,s_k,k1_s,k0_k = theta[:14]
-    theta_aux = theta[14:]
-
-    if k_s < -1 or k_s > 1 or k_k < -1 or k_k > 1 or \
-        tc_s < t[0] - 0.05 or tc_s > t[-1] + 0.05 or \
-        s_s < 0 or s_s > 1 or s_k < 0 or s_k > 1 or \
-        b < 0 or b > 1:
-        return -np.inf
-    lp = np.log(stats.norm.pdf(u1_s, u_spz[0], u_spz[1]))
-    lp += np.log(stats.norm.pdf(u2_s, u_spz[2], u_spz[3]))
-    lp += np.log(stats.norm.pdf(u1_k, u_kep[0], u_kep[1]))
-    lp += np.log(stats.norm.pdf(u2_k, u_kep[2], u_kep[3]))
-
-    theta_sp = [k_s,tc_s,a,b,u1_s,u2_s,s_s,k1_s] + theta_aux.tolist()
-    theta_k2 =  k_k,tc_k,a,b,u1_k,u2_k,s_s,k0_k
-
-    ll = spz_loglike(theta_sp, t, f, p, aux)
-    ll += k2_loglike(theta_k2, k2data[0], k2data[1], p)
-
-    if np.isnan(ll).any():
-        return -np.inf
-    return ll + lp
-
-
-def get_theta(theta, sub):
-
-    a,b,k_s,k_k,tc_s,tc_k,u1_s,u2_s,u1_k,u2_k,s_s,s_k,k1_s,k0_k = theta[:14]
-    theta_aux = theta[14:]
-    theta_sp = [k_s,tc_s,a,b,u1_s,u2_s,s_s,k1_s] + theta_aux.tolist()
-    theta_k2 =  k_k,tc_k,a,b,u1_k,u2_k,s_k,k0_k
-
-    if sub == 'sp':
-        return theta_sp
-    elif sub == 'k2':
-        return theta_k2
-
 
 class Fit(object):
 
-    """
-    Data container and model fitting object for simultaneous analysis of
-    K2 and Spitzer data.
+    def __init__(self, t, f, k=None, tc=None, t14=None, p=None, b=None, out_dir=None):
 
-    :param dict setup   : Parsed from setup YAML file.
-    :param str out_dir  : Where to save all the output.
-    :param str method   : One of [base, cen, pld].
-    :param int bin_size : Desired bin size for Spitzer data, in seconds.
-
-    """
-
-    def __init__(self, setup, out_dir, method='base'):
-
-        self._setup = setup
-        self._out_dir = out_dir
-        self._tr  = setup['transit']
+        self._data = np.c_[t,f]
+        self._k = k
+        self._tc = tc
+        self._t14 = t14
+        self._p = p
+        self._b = b
         self._logprob = logprob
-        self._method = method
-        self._pv_map = None
-        self._lp_map = None
-        self._max_apo_alg = None
-        self._pv_mcmc = None
-        self._lp_mcmc = None
-        self._output = dict(method=method)
-
-        fp = os.path.join(out_dir, 'input.yaml')
-        yaml.dump(setup, open(fp, 'w'), default_flow_style=False)
-
-        print "\nInitial parameter values:"
-        for k,v in self._tr.items():
-            print "{} = {}".format(k,v)
-
-        # setup limb darkening priors
-        self._setup_ld()
-
-        # load k2 data
-        self._load_k2()
-
-        # load spitzer data
-        self._load_spz()
-
-        # set up auxiliary regressors
-        self._setup_aux()
-
-
-    def _setup_aux(self):
-
-        method = self._method
-
-        if method == 'cen':
-
-            n = self._xy.shape[0]
-            bias = np.repeat(1, n)
-            self._aux = np.c_[bias, self._xy].T
-
-        elif method == 'cen-quad':
-
-            n = self._xy.shape[0]
-            bias = np.repeat(1, n)
-            self._aux = np.c_[bias, self._xy, self._xy**2].T
-
-        elif method == 'pld':
-
-            self._aux = self._pix.T
-
-        elif method == 'pld-quad':
-
-            self._aux = np.c_[self._pix, self._pix**2].T
-
-        elif method == 'base':
-
-            n = self._xy.shape[0]
-            bias = np.repeat(1, n)
-            self._aux = bias.reshape(1, n)
-
-        elif method == 'pca':
-
-            n = self._xy.shape[0]
-            bias = np.repeat(1, n)
-            X = self._pix.T
-            top2 = util.pca(X, n=2)
-            self._aux = np.c_[bias, top2].T
-
-        elif method == 'pca2':
-
-            n = self._xy.shape[0]
-            bias = np.repeat(1, n)
-            X = np.c_[self._pix, self._pix**2].T
-            top2 = util.pca(X, n=2)
-            self._aux = np.c_[bias, top2].T
-
-        elif method == 'pca-quad':
-
-            n = self._xy.shape[0]
-            bias = np.repeat(1, n)
-            X = self._pix.T
-            top2 = util.pca(X, n=2)
-            self._aux = np.c_[bias, top2, top2**2].T
-
-        else:
-
-            raise ValueError('method must be one of: {}'.format(METHODS))
-
-
-    def _setup_ld(self):
-
-        teff, uteff = self._setup['stellar']['teff']
-        logg, ulogg = self._setup['stellar']['logg']
-        feh, ufeh = self._setup['stellar']['feh']
-
-        try:
-            self._u_kep = self._setup['ld']['kep']
-        except KeyError as e:
-            print "Input missing Kepler limb-darkening priors"
-            print "Using LDTk..."
-            self._u_kep = k2_ld.get_ld_ldtk(teff, uteff, logg, ulogg, feh, ufeh)
-
-        try:
-            self._u_spz = self._setup['ld']['spz']
-        except KeyError as e:
-            print "Input missing Spitzer limb-darkening priors"
-            print "Using Claret+2012..."
-            self._u_spz = get_ld_claret(teff, uteff, logg, ulogg, 'S2')
-
-        self._output['ld_priors'] = dict(kep=self._u_kep, spz=self._u_spz)
-
-
-    def _load_k2(self):
-
-        k2_folded_fp = self._setup['config']['k2lc']
-
-        if os.path.isfile(k2_folded_fp):
-
-            try:
-
-                print "\nLoading K2 data from file: {}".format(k2_folded_fp)
-                names = open(k2_folded_fp).readline().split(',')
-                if len(names) == 3:
-                    self._df_k2 = pd.read_csv(k2_folded_fp, names='t f s'.split())
-                else:
-                    self._df_k2 = pd.read_csv(k2_folded_fp, names='t f'.split())
-                    self._add_k2_sig()
-
-            except:
-
-                raise ValueError('Invalid K2 light curve file format')
-
-        if 'bin_k2' in self._setup['config'].keys():
-
-            bin_k2 = self._setup['config']['bin_k2']
-            bin_k2 /= 86400.
-
-            t, f, s = self._k2_ts
-            tb, fb = util.ts.binned_ts(t, f, bin_k2)
-            tb, sb = util.ts.binned_ts(t, s, bin_k2)
-            sb /= np.sqrt(bin_k2)
-
-            self._df_k2 = pd.DataFrame(dict(t=tb, f=fb, s=sb))
-
-
-    def _load_spz(self):
-
-        print "\nLoading Spitzer data"
-
-        self._radius = self._setup['config']['radius']
-        self._aor = self._setup['config']['aor']
-        self._data_dir = self._setup['config']['datadir']
-        self._geom = self._setup['config']['geom']
-        if self._geom == '3x3':
-            self._npix = 9
-        elif self._geom == '5x5':
-            self._npix = 25
-
-        fp = os.path.join(self._data_dir, self._aor+'_phot.pkl')
-        df_sp = sxp.util.df_from_pickle(fp, self._radius, pix=True, geom=self._geom)
-
-        # rescale errorbars if desired
-        if 'rescale' in self._setup['config'].keys():
-            rescale_fac = self._setup['config']['rescale']
-            df_sp['s'] *= rescale_fac
-
-        # plot
-        fp = os.path.join(self._out_dir, 'spz_raw.png')
-        plot.errorbar(df_sp.t, df_sp.f, df_sp.s, fp, alpha=0.5)
-
-        # extract time series and bin
-        keys = ['p{}'.format(i) for i in range(self._npix)]
-        pix = df_sp[keys].values
-        t, f, s = df_sp.t, df_sp.f, df_sp.s
-        bin_size_sec = self._setup['config']['binsize']
-        if bin_size_sec > 0:
-            timestep = np.median(np.diff(t)) * 24 * 3600
-            bs = int(round(bin_size_sec/timestep))
-            binned = functools.partial(util.ts.binned, binsize=bs)
-            tb, fb, ub, pixb = map(binned, [t, f, s, pix])
-            ub /= np.sqrt(bs)
-            t, f, s, pix = tb, fb, ub, pixb
-            fp = os.path.join(self._out_dir, 'spz_binned.png')
-            plot.errorbar(tb, fb, ub, fp)
-        d_sp = {k:v for k,v in zip('t f s'.split(), [t, f, s])}
-        self._df_sp = pd.DataFrame(d_sp)
-        self._pix = pix
-
-        side = int(np.sqrt(self._npix))
-        cube = pix.reshape(-1,side,side)
-        cubestacked = np.median(cube, axis=0)
-        fp = os.path.join(self._out_dir, 'spz_pix.png')
-        plot.pixels(cubestacked, fp)
-
-        # compute and plot centroids
-        cx, cy = centroid_2dg(cubestacked)
-        print "Cube centroids: {}, {}".format(cx, cy)
-        cx, cy = map(int, map(round, [cx, cy]))
-
-        self._xy = np.array([centroid_com(i) for i in cube])
-        x, y = self._xy.T
-        fp = os.path.join(self._out_dir, 'spz_cen.png')
-        plot.centroids(t, x, y, fp)
-
-
-    def _add_k2_sig(self):
-
-        t, f = self._df_k2[['t','f']].values.T
-        t14 = self._tr['t14']
-        idx = (t < -t14/2.) | (t > t14/2.)
-        sig = f[idx].std()
-        self._df_k2['s'] = np.repeat(sig, f.size)
-
-
-
-    @property
-    def _spz_tc(self):
-
-        """
-        Optimistic guess for Tc of Spitzer data.
-        """
-
-        t = self._df_sp['t']
-
-        return t.mean()
-
-
-    @property
-    def _spz_ts(self):
-
-        """
-        Spitzer photometric time series (time, flux, unc).
-        """
-
-        cols = 't f s'.split()
-        t, f, s = self._df_sp[cols].values.T
-
-        return t, f, s
-
-
-    @property
-    def _spz_args(self):
-
-        """
-        Spitzer likelihood args.
-        """
-
-        t, f, s = self._spz_ts
-        p = self._tr['p']
-        aux = self._aux
-
-        return t, f, p, aux
-
-
-    @property
-    def _k2_ts(self):
-
-        """
-        K2 photometric time series (time, flux, unc).
-        """
-
-        cols = 't f s'.split()
-        t, f, s = self._df_k2[cols].values.T
-
-        return t, f, s
-
-
-    @property
-    def _k2_args(self):
-
-        """
-        K2 likelihood args.
-        """
-
-        t, f, s = self._k2_ts
-        p = self._tr['p']
-
-        return t, f, p
-
-
-    @property
-    def _args(self):
-
-        """
-        Additional arguments passed to logprob function.
-        """
-
-        t, f, s = self._spz_ts
-        p = self._tr['p']
-        aux = self._aux
-        k2data = self._df_k2[['t','f','s']].values.T
-        u_kep, u_spz = self._u_kep, self._u_spz
-
-        return t, f, p, aux, k2data, u_kep, u_spz
-
+        self._out_dir = out_dir
 
     @property
     def _ini(self):
-
-        """
-        Initial guess parameter vector.
-        """
-
-        n_aux = self._aux.shape[0] if self._aux is not None else 0
-        a, b, k = self._tr['a'], self._tr['b'], self._tr['k']
-        tc_s = self._spz_tc
-        tc_k = 0
-        u1_s, u2_s = self._u_spz[0], self._u_spz[2]
-        u1_k, u2_k = self._u_kep[0], self._u_kep[2]
-        s_s = self._df_sp['f'].std()
-        s_k = self._df_k2['f'].std()
-        k1_s, k0_k = 0, 0
-
-        initial = [a, b, k, k, tc_s, tc_k, u1_s, u2_s,
-            u1_k, u2_k, s_s, s_k, k1_s, k0_k]
-
-        initial += [0] * n_aux
-
-        return np.array(initial)
-
+        k = self._k
+        if k is None:
+            f = self._data.T[1]
+            k = np.sqrt(np.median(f)-f.min())
+        tc = self._tc
+        p = self._p
+        t14 = self._t14
+        b = self._b
+        # FIXME: upgrade limbdark to get linear LD coeff from LDTk
+        # u = self._u
+        # u1 = self._u
+        # u2 = self._u
+        q1 = 0.5
+        q2 = 0.5
+        k0 = self._k0
+        t, f = self._data.T
+        idx = (t < tc - t14/2.) | (tc + t14/2. < t)
+        sig = f[idx].std()
+        i = np.pi/2
+        # FIXME check how weak dependence of a is on i
+        a = util.transit.scaled_a(p, t14, k, i)
+        # return k,tc,a,b,u,k0,sig
+        # return k,tc,a,b,u1,u2,k0,sig
+        return k,tc,a,b,q1,q2,k0,sig
 
     @property
-    def _labels(self):
-        # FIXME hacky
-        labels = self._logprob(self._ini, *self._args, ret_pvnames=True)
-        return labels
-
-
-    def _pv_names(self, idx):
-
-        """
-        Parameter names for a given index.
-        """
-
-        pvna = np.array(self._labels)
-        return pvna[idx]
-
-
-    def _pn_idx(self, pname):
-
-        """
-        Index for a given parameter name.
-        """
-
-        return self._labels.index(pname)
+    def _args(self):
+        t, f = self._data.T
+        p = self._p
+        return t, f, p
 
 
     def run_map(self, methods=('nelder-mead', 'powell'), make_plots=True):
@@ -463,352 +96,74 @@ class Fit(object):
         self._map = MAP(self._logprob, self._ini, self._args, methods=methods)
         self._map.run()
         self._pv_map, self._lp_map, self._max_apo_alg = self._map.results
-
-        if self._pv_map is None:
-            self._pv_map = self._ini
-            self._lp_map = self._logprob(self._pv_map, *self._args)
-            self._max_apo_alg = 'none'
-
-        delta = np.abs(self._ini / self._pv_map)
-        threshold = 2
-        idx = ( (delta > threshold) | ((delta < 1./threshold) & (delta != 0)) )
-        if idx.any():
-            print "WARNING -- some MAP parameters changed by more than 2x:"
-            print self._pv_names(idx)
-            print "Overriding MAP parameters with initial guesses"
-            self._pv_map = self._ini
-            self._lp_map = self._logprob(self._pv_map, *self._args)
-
-        if 'opt' not in self._output.keys():
-            self._output['opt'] = {}
-        self._output['opt']['map'] = dict(
-            logprob=float(self._lp_map),
-            pv=dict(zip(self._labels, self._pv_map.tolist()))
-            )
+        self._pv_best = self._pv_map
 
         if make_plots:
-            self._plot_max_apo()
+            t, f, p = self._args
+            m = self._logprob(self._pv_map, t, f, p, ret_mod=True)
+            fp = os.path.join(self._out_dir, 'map-bestfit.png')
+            plot.simple_ts(t, f, model=m, fp=fp)
 
 
-    def _plot_max_apo(self):
-
-        """
-        Plot the result of max_apo().
-        """
-
-        t, f, s = self._spz_ts
-        initial = self._ini
-        args = self._args
-        alg = self._max_apo_alg
-        init_sp = get_theta(initial, 'sp')
-        best_sp = get_theta(self._pv_map, 'sp')
-
-        init_model = spz_model(init_sp, *self._spz_args)
-        max_apo_model = spz_model(best_sp, *self._spz_args)
-        fcor = spz_model(best_sp, *self._spz_args, ret_sys=True)
-        transit_model = spz_model(best_sp, *self._spz_args, ret_ma=True)
-
-        rc = {'xtick.direction': 'in',
-              'ytick.direction': 'in',
-              'xtick.major.size': 5,
-              'ytick.major.size': 5}
-
-        with sb.axes_style('white', rc):
-
-            fig, axs = pl.subplots(1, 2, figsize=(10,3), sharex=True, sharey=True)
-            axs[0].plot(t, f, 'k.')
-            axs[0].plot(t, init_model, 'b-', lw=2, label='initial')
-            axs[0].plot(t, max_apo_model, 'r-', lw=1.5, label='optimized')
-            axs[0].legend(loc=4)
-            axs[1].plot(t, f - fcor, 'k.')
-            axs[1].plot(t, transit_model, 'r-', lw=3)
-
-            axs.flat[0].xaxis.get_major_formatter().set_useOffset(False)
-            axs.flat[1].xaxis.get_major_formatter().set_useOffset(False)
-            axs.flat[0].yaxis.get_major_formatter().set_useOffset(False)
-            axs.flat[1].yaxis.get_major_formatter().set_useOffset(False)
-            pl.setp(axs.flat[0].xaxis.get_majorticklabels(), rotation=20)
-            pl.setp(axs.flat[1].xaxis.get_majorticklabels(), rotation=20)
-
-            pl.setp(axs, xlim=[t.min(), t.max()])
-            xl, yl = axs[0].get_xlim(), axs[1].get_ylim()
-            axs[0].text(xl[0]+0.1*np.diff(xl), yl[0]+0.1*np.diff(yl), alg)
-            pl.setp(axs.flat[0], title='Raw data', ylabel='Normalized flux')
-            pl.setp(axs.flat[1], title='Corrected', ylabel='Normalized flux')
-            pl.setp(axs, xlim=[t.min(), t.max()], xlabel='Time [BJD]')
-
-            fig.tight_layout()
-            fp = os.path.join(self._out_dir, 'fit-map.png')
-            fig.savefig(fp)
-            pl.close()
-
-
-    def run_mcmc(self, save=False, restart=False, resume=False, make_plots=True):
-
-        """
-        Run MCMC.
-        """
-
-        nthreads = self._setup['config']['nthreads']
-        nsteps1 = self._setup['config']['nsteps1']
-        nsteps2 = self._setup['config']['nsteps2']
-        max_steps = self._setup['config']['maxsteps']
-        gr_threshold = self._setup['config']['grthreshold']
-        out_dir = self._out_dir
-        args = self._args
-        logprob = self._logprob
-        names = self._labels
-
-        if self._pv_map is None:
-            pv_ini = self._ini
-            logprob_ini = logprob(pv_ini, *args)
-        else:
-            pv_ini = self._pv_map
-            logprob_ini = self._lp_map
-
-        fp = os.path.join(out_dir, 'mcmc.npz')
-        if os.path.isfile(fp):
-
-            if resume:
-
-                print "Resuming from previous best position"
-                npz = np.load(fp)
-                pv_ini = npz['pv_best']
-                logprob_ini = npz['logprob_best']
-
-            elif not restart:
-
-                print "Loading chain from previous run"
-                npz = np.load(fp)
-                self._fc = npz['flat_chain']
-                self._pv_mcmc = npz['pv_best']
-                self._lp_mcmc = npz['logprob_best']
-
-                self._output['opt']['mcmc'] = dict(
-                    logprob=float(self._lp_mcmc),
-                    pv=dict(zip(self._labels, self._pv_mcmc.tolist()))
-                    )
-
-                self._update_df_sp()
-                fp = os.path.join(self._out_dir, 'spz.csv')
-                self._df_sp.to_csv(fp, index=False)
-                self._post_mcmc()
-
-                return
-
-        self._mcmc = MCMC(logprob, pv_ini, args, names, out_dir)
-        self._mcmc.run(nthreads, nsteps1, nsteps2, max_steps, gr_threshold, save=True, make_plots=True)
-        pv, lp, fc, gr, acor = self._mcmc.results
-        self._pv_mcmc, self._lp_mcmc, self._fc = pv, lp, fc
-        self._update_df_sp()
-
-        if 'opt' not in self._output.keys():
-            self._output['opt'] = {}
-
-        self._output['opt']['mcmc'] = dict(
-            logprob=float(self._lp_mcmc),
-            pv=dict(zip(self._labels, self._pv_mcmc.tolist()))
-            )
-
-        self._output['stats'] = dict(
-            gr=dict(zip(self._labels, gr.tolist()))
-            )
-        if acor is not None:
-            self._output['stats']['acor']=dict(zip(self._labels, acor.tolist()))
-
-        self._post_mcmc()
-
+    def model(self, t=None):
+        p = self._p
+        if t is None:
+            t = self._data[:,0]
+        f = np.ones_like(t)
+        m = self._logprob(self._pv_best, t, f, p, ret_mod=True)
+        return m
 
     @property
-    def _pv_best(self):
-        if self._lp_mcmc > self._lp_map:
-            best = self._pv_mcmc
+    def resid(self):
+        t, f = self._data.T
+        return f - self.model()
+
+    def plot(self, fp=None, nmodel=None, **kwargs):
+        t, f = self._data.T
+        title = "Std. dev. of residuals: {}".format(np.std(self.resid))
+        if nmodel is not None:
+            ti = np.linspace(t.min(), t.max(), nmodel)
+            m = self.model(t=ti)
+            plot.simple_ts(t, f, tmodel=ti, model=m, fp=fp, title=title, **kwargs)
         else:
-            best = self._pv_map
-        return best
+            plot.simple_ts(t, f, model=m, fp=fp, title=title, **kwargs)
 
-
-    def _plot_best(self):
-        t, f, s = self._spz_ts
-        mod_transit = self._df_sp['mod_transit'].values
-        mod_full = self._df_sp['mod_full'].values
-        f_cor = self._df_sp['f_cor'].values
-        resid = self._df_sp['resid'].values
-        fp = os.path.join(self._out_dir, 'fit-best.png')
-        plot.corrected_ts(t, f, f_cor, mod_full, mod_transit, resid, fp)
-
-
-    def _post_mcmc(self):
-
-        self._plot_best()
-
-        # Spitzer stats
-        t = self._df_sp['t']
-        s = self._df_sp['s']
-        resid = self._df_sp['resid']
-        best_sp = get_theta(self._pv_best, 'sp')
-        timestep = np.median(np.diff(t)) * 86400
-        rms = util.stats.rms(resid)
-        beta = util.stats.beta(resid, timestep)
-        nd, npar = len(t), len(best_sp)
-        rchisq = util.stats.chisq(resid, s, nd, npar, reduced=True)
-        obj = lambda x: (1 - util.stats.chisq(resid, s*x, nd, npar, reduced=True))**2
-        res = op.minimize(obj, 1, method='nelder-mead')
-        if res.success:
-            rescale_fac = float(res.x)
-        else:
-            rescale_fac = None
-        bic = util.stats.bic(spz_loglike(best_sp, *self._spz_args), nd, npar)
-
-        print "RMS: {}".format(rms)
-        print "Beta: {}".format(beta)
-        self._output['spz'] = dict(rms=float(rms),
-            beta=float(beta),
-            reduced_chisq=float(rchisq),
-            rescale_fac=rescale_fac,
-            bic=float(bic)
-            )
-
-        # K2 stats
-        best_k2 = get_theta(self._pv_best, 'k2')
-        df_k2 = self._df_k2
-        t, f, s = df_k2['t'], df_k2['f'], df_k2['s']
-        model = k2_loglike(best_k2, *self._k2_args, ret_mod=True)
-        resid = f - model
-        rms = util.stats.rms(resid)
-        timestep = np.median(np.diff(t)) * 86400
-        try:
-            beta = float(util.stats.beta(resid, timestep))
-        except:
-            beta = None
-        nd, npar = len(s), len(best_k2)
-        rchisq = util.stats.chisq(resid, s, nd, npar, reduced=True)
-        obj = lambda x: (1 - util.stats.chisq(resid, s*x, nd, npar, reduced=True))**2
-        res = op.minimize(obj, 1, method='nelder-mead')
-        if res.success:
-            rescale_fac = float(res.x)
-        else:
-            rescale_fac = None
-        bic = util.stats.bic(k2_loglike(best_k2, *self._k2_args), nd, npar)
-
-        self._output['k2'] = dict(rms=float(rms),
-            beta=beta,
-            reduced_chisq=float(rchisq),
-            rescale_fac=rescale_fac,
-            bic=float(bic)
-            )
-
-        # percentiles
-        percs = [15.87, 50.0, 84.13]
-        pc = np.percentile(self._fc, percs, axis=0).T.tolist()
-        self._output['percentiles'] = dict(zip(self._labels, pc))
-
-        # rhostar
-        p = self._tr['p']
-        idx = self._pn_idx('a')
-        a_samples = self._fc[:,idx]
-        rho = util.transit.sample_rhostar(a_samples, p)
-        p0 = 1,rho.mean(),rho.std(), 1,np.median(rho),rho.std()
-        fp = os.path.join(self._out_dir, 'rhostar.png')
-        multi_gauss_fit(rho, p0, fp=fp)
-
-        # small corner
-        fp = os.path.join(self._out_dir, 'corner-small.png')
-        idx = []
-        for n in 'a b k_s k_k s_s s_k tc_s'.split():
-            idx += [self._pn_idx(n)]
-        fc = self._fc[:,idx].copy()
-        tc = int(fc[:,-1].mean())
-        fc[:,-1] -= tc
-        # fc[:,1] *= 180/np.pi
-        labels = r'$a/R_{\star}$ $b$ $R_p/R_{\star,S}$ $R_p/R_{\star,K}$ $\sigma_{S}$ $\sigma_{K}$'
-        labels += r' $T_[C,S]-{}$'.format(tc).replace('[','{').replace(']','}')
-        plot.corner(fc, labels.split(), fp=fp,
-            quantiles=None, plot_datapoints=False, dpi=256, tight=True)
-
-
-    def _update_df_sp(self):
-
-        args = self._args
-        best_sp = get_theta(self._pv_best, 'sp')
-        mod_full = spz_model(best_sp, *self._spz_args)
-        mod_transit = spz_model(best_sp, *self._spz_args, ret_ma=True)
-        mod_sys = spz_model(best_sp, *self._spz_args, ret_sys=True)
-        resid = self._df_sp['f'] - mod_full
-        fcor = self._df_sp['f'] - mod_sys
-        self._df_sp['f_cor'] = fcor
-        self._df_sp['resid'] = resid
-        self._df_sp['mod_full'] = mod_full
-        self._df_sp['mod_transit'] = mod_transit
-        self._df_sp['mod_sys'] = mod_sys
-
-
-    def dump(self):
-
-        self._output['ini'] = {}
-        for k,v in self._tr.items():
-            if k == 'u':
-                continue
-            self._output['ini'][k] = float(v)
-        fp = os.path.join(self._out_dir, 'output.yaml')
-        yaml.dump(self._output, open(fp, 'w'), default_flow_style=False)
-
-
-    def plot_final(self, percs=(50, 16, 84), plot_binned=False):
-
-        """
-        Make publication-ready plot.
-        """
-
-        if 'f_cor' not in self._df_sp.columns:
-            fp = os.path.join(self._out_dir, 'spz.csv')
-            self._df_sp = pd.read_csv(fp)
-
-        t, f, s = self._spz_ts
-        args = self._args
-        fc = self._fc
-        tc = np.median(fc[:,4])
-        df_sp = self._df_sp
-        df_sp['phase'] = t - tc
-        df_k2 = self._df_k2
-        p = self._tr['p']
-
-        npercs = len(percs)
-
-        df_k2.ti = np.linspace(df_k2.t.min(), df_k2.t.max(), 1000)
-        args_k2 = df_k2.ti, df_k2['f'], p
-
-        flux_pr_k2, flux_pr_sp = [], []
-        for theta in fc[np.random.permutation(fc.shape[0])[:1000]]:
-
-            theta_sp = get_theta(theta, 'sp')
-            theta_k2 = get_theta(theta, 'k2')
-
-            flux_pr_sp.append(spz_model(theta_sp, *self._spz_args, ret_ma=True))
-            flux_pr_k2.append(k2_loglike(theta_k2, *args_k2, ret_mod=True))
-
-        flux_pr_sp, flux_pr_k2 = map(np.array, [flux_pr_sp, flux_pr_k2])
-        flux_pc_sp = np.percentile(flux_pr_sp, percs, axis=0)
-        flux_pc_k2 = np.percentile(flux_pr_k2, percs, axis=0)
-
-        fp = os.path.join(self._out_dir, 'fit-final.png')
-
-        plot.k2_spz_together(self._df_sp, self._df_k2, flux_pc_sp, flux_pc_k2,
-            npercs, self._fc[:,2], self._fc[:,3], fp, title=self._plot_title,
-            plot_binned=plot_binned)
-
+    def t14(self, nmodel=1000):
+        t = self._data.T[0]
+        ti = np.linspace(t.min(), t.max(), nmodel)
+        mi = self.model(ti)
+        idx = mi < 1
+        t14 = ti[idx][-1] - ti[idx][0]
+        return t14
 
     @property
-    def _plot_title(self):
+    def _pv_names(self):
+        return self._logprob(1, 1, 1, 1, ret_pvnames=True)
 
-        if 'name' in self._setup['config'].keys():
-            title = self._setup['config']['name']
-        else:
-            prefix = self._setup['config']['prefix']
-            starid = self._setup['config']['starid']
-            planet = self._setup['config']['planet']
-            title = '{}-{}{}'.format(prefix, starid, planet)
-        if 'epoch' in self._setup['config'].keys():
-            epoch = self._setup['config']['epoch']
-            title += ' epoch {}'.format(epoch)
-        return title
+    @property
+    def best(self):
+        return dict(zip(self._pv_names, self._pv_best))
+
+    def run_mcmc(self, make_plots=True, **kwargs):
+
+        ini = self._pv_map
+        args = self._args
+        names = self._pv_names
+        t, f, p = args
+
+        eng = MCMC(self._logprob, ini, args, names, outdir=self._out_dir)
+        sig_idx = self._pv_names.index('sig')
+        eng.run(make_plots=make_plots, pos_idx=sig_idx, **kwargs)
+        pv, lp, fc, gr, acor = eng.results
+        if lp > self._lp_map:
+            self._pv_best = pv
+
+        if make_plots:
+
+            m = self._logprob(pv, t, f, p, ret_mod=True)
+            fp = os.path.join(self._out_dir, 'mcmc-bestfit.png')
+            plot.simple_ts(t, f, model=m, fp=fp)
+
+            fp = os.path.join(self._out_dir, 'mcmc-samples.png')
+            ps = [self._logprob(s, t, f, p, ret_mod=True) for s in fc[np.random.randint(len(fc), size=100)]]
+            plot.samples(t, f, ps, fp=fp)

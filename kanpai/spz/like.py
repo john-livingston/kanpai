@@ -33,3 +33,28 @@ def loglike(theta, t, f, p, aux):
     resid = f - m
     inv_sigma2 = 1.0/(s**2)
     return -0.5*(np.sum((resid)**2*inv_sigma2 - np.log(inv_sigma2)))
+
+
+def logprob(theta, t, f, p, aux, ret_pvnames=False, ret_mod=False):
+
+    if ret_pvnames:
+        pvn = 'a,b,k,tc,u1,u2,sig,k1'.split(',')
+        if aux is not None:
+            pvn += ['c{}'.format(i) for i in range(len(aux))]
+        return pvn
+
+    if ret_pvnames:
+        return 'k,tc,a,b,u1,u2,k0,sig'.split(',')
+    elif ret_mod:
+        return loglike1(theta, t, f, p, ret_mod=True)
+
+    k,tc,a,b,u1,u2,k0,sig = theta
+
+    if u1 < 0 or u1 > 1 or u2 < 0 or u2 > 1 or b < 0 or b > 1+k:
+        return -np.inf
+
+    ll = loglike1(theta, t, f, p)
+
+    if np.isnan(ll).any():
+        return -np.inf
+    return ll

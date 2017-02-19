@@ -32,7 +32,6 @@ def model3(theta, t, p):
 def model4(theta, t, p):
     k,tc,a,b,q1,q2 = theta
     i = util.transit.inclination(a, b)
-    u1 = 2 * np.sqrt(q1) * q2
-    u2 = np.sqrt(q1) * (1 - 2*q2)
+    u1, u2 = util.ld.q_to_u(q1, q2)
     m = MA.evaluate(t, k, (u1, u2), tc, p, a, i)
     return m

@@ -90,7 +90,7 @@ GEOMETRY = '3x3 5x5'
 if geom is not None:
     assert geom in GEOMETRY
 
-setup = kanpai.spz.util.parse_setup(spz_setup_fp)
+setup = kanpai.util.parse_setup(spz_setup_fp)
 
 if args.outdir:
     outdir = args.outdir
@@ -130,10 +130,3 @@ fit.run_map(make_plots=True)
 fit.run_mcmc(save, restart, resume)
 fit.plot_final(percs, plot_binned)
 fit.dump()
-
-# if not clobbering:
-#     fit.run_map(make_plots=True)
-# fit.run_mcmc(save, restart, resume)
-# fit.plot_final(percs, plot_binned)
-# if not clobbering:
-#     fit.dump()

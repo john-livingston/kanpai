@@ -1,5 +1,5 @@
 from .like import loglike
 from .like import model
-from fit import Fit
+from simfit import Fit
 import util
 import plot
