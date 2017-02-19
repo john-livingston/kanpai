@@ -17,8 +17,8 @@ from pytransit import MandelAgol
 
 
 import plot
-from like import loglike as spz_loglike
-from like import model as spz_model
+from like import loglike1 as spz_loglike
+from like import model1 as spz_model
 from io import load_spz
 from ld import get_ld_claret
 from .. import util

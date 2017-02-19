@@ -15,10 +15,10 @@ from emcee.utils import sample_ball
 import corner
 from tqdm import tqdm
 
-from like import logprob1, logprob2, logprob3, logprob4
+from . import like
 from .. import plot
 from .. import util
-from ..engines import MAP, MCMC
+from .. import engines
 
 
 class Fit(object):
@@ -33,7 +33,7 @@ class Fit(object):
         self._t14 = t14
         self._p = p
         self._b = b
-        self._logprob = logprob1
+        self._logprob = like.logprob1
         self._out_dir = out_dir
         self._ld_prior = None
 
@@ -51,10 +51,10 @@ class Fit(object):
         q2 = 0.5
         k0 = 0
         t, f = self._data.T
-        idx = (t < tc - t14/2.) | (tc + t14/2. < t)
-        sig = f[idx].std()
+        s = f.std()
         a = util.transit.scaled_a(p, t14, k, np.pi/2)
-        return k,tc,a,b,q1,q2,k0,sig
+        pv = [k,tc,a,b,q1,q2,s,k0]
+        return pv
 
     @property
     def _args(self):
@@ -75,9 +75,15 @@ class Fit(object):
         Defaults to Nelder-Mead and Powell.
         """
 
-        self._map = MAP(self._logprob, self._ini, self._args, methods=methods)
+        self._map = engines.MAP(self._logprob, self._ini, self._args, methods=methods)
         self._map.run()
         self._pv_map, self._lp_map, self._max_apo_alg = self._map.results
+
+        if self._pv_map is None:
+            self._pv_map = self._ini
+            self._lp_map = self._logprob(self._pv_map, *self._args)
+            self._max_apo_alg = 'none'
+
         self._pv_best = self._pv_map
 
         if make_plots:
@@ -120,7 +126,7 @@ class Fit(object):
 
     @property
     def _pv_names(self):
-        return self._logprob(1, 1, 1, 1, ret_pvnames=True)
+        return self._logprob(self._ini, *self._args, ret_pvnames=True)
 
     @property
     def best(self):
@@ -133,10 +139,10 @@ class Fit(object):
         names = self._pv_names
         t, f, p, ldp = args
 
-        eng = MCMC(self._logprob, ini, args, names, outdir=self._out_dir)
-        sig_idx = self._pv_names.index('sig')
-        eng.run(make_plots=make_plots, pos_idx=sig_idx, **kwargs)
-        pv, lp, fc, gr, acor = eng.results
+        self._mcmc = engines.MCMC(self._logprob, ini, args, names, outdir=self._out_dir)
+        sig_idx = self._pv_names.index('s')
+        self._mcmc.run(make_plots=make_plots, pos_idx=sig_idx, **kwargs)
+        pv, lp, fc, gr, acor = self._mcmc.results
         if lp > self._lp_map:
             self._pv_best = pv
 
