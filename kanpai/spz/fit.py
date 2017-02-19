@@ -15,7 +15,7 @@ from emcee.utils import sample_ball
 import corner
 from tqdm import tqdm
 
-from . import like
+from . import prob
 from .. import plot
 from .. import util
 from .. import engines
@@ -41,7 +41,7 @@ class FitSpz(Fit):
             bias = np.repeat(1, n)
             aux = bias.reshape(1, n)
         self._aux = aux
-        self._logprob = like.logprob2
+        self._logprob = prob.logprob2
         self._out_dir = out_dir
         self._ld_prior = None
 

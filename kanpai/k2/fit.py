@@ -15,7 +15,7 @@ from emcee.utils import sample_ball
 import corner
 from tqdm import tqdm
 
-from . import like
+from . import prob
 from .. import plot
 from .. import util
 from .. import engines
@@ -34,7 +34,7 @@ class FitK2(Fit):
         self._t14 = t14
         self._p = p
         self._b = b
-        self._logprob = like.logprob1
+        self._logprob = prob.logprob1
         self._out_dir = out_dir
         self._ld_prior = None
 
