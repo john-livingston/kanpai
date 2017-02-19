@@ -1,5 +1,7 @@
-from .like import loglike
-from .like import model
-from simfit import Fit
-import util
-import plot
+from __future__ import absolute_import
+from . import fit
+from . import io
+from . import ld
+from . import like
+from . import plot
+from . import simfit

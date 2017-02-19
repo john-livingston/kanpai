@@ -5,7 +5,7 @@ import statsmodels.api as sm
 from ldtk import LDPSetCreator, BoxcarFilter, TabulatedFilter
 import limbdark
 
-from ..k2 import band
+import band
 
 
 def get_ld_claret(teff, uteff, logg, ulogg, band='Kp'):

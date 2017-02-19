@@ -21,7 +21,11 @@ parser.add_argument('-i', '--input', help='light curve file (CSV)', type=str)
 parser.add_argument('-o', '--out_dir', help='output directory', type=str, default=cwd)
 parser.add_argument('-p', '--period', help='period [days]', type=float)
 parser.add_argument('-n', '--nproc', help='number of processes to use', type=int, default=None)
-parser.add_argument('-s', '--save', help='save MCMC samples', dest='save', action='store_true')
+parser.add_argument('--teff', help='host star teff,uteff', type=str, default=None)
+parser.add_argument('--logg', help='host star logg,ulogg', type=str, default=None)
+parser.add_argument('--feh', help='host star feh,ufeh', type=str, default=None)
+parser.add_argument('--save', help='save MCMC samples', dest='save', action='store_true')
+parser.add_argument('--ldp', help='apply limb darkening prior', dest='ldp', action='store_true')
 parser.add_argument('--gr', type=float, default=None,
     help='Gelmin-Rubin threshold')
 parser.add_argument('--nsteps1', type=int, default=int(1e3),
@@ -31,9 +35,15 @@ parser.add_argument('--nsteps2', type=int, default=int(1e3),
 parser.add_argument('--max_steps', type=int, default=int(1e4),
     help='maximum number of MCMC steps')
 
-parser.set_defaults(save_samples=False)
+parser.set_defaults(save=False, ldp=False)
+
 
 args = parser.parse_args()
+
+# if args.ldp and (args.teff is None or args.logg is None or args.feh is None):
+#     sys.exit("need stellar parameters (teff, logg, feh) for limb darkening prior")
+if args.ldp and (args.teff is None or args.logg is None):
+    sys.exit("need stellar parameters (teff, logg) for limb darkening prior")
 
 p = args.period
 out_dir = args.out_dir
@@ -52,5 +62,12 @@ df = kanpai.k2.io.load_k2(args.input)
 t, f, s = df.values.T
 
 fit = kanpai.k2.Fit(t, f, out_dir=out_dir)
+if args.ldp:
+    teff, uteff = [float(i) for i in args.teff.split(',')]
+    logg, ulogg = [float(i) for i in args.logg.split(',')]
+    # feh, ufeh = [float(i) for i in args.feh.split(',')]
+    # ldp = kanpai.k2.ld.get_ld_ldtk(teff, uteff, logg, ulogg, feh, ufeh)
+    ldp = kanpai.k2.ld.get_ld_claret(teff, uteff, logg, ulogg)
+    fit.set_ld_prior(ldp)
 fit.run_map()
 fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms, gr_threshold=gr_threshold)

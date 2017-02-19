@@ -23,18 +23,19 @@ from ..engines import MAP, MCMC
 
 class Fit(object):
 
-    def __init__(self, t, f, k=None, tc=0, t14=0.1, p=20, b=0, u=0.5, k0=0, out_dir=None):
+    def __init__(self, t, f, k=None, tc=0, t14=0.2, p=20, b=0, out_dir=None):
 
         self._data = np.c_[t,f]
+        if k is None:
+            k = np.sqrt(1-f.min())
         self._k = k
         self._tc = tc
         self._t14 = t14
         self._p = p
         self._b = b
-        self._u = u
-        self._k0 = k0
-        self._logprob = logprob4
+        self._logprob = logprob1
         self._out_dir = out_dir
+        self._ld_prior = None
 
     @property
     def _ini(self):
@@ -46,28 +47,25 @@ class Fit(object):
         p = self._p
         t14 = self._t14
         b = self._b
-        # FIXME: upgrade limbdark to get linear LD coeff from LDTk
-        # u = self._u
-        # u1 = self._u
-        # u2 = self._u
         q1 = 0.5
         q2 = 0.5
-        k0 = self._k0
+        k0 = 0
         t, f = self._data.T
         idx = (t < tc - t14/2.) | (tc + t14/2. < t)
         sig = f[idx].std()
-        i = np.pi/2
-        # FIXME check how weak dependence of a is on i
-        a = util.transit.scaled_a(p, t14, k, i)
-        # return k,tc,a,b,u,k0,sig
-        # return k,tc,a,b,u1,u2,k0,sig
+        a = util.transit.scaled_a(p, t14, k, np.pi/2)
         return k,tc,a,b,q1,q2,k0,sig
 
     @property
     def _args(self):
         t, f = self._data.T
         p = self._p
-        return t, f, p
+        ldp = self._ld_prior
+        return t, f, p, ldp
+
+
+    def set_ld_prior(self, ldp):
+        self._ld_prior = ldp
 
 
     def run_map(self, methods=('nelder-mead', 'powell'), make_plots=True):
@@ -83,8 +81,8 @@ class Fit(object):
         self._pv_best = self._pv_map
 
         if make_plots:
-            t, f, p = self._args
-            m = self._logprob(self._pv_map, t, f, p, ret_mod=True)
+            t, f, p, ldp = self._args
+            m = self._logprob(self._pv_map, *self._args, ret_mod=True)
             fp = os.path.join(self._out_dir, 'map-bestfit.png')
             plot.simple_ts(t, f, model=m, fp=fp)
 
@@ -94,7 +92,7 @@ class Fit(object):
         if t is None:
             t = self._data[:,0]
         f = np.ones_like(t)
-        m = self._logprob(self._pv_best, t, f, p, ret_mod=True)
+        m = self._logprob(self._pv_best, *self._args, ret_mod=True)
         return m
 
     @property
@@ -133,7 +131,7 @@ class Fit(object):
         ini = self._pv_map
         args = self._args
         names = self._pv_names
-        t, f, p = args
+        t, f, p, ldp = args
 
         eng = MCMC(self._logprob, ini, args, names, outdir=self._out_dir)
         sig_idx = self._pv_names.index('sig')
@@ -144,10 +142,10 @@ class Fit(object):
 
         if make_plots:
 
-            m = self._logprob(pv, t, f, p, ret_mod=True)
+            m = self._logprob(pv, *self._args, ret_mod=True)
             fp = os.path.join(self._out_dir, 'mcmc-bestfit.png')
             plot.simple_ts(t, f, model=m, fp=fp)
 
             fp = os.path.join(self._out_dir, 'mcmc-samples.png')
-            ps = [self._logprob(s, t, f, p, ret_mod=True) for s in fc[np.random.randint(len(fc), size=100)]]
+            ps = [self._logprob(s, *self._args, ret_mod=True) for s in fc[np.random.randint(len(fc), size=100)]]
             plot.samples(t, f, ps, fp=fp)
