@@ -106,15 +106,6 @@ class Fit(object):
             plot.simple_ts(t, f, model=m, fp=fp, title=title, **kwargs)
 
 
-    def t14(self, nmodel=1000):
-        t = self._data.T[0]
-        ti = np.linspace(t.min(), t.max(), nmodel)
-        mi = self.model(ti)
-        idx = mi < 1
-        t14 = ti[idx][-1] - ti[idx][0]
-        return t14
-
-
     @property
     def _pv_names(self):
         return self._logprob(self._ini, *self._args, ret_pvnames=True)

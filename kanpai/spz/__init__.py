@@ -7,4 +7,5 @@ from . import like
 from . import plot
 from . import prob
 from . import simfit
+from . import simfit0
 from .fit import FitSpz

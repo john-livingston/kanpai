@@ -31,7 +31,6 @@ else:
 
 setup(
     name='kanpai',
-    # packages =['kanpai', 'kanpai/k2', 'kanpai/spz'],
     packages = find_packages(),
     version="0.1.1",
     author='John Livingston',
@@ -43,7 +42,11 @@ setup(
                     + "---------\n\n",
     package_dir={"kanpai": "kanpai" },
     package_data={"kanpai": []},
-    scripts=['scripts/k2spz', 'scripts/k2lc', 'scripts/k2fit', 'scripts/spzfit'],
+    scripts=['scripts/kanpai-fitk2spz',
+        'scripts/kanpai-fitk2spz-old',
+        'scripts/kanpai-k2lc',
+        'scripts/kanpai-fitk2',
+        'scripts/kanpai-fitspz'],
     include_package_data=True,
     keywords=[],
     classifiers = [

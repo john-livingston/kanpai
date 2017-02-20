@@ -8,8 +8,5 @@ from . import ld
 from . import like
 from . import mod
 from . import prob
-
 from .fit import FitK2
-# from .fold import Fold
-# from .like import loglike1, loglike2
-# from .like import model1, model2
+from .fold import Fold

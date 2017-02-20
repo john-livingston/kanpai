@@ -55,7 +55,7 @@ def logprob_q(theta, t, f, p, up=None, ret_pvnames=False, ret_mod=False):
     return lp + ll
 
 
-def logprob3(theta, t, f, p, ret_pvnames=False, ret_mod=False):
+def logprob3(theta, t, f, p, up=None, ret_pvnames=False, ret_mod=False):
 
     if ret_pvnames:
         return 'k,tc,t14,i,u,s,k0'.split(',')
@@ -74,7 +74,7 @@ def logprob3(theta, t, f, p, ret_pvnames=False, ret_mod=False):
     return ll
 
 
-def logprob4(theta, t, f, p, ret_pvnames=False, ret_mod=False):
+def logprob4(theta, t, f, p, up=None, ret_pvnames=False, ret_mod=False):
 
     if ret_pvnames:
         return 'k,tc,a,b,u,s,k0'.split(',')

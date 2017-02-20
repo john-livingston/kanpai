@@ -3,7 +3,8 @@ from everest import Everest
 import k2plr as kplr
 from astropy.stats import sigma_clip
 
-from fit import Fit
+from .fit import FitK2
+from . import prob
 from .. import util
 
 K2_TIME_OFFSET = 2454833
@@ -88,9 +89,10 @@ class Fold(object):
             return
 
         # initial fit
-        fit = Fit(tf, ff, t14=t14, p=p, out_dir=outdir)
+        fit = FitK2(tf, ff, t14=t14, p=p, out_dir=outdir, logprob=prob.logprob_u)
         fit.run_map()
-        t14 = fit.t14()
+        pv = fit.best
+        t14 = util.transit.tdur_circ(p, pv['a'], pv['k'], pv['b'])
 
         # fold with refined t14 to ensure proper baseline removal
         tf, ff = util.lc.fold(t, f, p, t0, t14=t14,
@@ -102,11 +104,11 @@ class Fold(object):
         print("2nd sigma clip: {}".format(idx.sum()))
 
         # second fit to correct for any offset in initial T0
-        fit = Fit(tf, ff, t14=t14, p=p, out_dir=outdir)
+        fit = FitK2(tf, ff, t14=t14, p=p, out_dir=outdir, logprob=prob.logprob_u)
         fit.run_map()
-        t14 = fit.t14()
-        par = fit.best
-        t0 += par['tc']
+        pv = fit.best
+        t14 = util.transit.tdur_circ(p, pv['a'], pv['k'], pv['b'])
+        t0 += pv['tc']
         print "Refined T0 [BJD]: {}".format(t0 + K2_TIME_OFFSET)
 
         # fold with refined T0
@@ -119,7 +121,7 @@ class Fold(object):
         print("3rd sigma clip: {}".format(idx.sum()))
 
         # identify final outliers by sigma clipping residuals
-        fit = Fit(tf, ff, t14=t14, p=p, out_dir=outdir)
+        fit = FitK2(tf, ff, t14=t14, p=p, out_dir=outdir, logprob=prob.logprob_u)
         fit.run_map()
         su, sl = self._clip
         idx = util.stats.outliers(fit.resid, su=su, sl=sl)
@@ -131,25 +133,25 @@ class Fold(object):
         ff /= np.median(ff[idx])
 
         # final fit to cleaned light curve
-        fit = Fit(tf, ff, t14=t14, p=p, k=par['k'], b=par['b'], u=par['u'],
-            k0=par['k0'], out_dir=outdir)
+        fit = FitK2(tf, ff, t14=t14, p=p, k=pv['k'], b=pv['b'],
+            out_dir=outdir, logprob=prob.logprob_u)
         fit.run_map()
-        t14 = fit.t14()
-        par = fit.best
-        k = par['k']
-        a = par['a']
-        b = par['b']
+        pv = fit.best
+        k = pv['k']
+        a = pv['a']
+        b = pv['b']
         i = util.transit.inclination(a, b)
+        t14 = util.transit.tdur_circ(p, a, k, b)
 
-        print "Transit duration (t14) [days]: {}".format(t14)
-        print "Scaled semi-major axis (a): {}".format(a)
-        print "Radius ratio (k): {}".format(k)
-        print "Impact parameter: {}".format(b)
-        print "Inclination (i) [degrees]: {}".format(i * 180./np.pi)
-        print "Linear limb-darkening coefficient (u): {}".format(par['u'])
-        print "Baseline offset (k0): {}".format(par['k0'])
-        print "Sigma: {}".format(par['sig'])
-        print "Residual RMS: {}".format(util.stats.rms(fit.resid))
+        print "Transit duration (t14) [days]: {0:.4f}".format(t14)
+        print "Scaled semi-major axis (a): {0:.4f}".format(a)
+        print "Radius ratio (k): {0:.4f}".format(k)
+        print "Impact parameter: {0:.4f}".format(b)
+        print "Inclination (i) [degrees]: {0:.4f}".format(i * 180./np.pi)
+        print "Limb-darkening coefficients (u1, u2): {0:.4f}, {1:.4f}".format(pv['u1'], pv['u2'])
+        print "Baseline offset (k0): {0:.8f}".format(pv['k0'])
+        print "Sigma: {0:.8f}".format(pv['s'])
+        print "Residual RMS: {0:.8f}".format(util.stats.rms(fit.resid))
 
         self._fit = fit
         self._tf, self._ff = tf, ff
