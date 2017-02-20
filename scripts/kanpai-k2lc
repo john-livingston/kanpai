@@ -1,0 +1,74 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import argparse
+
+import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+
+import kanpai
+
+
+cwd = os.path.abspath('.')
+
+parser = argparse.ArgumentParser(description="Get phased-folded K2"
+    " Everest light curve")
+parser.add_argument('epic', help='Target star EPIC id number', type=int)
+parser.add_argument('period', help='Period of candidate [days]', type=float)
+parser.add_argument('t0', help='Time of first transit [BJD]', type=float)
+parser.add_argument('t14', help='Transit duration [days]', type=float)
+parser.add_argument('-w', '--width', help='Extraction width [days]',
+    type=float, default=0.8)
+parser.add_argument('-o', '--outdir', help='output directory',
+    type=str, default=cwd)
+parser.add_argument('--pipeline', help='which pipeline to use',
+    type=str, default='everest')
+parser.add_argument('--no_baseline', dest='baseline', help="don't fit a"
+    " linear baseline model to each transit", action='store_false')
+parser.add_argument('-r', '--refine', dest='refine', help="refine parameters"
+    " the parameters", action='store_true')
+parser.add_argument('-c', '--clip', help='sigma clip (upper, lower)',
+    type=str, default='3,4')
+parser.add_argument('-s', '--skip', help='individual K2 epochs to skip'
+    ', comma-separated', type=str, default=None)
+parser.add_argument('-i', '--infile', help='path to text file containing'
+    ' light curve, (2 cols, no header row: time, flux)', type=str, default=None)
+parser.set_defaults(baseline=True, refine=False)
+args = parser.parse_args()
+
+epic = args.epic
+p = args.period
+t0 = args.t0
+t14 = args.t14
+width = args.width
+outdir = args.outdir
+baseline = args.baseline
+pipeline = args.pipeline
+infile = args.infile
+
+if infile is not None:
+    pipeline = 'user'
+
+clip = [float(i) for i in args.clip.split(',')]
+
+if args.skip:
+    skip = [int(i) for i in args.skip.split(',')]
+else:
+    skip = args.skip
+
+fold = kanpai.k2.Fold(epic, p, t0, t14, pipeline=pipeline,
+    width=width, clip=clip, bl=baseline, skip=skip, lcfp=infile)
+
+fold.run(outdir, refine=args.refine)
+tf, ff, sig = fold.results
+
+fp = os.path.join(outdir, 'k2_lc_{}-{}.png'.format(epic, pipeline))
+if args.refine:
+    fold.plot_fit(fp)
+else:
+    kanpai.plot.simple_ts(tf, ff, fp=fp)
+
+fp = os.path.join(outdir, 'k2_lc_{}-{}.csv'.format(epic, pipeline))
+np.savetxt(fp, np.c_[tf, ff, sig], delimiter=',')

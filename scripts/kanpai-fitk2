@@ -1,0 +1,81 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import argparse
+import multiprocessing
+
+import numpy as np
+import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
+
+import kanpai
+
+
+cwd = os.path.abspath('.')
+
+parser = argparse.ArgumentParser(description="Fit K2 light curve")
+parser.add_argument('-i', '--input', help='light curve file (CSV)', type=str)
+parser.add_argument('-o', '--out_dir', help='output directory', type=str, default=cwd)
+parser.add_argument('-p', '--period', help='period [days]', type=float)
+parser.add_argument('-n', '--nproc', help='number of processes to use', type=int, default=None)
+parser.add_argument('--teff', help='host star teff,uteff', type=str, default=None)
+parser.add_argument('--logg', help='host star logg,ulogg', type=str, default=None)
+parser.add_argument('--feh', help='host star feh,ufeh', type=str, default=None)
+parser.add_argument('--save', help='save MCMC samples', dest='save', action='store_true')
+parser.add_argument('--ld', help='sample in "q" or "u" limb darkening space', default='q')
+parser.add_argument('--ldp', help='apply limb darkening prior', dest='ldp', action='store_true')
+parser.add_argument('--gr', type=float, default=1.1,
+    help='Gelmin-Rubin threshold')
+parser.add_argument('--nsteps1', type=int, default=int(1e3),
+    help='number of initialization MCMC steps')
+parser.add_argument('--nsteps2', type=int, default=int(1e3),
+    help='number of production MCMC steps')
+parser.add_argument('--max_steps', type=int, default=int(1e4),
+    help='maximum number of MCMC steps')
+
+parser.set_defaults(save=False, ldp=False)
+
+
+args = parser.parse_args()
+
+# if args.ldp and (args.teff is None or args.logg is None or args.feh is None):
+#     sys.exit("need stellar parameters (teff, logg, feh) for limb darkening prior")
+if args.ldp and (args.teff is None or args.logg is None):
+    sys.exit("need stellar parameters (teff, logg) for limb darkening prior")
+
+if args.ld == 'q':
+    logprob = kanpai.k2.prob.logprob_q
+elif args.ld == 'u':
+    logprob = kanpai.k2.prob.logprob_u
+else:
+    sys.exit('limb-darkening space must be "q" or "u"')
+
+p = args.period
+out_dir = args.out_dir
+if not os.path.isdir(out_dir):
+    os.mkdir(out_dir)
+if args.nproc is not None:
+    nproc = args.nproc
+else:
+    nproc = multiprocessing.cpu_count()
+save = args.save
+gr_threshold = args.gr
+ns1 = args.nsteps1
+ns2 = args.nsteps2
+ms = args.max_steps
+
+df = kanpai.k2.io.load_k2(args.input)
+t, f = df['t f'.split()].values.T
+
+fit = kanpai.k2.FitK2(t, f, out_dir=out_dir, logprob=logprob)
+if args.ldp:
+    teff, uteff = [float(i) for i in args.teff.split(',')]
+    logg, ulogg = [float(i) for i in args.logg.split(',')]
+    # feh, ufeh = [float(i) for i in args.feh.split(',')]
+    # ldp = kanpai.k2.ld.get_ld_ldtk(teff, uteff, logg, ulogg, feh, ufeh)
+    ldp = kanpai.k2.ld.get_ld_claret(teff, uteff, logg, ulogg)
+    fit.set_ld_prior(ldp)
+fit.run_map()
+fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms, gr_threshold=gr_threshold, nmodel=1000)
