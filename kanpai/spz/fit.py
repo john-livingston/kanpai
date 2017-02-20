@@ -55,7 +55,7 @@ class FitSpz(Fit):
         pv = [k,tc,a,b,q1,q2,s,k1]
         if self._aux is not None:
             pv += [0] * self._aux.shape[0]
-        return pv
+        return np.array(pv)
 
 
     @property

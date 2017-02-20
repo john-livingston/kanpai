@@ -13,7 +13,7 @@ import plot
 class Engine(object):
 
     def __init__(self):
-        pass
+        raise NotImplementedError
 
     def run(self):
         raise NotImplementedError

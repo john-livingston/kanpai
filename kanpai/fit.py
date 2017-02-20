@@ -54,7 +54,7 @@ class Fit(object):
         self._ld_prior = ldp
 
 
-    def run_map(self, methods=('nelder-mead', 'powell'), make_plots=True):
+    def run_map(self, methods=('nelder-mead', 'powell'), make_plots=True, nmodel=None):
 
         """
         Run a maximum a posteriori (MAP) fit using one or more methods.
@@ -73,10 +73,11 @@ class Fit(object):
         self._pv_best = self._pv_map
 
         if make_plots:
-            t, f = self._data.T
-            m = self._logprob(self._pv_map, *self._args, ret_mod=True)
+            # t, f = self._data.T
+            # m = self._logprob(self._pv_map, *self._args, ret_mod=True)
             fp = os.path.join(self._out_dir, 'map-bestfit.png')
-            plot.simple_ts(t, f, model=m, fp=fp)
+            # plot.simple_ts(t, f, model=m, fp=fp)
+            self.plot(fp=fp, nmodel=nmodel)
 
 
     def model(self, t=None, pv=None):
@@ -89,20 +90,20 @@ class Fit(object):
         return m
 
 
-    @property
-    def resid(self):
+    def resid(self, pv):
         t, f = self._data.T
-        return f - self.model()
+        return f - self.model(pv=pv)
 
 
-    def plot(self, fp=None, nmodel=None, **kwargs):
+    def plot(self, fp=None, nmodel=None, pv=None, **kwargs):
         t, f = self._data.T
-        title = "Std. dev. of residuals: {}".format(np.std(self.resid))
+        title = "Std. dev. of residuals: {}".format(np.std(self.resid(pv=pv)))
         if nmodel is not None:
             ti = np.linspace(t.min(), t.max(), nmodel)
-            m = self.model(t=ti)
+            m = self.model(t=ti, pv=pv)
             plot.simple_ts(t, f, tmodel=ti, model=m, fp=fp, title=title, **kwargs)
         else:
+            m = self.model(t=t, pv=pv)
             plot.simple_ts(t, f, model=m, fp=fp, title=title, **kwargs)
 
 
@@ -121,16 +122,16 @@ class Fit(object):
         ini = self._pv_map
         args = self._args
         names = self._pv_names
-        t, f = self._data.T
 
         self._mcmc = engines.MCMC(self._logprob, ini, args, names, outdir=self._out_dir)
-        sig_idx = self._pv_names.index('s')
-        self._mcmc.run(make_plots=make_plots, pos_idx=sig_idx, **kwargs)
+        self._mcmc.run(make_plots=make_plots, **kwargs)
         pv, lp, fc, gr, acor = self._mcmc.results
         if lp > self._lp_map:
             self._pv_best = pv
 
         if make_plots:
+
+            t, f = self._data.T
 
             if nmodel is not None:
                 ti = np.linspace(t.min(), t.max(), nmodel)

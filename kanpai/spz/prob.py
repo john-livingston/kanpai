@@ -5,7 +5,7 @@ from . import like
 from .. import util
 
 
-def logprob_u(theta, t, f, p, aux=None, up=None, ret_pvnames=False, ret_mod=False):
+def logprob_u(theta, t, f, p, aux=None, ldp=None, ret_pvnames=False, ret_mod=False):
 
     if ret_pvnames:
         pvn = 'k,tc,a,b,u1,u2,s,k1'.split(',')
@@ -21,9 +21,9 @@ def logprob_u(theta, t, f, p, aux=None, up=None, ret_pvnames=False, ret_mod=Fals
         return -np.inf
 
     lp = 0
-    if up is not None:
-        lp += np.log(stats.norm.pdf(u1, loc=up[0], scale=up[1]))
-        lp += np.log(stats.norm.pdf(u2, loc=up[2], scale=up[3]))
+    if ldp is not None:
+        lp += np.log(stats.norm.pdf(u1, loc=ldp[0], scale=ldp[1]))
+        lp += np.log(stats.norm.pdf(u2, loc=ldp[2], scale=ldp[3]))
 
     ll = like.loglike_u(theta, t, f, p, aux)
 
@@ -32,7 +32,7 @@ def logprob_u(theta, t, f, p, aux=None, up=None, ret_pvnames=False, ret_mod=Fals
     return lp + ll
 
 
-def logprob_q(theta, t, f, p, aux=None, up=None, ret_pvnames=False, ret_mod=False):
+def logprob_q(theta, t, f, p, aux=None, ldp=None, ret_pvnames=False, ret_mod=False):
 
     if ret_pvnames:
         pvn = 'k,tc,a,b,q1,q2,s,k1'.split(',')
@@ -50,9 +50,9 @@ def logprob_q(theta, t, f, p, aux=None, up=None, ret_pvnames=False, ret_mod=Fals
     u1, u2 = util.ld.q_to_u(q1, q2)
 
     lp = 0
-    if up is not None:
-        lp += np.log(stats.norm.pdf(u1, loc=up[0], scale=up[1]))
-        lp += np.log(stats.norm.pdf(u2, loc=up[2], scale=up[3]))
+    if ldp is not None:
+        lp += np.log(stats.norm.pdf(u1, loc=ldp[0], scale=ldp[1]))
+        lp += np.log(stats.norm.pdf(u2, loc=ldp[2], scale=ldp[3]))
 
     ll = like.loglike_q(theta, t, f, p, aux)
 

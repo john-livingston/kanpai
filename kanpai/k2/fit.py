@@ -45,7 +45,7 @@ class FitK2(Fit):
         s = f.std()
         a = util.transit.scaled_a(p, t14, k, np.pi/2)
         pv = [k,tc,a,b,q1,q2,s,k0]
-        return pv
+        return np.array(pv)
 
     @property
     def _args(self):

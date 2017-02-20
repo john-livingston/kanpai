@@ -77,5 +77,6 @@ if args.ldp:
     # ldp = kanpai.k2.ld.get_ld_ldtk(teff, uteff, logg, ulogg, feh, ufeh)
     ldp = kanpai.k2.ld.get_ld_claret(teff, uteff, logg, ulogg)
     fit.set_ld_prior(ldp)
-fit.run_map()
-fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms, gr_threshold=gr_threshold, nmodel=1000)
+fit.run_map(make_plots=True, nmodel=1000)
+fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms,
+    gr_threshold=gr_threshold, make_plots=True, nmodel=1000)

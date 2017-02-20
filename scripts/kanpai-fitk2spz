@@ -67,21 +67,23 @@ ns2 = args.nsteps2
 ms = args.max_steps
 
 setup = yaml.load(open(args.input))
-df, pix = kanpai.spz.io.load_spz(setup, out_dir=out_dir)
-t, f = df['t f'.split()].values.T
+df_spz, pix = kanpai.spz.io.load_spz(setup, out_dir=out_dir)
+
+df_k2 = kanpai.k2.io.load_k2(setup['config']['k2lc'])
 
 aux = None
 if args.cen:
-    aux = df['x y'.split()].values.T
+    aux = df_spz['x y'.split()].values.T
 elif args.pld:
     aux = pix.T
 
-p = setup['transit']['p']
-fit = kanpai.spz.FitSpz(t, f, p=p, aux=aux, out_dir=out_dir, logprob=logprob)
-if args.ldp:
-    teff, uteff = [float(i) for i in args.teff.split(',')]
-    logg, ulogg = [float(i) for i in args.logg.split(',')]
-    ldp = kanpai.spz.ld.get_ld_claret(teff, uteff, logg, ulogg)
-    fit.set_ld_prior(ldp)
-fit.run_map()
-fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms, gr_threshold=gr_threshold)
+fit = kanpai.spz.simfit.FitK2Spz(setup, df_k2, df_spz, aux, out_dir=out_dir)
+# if args.ldp:
+#     teff, uteff = [float(i) for i in args.teff.split(',')]
+#     logg, ulogg = [float(i) for i in args.logg.split(',')]
+#     ldp = kanpai.spz.ld.get_ld_claret(teff, uteff, logg, ulogg)
+#     fit.set_ld_prior(ldp)
+fit.run_map(make_plots=False)
+fit.post_map()
+fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms, gr_threshold=gr_threshold, make_plots=False)
+fit.post_mcmc()
