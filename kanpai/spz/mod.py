@@ -6,7 +6,7 @@ from .. import util
 MA = MandelAgol()
 
 
-def model1(theta, t, f, p, aux, ret_ma=False, ret_sys=False):
+def model_u(theta, t, f, p, aux, ret_ma=False, ret_sys=False):
     k,tc,a,b,u1,u2,s,k1 = theta[:8]
     auxcoeff = theta[8:]
     i = util.transit.inclination(a, b)
@@ -26,7 +26,7 @@ def model1(theta, t, f, p, aux, ret_ma=False, ret_sys=False):
         return ma
 
 
-def model2(theta, t, f, p, aux, ret_ma=False, ret_sys=False):
+def model_q(theta, t, f, p, aux, ret_ma=False, ret_sys=False):
     k,tc,a,b,q1,q2,s,k1 = theta[:8]
     auxcoeff = theta[8:]
     i = util.transit.inclination(a, b)

@@ -87,11 +87,13 @@ def simple_ts(t, f, tmodel=None, model=None, fp=None, title="", **kwargs):
             pl.close()
 
 
-def samples(t, f, ps, fp=None, title="", **kwargs):
+def samples(t, f, ps, tmodel=None, fp=None, title="", **kwargs):
     with sb.axes_style('whitegrid'):
         fig, ax = pl.subplots(1, 1, figsize=(10,3))
         ax.plot(t, f, linestyle='none', marker='o',
             color='b', alpha=0.5, mew=1, mec='k', **kwargs)
+        if tmodel is not None:
+            t = tmodel
         for s in ps:
             ax.plot(t, s, 'r-', alpha=0.1, **kwargs)
         pl.setp(ax, xlabel='Time [BJD]',

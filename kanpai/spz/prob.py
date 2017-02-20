@@ -5,7 +5,7 @@ from . import like
 from .. import util
 
 
-def logprob1(theta, t, f, p, aux=None, up=None, ret_pvnames=False, ret_mod=False):
+def logprob_u(theta, t, f, p, aux=None, up=None, ret_pvnames=False, ret_mod=False):
 
     if ret_pvnames:
         pvn = 'k,tc,a,b,u1,u2,s,k1'.split(',')
@@ -13,7 +13,7 @@ def logprob1(theta, t, f, p, aux=None, up=None, ret_pvnames=False, ret_mod=False
             pvn += ['c{}'.format(i) for i in range(len(aux))]
         return pvn
     elif ret_mod:
-        return like.loglike1(theta, t, f, p, aux, ret_mod=True)
+        return like.loglike_u(theta, t, f, p, aux, ret_mod=True)
 
     k,tc,a,b,u1,u2,s,k1 = theta[:8]
 
@@ -22,17 +22,17 @@ def logprob1(theta, t, f, p, aux=None, up=None, ret_pvnames=False, ret_mod=False
 
     lp = 0
     if up is not None:
-        lp += np.log(stats.norm.pdf(u1, up[0], up[1]))
-        lp += np.log(stats.norm.pdf(u2, up[2], up[3]))
+        lp += np.log(stats.norm.pdf(u1, loc=up[0], scale=up[1]))
+        lp += np.log(stats.norm.pdf(u2, loc=up[2], scale=up[3]))
 
-    ll = like.loglike1(theta, t, f, p, aux)
+    ll = like.loglike_u(theta, t, f, p, aux)
 
     if np.isnan(ll).any():
         return -np.inf
-    return ll
+    return lp + ll
 
 
-def logprob2(theta, t, f, p, aux=None, up=None, ret_pvnames=False, ret_mod=False):
+def logprob_q(theta, t, f, p, aux=None, up=None, ret_pvnames=False, ret_mod=False):
 
     if ret_pvnames:
         pvn = 'k,tc,a,b,q1,q2,s,k1'.split(',')
@@ -40,7 +40,7 @@ def logprob2(theta, t, f, p, aux=None, up=None, ret_pvnames=False, ret_mod=False
             pvn += ['c{}'.format(i) for i in range(len(aux))]
         return pvn
     elif ret_mod:
-        return like.loglike2(theta, t, f, p, aux, ret_mod=True)
+        return like.loglike_q(theta, t, f, p, aux, ret_mod=True)
 
     k,tc,a,b,q1,q2,s,k1 = theta[:8]
 
@@ -51,11 +51,11 @@ def logprob2(theta, t, f, p, aux=None, up=None, ret_pvnames=False, ret_mod=False
 
     lp = 0
     if up is not None:
-        lp += np.log(stats.norm.pdf(u1, up[0], up[1]))
-        lp += np.log(stats.norm.pdf(u2, up[2], up[3]))
+        lp += np.log(stats.norm.pdf(u1, loc=up[0], scale=up[1]))
+        lp += np.log(stats.norm.pdf(u2, loc=up[2], scale=up[3]))
 
-    ll = like.loglike2(theta, t, f, p, aux)
+    ll = like.loglike_q(theta, t, f, p, aux)
 
     if np.isnan(ll).any():
         return -np.inf
-    return ll
+    return lp + ll

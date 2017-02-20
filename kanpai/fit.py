@@ -22,7 +22,7 @@ from . import engines
 
 class Fit(object):
 
-    def __init__(self, t, f, k=None, tc=0, t14=0.2, p=20, b=0, out_dir=None):
+    def __init__(self):
 
         raise NotImplementedError
 
@@ -79,18 +79,21 @@ class Fit(object):
             plot.simple_ts(t, f, model=m, fp=fp)
 
 
-    def model(self, t=None):
+    def model(self, t=None, pv=None):
         p = self._p
         if t is None:
             t = self._data[:,0]
-        f = np.ones_like(t)
-        m = self._logprob(self._pv_best, *self._args, ret_mod=True)
+        if pv is None:
+            pv = self._pv_best
+        m = self._logprob(pv, t, *self._args[1:], ret_mod=True)
         return m
+
 
     @property
     def resid(self):
         t, f = self._data.T
         return f - self.model()
+
 
     def plot(self, fp=None, nmodel=None, **kwargs):
         t, f = self._data.T
@@ -102,6 +105,7 @@ class Fit(object):
         else:
             plot.simple_ts(t, f, model=m, fp=fp, title=title, **kwargs)
 
+
     def t14(self, nmodel=1000):
         t = self._data.T[0]
         ti = np.linspace(t.min(), t.max(), nmodel)
@@ -110,15 +114,18 @@ class Fit(object):
         t14 = ti[idx][-1] - ti[idx][0]
         return t14
 
+
     @property
     def _pv_names(self):
         return self._logprob(self._ini, *self._args, ret_pvnames=True)
+
 
     @property
     def best(self):
         return dict(zip(self._pv_names, self._pv_best))
 
-    def run_mcmc(self, make_plots=True, **kwargs):
+
+    def run_mcmc(self, make_plots=True, nmodel=None, **kwargs):
 
         ini = self._pv_map
         args = self._args
@@ -134,10 +141,15 @@ class Fit(object):
 
         if make_plots:
 
-            m = self._logprob(pv, *self._args, ret_mod=True)
+            if nmodel is not None:
+                ti = np.linspace(t.min(), t.max(), nmodel)
+            else:
+                ti = t
+
+            m = self.model(t=ti)
             fp = os.path.join(self._out_dir, 'mcmc-bestfit.png')
-            plot.simple_ts(t, f, model=m, fp=fp)
+            plot.simple_ts(t, f, tmodel=ti, model=m, fp=fp)
 
             fp = os.path.join(self._out_dir, 'mcmc-samples.png')
-            ps = [self._logprob(s, *self._args, ret_mod=True) for s in fc[np.random.randint(len(fc), size=100)]]
-            plot.samples(t, f, ps, fp=fp)
+            ps = [self.model(t=ti, pv=s) for s in fc[np.random.randint(len(fc), size=100)]]
+            plot.samples(t, f, ps, tmodel=ti, fp=fp)

@@ -1,19 +1,9 @@
 import os
 import sys
 import yaml
-import pickle
-import functools
 
-import matplotlib.pyplot as pl
 import numpy as np
 np.warnings.simplefilter('ignore')
-import pandas as pd
-import scipy.optimize as op
-from scipy import stats
-from emcee import MHSampler, EnsembleSampler, PTSampler
-from emcee.utils import sample_ball
-import corner
-from tqdm import tqdm
 
 from . import prob
 from .. import plot
@@ -24,7 +14,7 @@ from ..fit import Fit
 
 class FitSpz(Fit):
 
-    def __init__(self, t, f, k=None, tc=None, t14=0.2, p=20, b=0, aux=None, out_dir=None):
+    def __init__(self, t, f, k=None, tc=None, t14=0.2, p=20, b=0, aux=None, out_dir=None, logprob=prob.logprob_q):
 
         self._data = np.c_[t,f]
         if k is None:
@@ -41,7 +31,7 @@ class FitSpz(Fit):
             bias = np.repeat(1, n)
             aux = bias.reshape(1, n)
         self._aux = aux
-        self._logprob = prob.logprob2
+        self._logprob = logprob
         self._out_dir = out_dir
         self._ld_prior = None
 
