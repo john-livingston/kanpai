@@ -78,11 +78,12 @@ elif args.pld:
     aux = pix.T
 
 fit = kanpai.spz.simfit.FitK2Spz(setup, df_k2, df_spz, aux, out_dir=out_dir)
-# if args.ldp:
-#     teff, uteff = [float(i) for i in args.teff.split(',')]
-#     logg, ulogg = [float(i) for i in args.logg.split(',')]
-#     ldp = kanpai.spz.ld.get_ld_claret(teff, uteff, logg, ulogg)
-#     fit.set_ld_prior(ldp)
+if args.ldp:
+    teff, uteff = [float(i) for i in args.teff.split(',')]
+    logg, ulogg = [float(i) for i in args.logg.split(',')]
+    ldp_spz = kanpai.spz.ld.get_ld_claret(teff, uteff, logg, ulogg)
+    ldp_k2 = kanpai.k2.ld.get_ld_claret(teff, uteff, logg, ulogg)
+    fit.set_ld_prior(ldp_k2, ldp_spz)
 fit.run_map(make_plots=False)
 fit.post_map()
 fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms, gr_threshold=gr_threshold, make_plots=False)

@@ -112,6 +112,11 @@ class FitK2Spz(Fit):
         return lp_k2, lp_spz, args_k2, args_spz, aux
 
 
+    def set_ld_prior(self, ldp_k2, ldp_spz):
+        self._fit_k2.set_ld_prior(ldp_k2)
+        self._fit_spz.set_ld_prior(ldp_spz)
+
+
     def post_map(self):
 
         pv = get_theta(self._pv_map, 'k2')
@@ -138,9 +143,10 @@ class FitK2Spz(Fit):
         plot.corner(fc, names, fp=fp)
 
         t, f = self._data_k2['t f'.split()].values.T
-        ps = [self._fit_k2.model(pv=get_theta(s, 'k2')) for s in fc[np.random.randint(len(fc), size=100)]]
+        ti = np.linspace(t.min(), t.max(), 1000)
+        ps = [self._fit_k2.model(t=ti,pv=get_theta(s, 'k2')) for s in fc[np.random.randint(len(fc), size=100)]]
         fp = os.path.join(self._out_dir, 'mcmc-samples-k2.png')
-        plot.samples(t, f, ps, fp=fp)
+        plot.samples(t, f, ps, tmodel=ti, fp=fp)
 
         t, f = self._data_spz['t f'.split()].values.T
         ps = [self._fit_spz.model(pv=get_theta(s, 'spz')) for s in fc[np.random.randint(len(fc), size=100)]]
