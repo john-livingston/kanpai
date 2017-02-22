@@ -11,6 +11,7 @@ from .. import util
 from .. import engines
 from .mod import model_q as spz_model
 from .plot import corrected_ts
+from .plot import k2_spz_together as k2_vs_spz
 from .fit import FitSpz
 from ..k2.fit import FitK2
 from ..fit import Fit
@@ -134,13 +135,11 @@ class FitK2Spz(Fit):
         fp = os.path.join(self._out_dir, 'spz.csv')
         self._data_spz.to_csv(fp, index=False)
 
-        self._plot_corrected()
+        fc = self._fc
+        names = self._pv_names
 
-        fc = self._mcmc._fc
-        names = self._mcmc._names
-
-        fp = os.path.join(self._out_dir, 'mcmc-corner.png')
-        plot.corner(fc, names, fp=fp)
+        # fp = os.path.join(self._out_dir, 'mcmc-corner.png')
+        # plot.corner(fc, names, fp=fp)
 
         t, f = self._data_k2['t f'.split()].values.T
         ti = np.linspace(t.min(), t.max(), 1000)
@@ -152,6 +151,10 @@ class FitK2Spz(Fit):
         ps = [self._fit_spz.model(pv=get_theta(s, 'spz')) for s in fc[np.random.randint(len(fc), size=100)]]
         fp = os.path.join(self._out_dir, 'mcmc-samples-spz.png')
         plot.samples(t, f, ps, fp=fp)
+
+        self._plot_corrected()
+
+        self._plot_k2_vs_spz()
 
 
     def _make_df_spz(self):
@@ -182,3 +185,66 @@ class FitK2Spz(Fit):
         resid = self._data_spz['resid'].values
         fp = os.path.join(self._out_dir, 'fit-best.png')
         corrected_ts(t, f, f_cor, mod_full, mod_transit, resid, fp)
+
+
+    def _plot_k2_vs_spz(self, percs=(50, 16, 84), plot_binned=False):
+
+        # if 'f_cor' not in self._data_spz.columns:
+        #     fp = os.path.join(self._out_dir, 'spz.csv')
+        #     self._data_spz = pd.read_csv(fp)
+
+        t = self._data_spz['t']
+        args = self._args
+        fc = self._fc
+        idx = self._pv_names.index('tc_s')
+        tc = np.median(fc[:,idx])
+        idx = self._pv_names.index('k_s')
+        k_s = fc[:,idx]
+        idx = self._pv_names.index('k_k')
+        k_k = fc[:,idx]
+        # data_spz = self._data_spz
+        self._data_spz['phase'] = t - tc
+        # data_k2 = self._data_k2
+        # p = self._p
+        args_k2 = self._fit_k2._args
+        args_spz = self._fit_spz._args
+        lp_k2 = self._fit_k2._logprob
+
+        npercs = len(percs)
+
+        # self._data_k2['ti'] = np.linspace(data_k2.t.min(), data_k2.t.max(), 1000)
+        self._data_k2['ti'] = self._data_k2['t'] # FIXME
+
+        flux_pr_k2, flux_pr_sp = [], []
+        for theta in fc[np.random.permutation(fc.shape[0])[:1000]]:
+
+            theta_sp = get_theta(theta, 'spz')
+            theta_k2 = get_theta(theta, 'k2')
+
+            flux_pr_sp.append(spz_model(theta_sp, *args_spz[:-1], ret_ma=True))
+            flux_pr_k2.append(lp_k2(theta_k2, *args_k2, ret_mod=True))
+
+        flux_pr_sp, flux_pr_k2 = map(np.array, [flux_pr_sp, flux_pr_k2])
+        flux_pc_sp = np.percentile(flux_pr_sp, percs, axis=0)
+        flux_pc_k2 = np.percentile(flux_pr_k2, percs, axis=0)
+
+        fp = os.path.join(self._out_dir, 'mcmc-k2-vs-spz.png')
+
+        k2_vs_spz(self._data_spz, self._data_k2, flux_pc_sp, flux_pc_k2,
+            npercs, k_s, k_k, fp, title=self._plot_title,
+            plot_binned=plot_binned)
+
+    @property
+    def _plot_title(self):
+
+        if 'name' in self._setup['config'].keys():
+            title = self._setup['config']['name']
+        else:
+            prefix = self._setup['config']['prefix']
+            starid = self._setup['config']['starid']
+            planet = self._setup['config']['planet']
+            title = '{}-{}{}'.format(prefix, starid, planet)
+        if 'epoch' in self._setup['config'].keys():
+            epoch = self._setup['config']['epoch']
+            title += ' epoch {}'.format(epoch)
+        return title

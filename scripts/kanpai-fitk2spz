@@ -2,6 +2,7 @@
 
 import os
 import sys
+import glob
 import argparse
 import multiprocessing
 
@@ -15,19 +16,40 @@ import kanpai
 
 
 cwd = os.path.abspath('.')
+fp_yaml = glob.glob('./*.yaml')[0]
 
+# General options
 parser = argparse.ArgumentParser(description="Fit Spitzer light curve")
-parser.add_argument('-i', '--input', help='YAML setup file', type=str)
+parser.add_argument('-i', '--input', help='YAML setup file', type=str, default=fp_yaml)
 parser.add_argument('-o', '--out_dir', help='output directory', type=str, default=cwd)
 parser.add_argument('-p', '--period', help='period [days]', type=float)
-parser.add_argument('-n', '--nproc', help='number of processes to use', type=int, default=None)
-parser.add_argument('--teff', help='host star teff,uteff', type=str, default=None)
-parser.add_argument('--logg', help='host star logg,ulogg', type=str, default=None)
-parser.add_argument('--save', help='save MCMC samples', dest='save', action='store_true')
+
+# K2 options
+parser.add_argument('--k2lc', help='k2 folded lc file',
+    type=str, default=None)
+parser.add_argument('--bin_k2', help='bin size for K2 data [seconds]',
+    type=int, default=None)
+
+# Spitzer options
+parser.add_argument('--bin_spz', help='bin size for'
+    ' Spitzer data [seconds]', type=int, default=None)
+parser.add_argument('--geom', help='pixel geometry for PLD',
+    type=str, default=None)
+parser.add_argument('--radius', help='Spitzer photometric aperture radius',
+    type=float, default=None)
+
+# Limb-darkening options
 parser.add_argument('--ld', help='sample in "q" or "u" limb darkening space', default='q')
 parser.add_argument('--ldp', help='apply limb darkening prior', dest='ldp', action='store_true')
+parser.add_argument('--teff', help='host star teff,uteff', type=str, default=None)
+parser.add_argument('--logg', help='host star logg,ulogg', type=str, default=None)
+
+# Detrending options
 parser.add_argument('--cen', help='detrend via centroids', dest='cen', action='store_true')
 parser.add_argument('--pld', help='detrend via PLD', dest='pld', action='store_true')
+
+# MCMC options
+parser.add_argument('-n', '--nproc', help='number of processes to use', type=int, default=None)
 parser.add_argument('--gr', type=float, default=1.1,
     help='Gelmin-Rubin threshold')
 parser.add_argument('--nsteps1', type=int, default=int(1e3),
@@ -36,8 +58,14 @@ parser.add_argument('--nsteps2', type=int, default=int(1e3),
     help='number of production MCMC steps')
 parser.add_argument('--max_steps', type=int, default=int(1e4),
     help='maximum number of MCMC steps')
+parser.add_argument('--save', help='save MCMC samples', dest='save', action='store_true')
+parser.add_argument('--restart', dest='restart', help='restart MCMC',
+    action='store_true')
+parser.add_argument('--resume', dest='resume', help='resume MCMC'
+    ' from previous best position', action='store_true')
 
-parser.set_defaults(save=False, ldp=False, cen=False, pld=False)
+
+parser.set_defaults(save=False, ldp=False, cen=False, pld=False, restart=False, resume=False)
 
 
 args = parser.parse_args()
@@ -52,6 +80,11 @@ elif args.ld == 'u':
 else:
     sys.exit('limb-darkening space must be "q" or "u"')
 
+k2lc = args.k2lc
+bin_k2 = args.bin_k2
+bin_spz = args.bin_spz
+geom = args.geom
+radius = args.radius
 p = args.period
 out_dir = args.out_dir
 if not os.path.isdir(out_dir):
@@ -65,10 +98,18 @@ gr_threshold = args.gr
 ns1 = args.nsteps1
 ns2 = args.nsteps2
 ms = args.max_steps
+restart = args.restart
+resume = args.resume
 
 setup = yaml.load(open(args.input))
-df_spz, pix = kanpai.spz.io.load_spz(setup, out_dir=out_dir)
 
+keys = 'k2lc binsize geom nsteps1 nsteps2 maxsteps grthreshold nthreads bin_k2 radius'.split()
+vals = k2lc, bin_spz, geom, ns1, ns2, ms, gr_threshold, nproc, bin_k2, radius
+for k,v in zip(keys, vals):
+    if v is not None:
+        setup['config'][k] = v
+
+df_spz, pix = kanpai.spz.io.load_spz(setup, out_dir=out_dir)
 df_k2 = kanpai.k2.io.load_k2(setup['config']['k2lc'])
 
 aux = None
@@ -86,5 +127,6 @@ if args.ldp:
     fit.set_ld_prior(ldp_k2, ldp_spz)
 fit.run_map(make_plots=False)
 fit.post_map()
-fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms, gr_threshold=gr_threshold, make_plots=False)
+fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms,
+    gr_threshold=gr_threshold, make_plots=False, restart=restart, resume=resume)
 fit.post_mcmc()

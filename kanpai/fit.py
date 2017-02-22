@@ -71,12 +71,10 @@ class Fit(object):
             self._max_apo_alg = 'none'
 
         self._pv_best = self._pv_map
+        self._lp_best = self._lp_map
 
         if make_plots:
-            # t, f = self._data.T
-            # m = self._logprob(self._pv_map, *self._args, ret_mod=True)
             fp = os.path.join(self._out_dir, 'map-bestfit.png')
-            # plot.simple_ts(t, f, model=m, fp=fp)
             self.plot(fp=fp, nmodel=nmodel)
 
 
@@ -117,15 +115,44 @@ class Fit(object):
         return dict(zip(self._pv_names, self._pv_best))
 
 
-    def run_mcmc(self, make_plots=True, nmodel=None, **kwargs):
+    def run_mcmc(self, make_plots=True, nmodel=None, restart=False, resume=False, **kwargs):
 
         ini = self._pv_map
         args = self._args
         names = self._pv_names
 
+        fp = os.path.join(self._out_dir, 'mcmc.npz')
+        if os.path.isfile(fp):
+
+            if resume:
+
+                print "Resuming from previous best position"
+                npz = np.load(fp)
+                ini = npz['pv_best']
+
+            elif not restart:
+
+                print "Loading chain from previous run"
+                npz = np.load(fp)
+                self._pv_mcmc = npz['pv_best']
+                self._lp_mcmc = npz['logprob_best']
+                self._fc = npz['flat_chain']
+                if self._lp_mcmc > self._lp_best:
+                    self._pv_best = self._pv_mcmc
+                    self._lp_best = self._lp_mcmc
+
+                return
+
         self._mcmc = engines.MCMC(self._logprob, ini, args, names, outdir=self._out_dir)
-        self._mcmc.run(make_plots=make_plots, **kwargs)
+        self._mcmc.run(**kwargs)
         pv, lp, fc, gr, acor = self._mcmc.results
+
+        self._pv_mcmc = pv
+        self._lp_mcmc = lp
+        self._fc = fc
+        self._gr = gr
+        self._acor = acor
+
         if lp > self._lp_map:
             self._pv_best = pv
 
