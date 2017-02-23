@@ -28,6 +28,8 @@ def load_spz(setup, out_dir=None, make_plots=True):
         npix = 9
     elif geom == '5x5':
         npix = 25
+    else:
+        sys.exit('Geometry must be one of: 3x3, 5x5')
 
     fp = os.path.join(data_dir, aor+'_phot.pkl')
     df = sxp.util.df_from_pickle(fp, radius, pix=True, geom=geom)

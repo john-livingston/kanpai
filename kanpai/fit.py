@@ -137,6 +137,8 @@ class Fit(object):
                 self._pv_mcmc = npz['pv_best']
                 self._lp_mcmc = npz['logprob_best']
                 self._fc = npz['flat_chain']
+                self._gr = npz['gelman_rubin']
+
                 if self._lp_mcmc > self._lp_best:
                     self._pv_best = self._pv_mcmc
                     self._lp_best = self._lp_mcmc
@@ -153,8 +155,9 @@ class Fit(object):
         self._gr = gr
         self._acor = acor
 
-        if lp > self._lp_map:
-            self._pv_best = pv
+        if self._lp_mcmc > self._lp_best:
+            self._pv_best = self._pv_mcmc
+            self._lp_best = self._lp_mcmc
 
         if make_plots:
 

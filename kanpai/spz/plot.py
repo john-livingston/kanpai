@@ -115,7 +115,7 @@ def corrected_ts(t, f, f_cor, mod_full, mod_ma, resid, fp=None):
             pl.close()
 
 
-def k2_spz_together(df_sp, df_k2, flux_pc_sp, flux_pc_k2, npercs, k_s, k_k,
+def k2_vs_spz(df_sp, df_k2, flux_pc_sp, flux_pc_k2, npercs, k_s, k_k,
     fp=None, title='', alpha=0.8, dpi=256, plot_binned=False, plot_depth=False):
 
     rc = {'xtick.direction': 'in',

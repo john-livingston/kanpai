@@ -11,7 +11,7 @@ from .. import util
 from .. import engines
 from .mod import model_q as spz_model
 from .plot import corrected_ts
-from .plot import k2_spz_together as k2_vs_spz
+from .plot import k2_vs_spz
 from .fit import FitSpz
 from ..k2.fit import FitK2
 from ..fit import Fit
@@ -78,6 +78,9 @@ class FitK2Spz(Fit):
         self._logprob = logprob
         self._ld_prior = None
 
+        fp = os.path.join(self._out_dir, 'input.yaml')
+        yaml.dump(setup, open(fp, 'w'), default_flow_style=False)
+
 
     @property
     def _ini(self):
@@ -113,9 +116,11 @@ class FitK2Spz(Fit):
         return lp_k2, lp_spz, args_k2, args_spz, aux
 
 
-    def set_ld_prior(self, ldp_k2, ldp_spz):
-        self._fit_k2.set_ld_prior(ldp_k2)
-        self._fit_spz.set_ld_prior(ldp_spz)
+    def set_ld_prior(self, ldp_k2=None, ldp_spz=None):
+        if ldp_k2 is not None:
+            self._fit_k2.set_ld_prior(ldp_k2)
+        if ldp_spz is not None:
+            self._fit_spz.set_ld_prior(ldp_spz)
 
 
     def post_map(self):
@@ -138,8 +143,7 @@ class FitK2Spz(Fit):
         fc = self._fc
         names = self._pv_names
 
-        # fp = os.path.join(self._out_dir, 'mcmc-corner.png')
-        # plot.corner(fc, names, fp=fp)
+        self._summarize_mcmc()
 
         t, f = self._data_k2['t f'.split()].values.T
         ti = np.linspace(t.min(), t.max(), 1000)
@@ -173,6 +177,39 @@ class FitK2Spz(Fit):
         self._data_spz['mod_sys'] = mod_sys
 
 
+    def _summarize_mcmc(self):
+
+        summary = {}
+        summary['pv_best'] = dict(zip(self._pv_names, self._pv_best.tolist()))
+        summary['logprob_best'] = float(self._lp_best)
+        summary['gelman_rubin'] = dict(zip(self._pv_names, self._gr[-1,:].tolist()))
+
+        percs = [15.87, 50.0, 84.13]
+        pc = np.percentile(self._fc, percs, axis=0).T.tolist()
+        summary['percentiles'] = dict(zip(self._pv_names, pc))
+
+        pv_best_spz = get_theta(self._pv_best, 'spz')
+        resid_spz = self._fit_spz.resid(pv=pv_best_spz)
+        rms_spz = util.stats.rms(resid_spz)
+
+        tstep_spz = np.median(np.diff(self._data_spz['t'])) * 86400
+        beta_spz = util.stats.beta(resid_spz, tstep_spz)
+
+        nd, npar = self._data_spz['t'].shape[0], len(pv_best_spz)
+        idx = self._pv_names.index('s_s')
+        sigma_spz = np.median(self._fc[:,idx])
+        rchisq_spz = util.stats.chisq(resid_spz, sigma_spz, nd, npar, reduced=True)
+        bic_spz = util.stats.bic(self._lp_mcmc, nd, npar)
+
+        summary['spz_rms'] = float(rms_spz)
+        summary['spz_beta'] = float(beta_spz)
+        summary['spz_rchisq'] = float(rchisq_spz)
+        summary['spz_bic'] = float(bic_spz)
+
+        fp = os.path.join(self._out_dir, 'mcmc-summary.yaml')
+        yaml.dump(summary, open(fp, 'w'), default_flow_style=False)
+
+
     def _plot_corrected(self, pv=None):
 
         if pv is None:
@@ -189,31 +226,28 @@ class FitK2Spz(Fit):
 
     def _plot_k2_vs_spz(self, percs=(50, 16, 84), plot_binned=False):
 
-        # if 'f_cor' not in self._data_spz.columns:
-        #     fp = os.path.join(self._out_dir, 'spz.csv')
-        #     self._data_spz = pd.read_csv(fp)
-
         t = self._data_spz['t']
         args = self._args
         fc = self._fc
         idx = self._pv_names.index('tc_s')
         tc = np.median(fc[:,idx])
+        self._data_spz['phase'] = t - tc
+
         idx = self._pv_names.index('k_s')
         k_s = fc[:,idx]
         idx = self._pv_names.index('k_k')
         k_k = fc[:,idx]
-        # data_spz = self._data_spz
-        self._data_spz['phase'] = t - tc
-        # data_k2 = self._data_k2
-        # p = self._p
+
         args_k2 = self._fit_k2._args
         args_spz = self._fit_spz._args
         lp_k2 = self._fit_k2._logprob
 
         npercs = len(percs)
 
-        # self._data_k2['ti'] = np.linspace(data_k2.t.min(), data_k2.t.max(), 1000)
-        self._data_k2['ti'] = self._data_k2['t'] # FIXME
+        nmodel_k2 = self._data_k2.shape[0]
+        ti_k2 = np.linspace(self._data_k2.t.min(), self._data_k2.t.max(), nmodel_k2)
+        self._data_k2['ti'] = ti_k2
+        # self._data_k2['ti'] = self._data_k2['t'] # FIXME
 
         flux_pr_k2, flux_pr_sp = [], []
         for theta in fc[np.random.permutation(fc.shape[0])[:1000]]:
@@ -222,7 +256,7 @@ class FitK2Spz(Fit):
             theta_k2 = get_theta(theta, 'k2')
 
             flux_pr_sp.append(spz_model(theta_sp, *args_spz[:-1], ret_ma=True))
-            flux_pr_k2.append(lp_k2(theta_k2, *args_k2, ret_mod=True))
+            flux_pr_k2.append(lp_k2(theta_k2, ti_k2, *args_k2[1:], ret_mod=True))
 
         flux_pr_sp, flux_pr_k2 = map(np.array, [flux_pr_sp, flux_pr_k2])
         flux_pc_sp = np.percentile(flux_pr_sp, percs, axis=0)

@@ -722,7 +722,7 @@ class Fit(object):
 
         fp = os.path.join(self._out_dir, 'fit-final.png')
 
-        plot.k2_spz_together(self._df_sp, self._df_k2, flux_pc_sp, flux_pc_k2,
+        plot.k2_vs_spz(self._df_sp, self._df_k2, flux_pc_sp, flux_pc_k2,
             npercs, self._fc[:,2], self._fc[:,3], fp, title=self._plot_title,
             plot_binned=plot_binned)
 
