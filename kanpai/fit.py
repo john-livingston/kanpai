@@ -175,3 +175,22 @@ class Fit(object):
             fp = os.path.join(self._out_dir, 'mcmc-samples.png')
             ps = [self.model(t=ti, pv=s) for s in fc[np.random.randint(len(fc), size=100)]]
             plot.samples(t, f, ps, tmodel=ti, fp=fp)
+
+
+    def summarize_mcmc(self):
+
+        summary = {}
+        summary['pv_best'] = dict(zip(self._pv_names, self._pv_best.tolist()))
+        summary['logprob_best'] = float(self._lp_best)
+        if len(self._gr.shape) > 1:
+            gr = self._gr[-1,:]
+        else:
+            gr = self._gr
+        summary['gelman_rubin'] = dict(zip(self._pv_names, gr.tolist()))
+
+        percs = [15.87, 50.0, 84.13]
+        pc = np.percentile(self._fc, percs, axis=0).T.tolist()
+        summary['percentiles'] = dict(zip(self._pv_names, pc))
+
+        fp = os.path.join(self._out_dir, 'mcmc-summary.yaml')
+        yaml.dump(summary, open(fp, 'w'), default_flow_style=False)

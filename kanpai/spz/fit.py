@@ -4,12 +4,15 @@ import yaml
 
 import numpy as np
 np.warnings.simplefilter('ignore')
+import pandas as pd
 
 from . import prob
+from . import mod
 from .. import plot
 from .. import util
 from .. import engines
 from ..fit import Fit
+from .plot import corrected_ts
 
 
 class FitSpz(Fit):
@@ -65,3 +68,87 @@ class FitSpz(Fit):
         aux = self._aux
         ldp = self._ld_prior
         return t, f, p, aux, ldp
+
+
+    def summarize_mcmc(self):
+
+        summary = {}
+        summary['pv_best'] = dict(zip(self._pv_names, self._pv_best.tolist()))
+        summary['logprob_best'] = float(self._lp_best)
+        if len(self._gr.shape) > 1:
+            gr = self._gr[-1,:]
+        else:
+            gr = self._gr
+        summary['gelman_rubin'] = dict(zip(self._pv_names, gr.tolist()))
+
+        percs = [15.87, 50.0, 84.13]
+        pc = np.percentile(self._fc, percs, axis=0).T.tolist()
+        summary['percentiles'] = dict(zip(self._pv_names, pc))
+
+        resid_spz = self.resid(pv=self._pv_best)
+        rms_spz = util.stats.rms(resid_spz)
+
+        tstep = np.median(np.diff(self._data[:,0])) * 86400
+        beta_spz = util.stats.beta(resid_spz, tstep)
+
+        nd, npar = self._data[:,0].shape[0], len(self._pv_best)
+        idx = self._pv_names.index('s')
+        sigma_spz = np.median(self._fc[:,idx])
+        rchisq_spz = util.stats.chisq(resid_spz, sigma_spz, nd, npar, reduced=True)
+        bic_spz = util.stats.bic(self._lp_mcmc, nd, npar)
+
+        summary['spz_rms'] = float(rms_spz)
+        summary['spz_beta'] = float(beta_spz)
+        summary['spz_rchisq'] = float(rchisq_spz)
+        summary['spz_bic'] = float(bic_spz)
+
+        fp = os.path.join(self._out_dir, 'mcmc-summary.yaml')
+        yaml.dump(summary, open(fp, 'w'), default_flow_style=False)
+
+
+    def post_mcmc(self):
+
+        self._make_df_spz()
+        fp = os.path.join(self._out_dir, 'spz.csv')
+        self._data_spz.to_csv(fp, index=False)
+        self._plot_corrected()
+
+
+    def _make_df_spz(self):
+
+        if self._logprob is prob.logprob_q:
+            spz_model = mod.model_q
+        elif self._logprob is prob.logprob_u:
+            spz_model = mod.model_u
+        else:
+            sys.exit('logprob not one of: logprob_u, logprob_q')
+
+        t, f = self._data.T
+        self._data_spz = pd.DataFrame(dict(t=t, f=f))
+
+        args_mod = self._args[:-1]
+        mod_full = spz_model(self._pv_best, *args_mod)
+        mod_transit = spz_model(self._pv_best, *args_mod, ret_ma=True)
+        mod_sys = spz_model(self._pv_best, *args_mod, ret_sys=True)
+        resid = f - mod_full
+        fcor = f - mod_sys
+
+        self._data_spz['f_cor'] = fcor
+        self._data_spz['resid'] = resid
+        self._data_spz['mod_full'] = mod_full
+        self._data_spz['mod_transit'] = mod_transit
+        self._data_spz['mod_sys'] = mod_sys
+
+
+    def _plot_corrected(self, pv=None):
+
+        if pv is None:
+            pv = self._pv_best
+
+        t, f = self._data_spz['t f'.split()].values.T
+        mod_transit = self._data_spz['mod_transit'].values
+        mod_full = self._data_spz['mod_full'].values
+        f_cor = self._data_spz['f_cor'].values
+        resid = self._data_spz['resid'].values
+        fp = os.path.join(self._out_dir, 'fit-best.png')
+        corrected_ts(t, f, f_cor, mod_full, mod_transit, resid, fp)

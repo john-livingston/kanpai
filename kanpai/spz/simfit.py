@@ -143,8 +143,6 @@ class FitK2Spz(Fit):
         fc = self._fc
         names = self._pv_names
 
-        self._summarize_mcmc()
-
         t, f = self._data_k2['t f'.split()].values.T
         ti = np.linspace(t.min(), t.max(), 1000)
         ps = [self._fit_k2.model(t=ti,pv=get_theta(s, 'k2')) for s in fc[np.random.randint(len(fc), size=100)]]
@@ -177,12 +175,16 @@ class FitK2Spz(Fit):
         self._data_spz['mod_sys'] = mod_sys
 
 
-    def _summarize_mcmc(self):
+    def summarize_mcmc(self):
 
         summary = {}
         summary['pv_best'] = dict(zip(self._pv_names, self._pv_best.tolist()))
         summary['logprob_best'] = float(self._lp_best)
-        summary['gelman_rubin'] = dict(zip(self._pv_names, self._gr[-1,:].tolist()))
+        if len(self._gr.shape) > 1:
+            gr = self._gr[-1,:]
+        else:
+            gr = self._gr
+        summary['gelman_rubin'] = dict(zip(self._pv_names, gr.tolist()))
 
         percs = [15.87, 50.0, 84.13]
         pc = np.percentile(self._fc, percs, axis=0).T.tolist()
