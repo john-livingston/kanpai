@@ -3,12 +3,11 @@ import numpy as np
 from .. import util
 
 
-def setup_aux(method, df, pix):
+def setup_aux(method, xy, pix):
 
     METHODS = 'cen pld base pca pca2 pca-quad cen-quad pld-quad'.split()
 
-    xy = df['x y'.split()].values
-    n = df.shape[0]
+    n = xy.shape[0]
     bias = np.repeat(1, n)
 
     if method == 'cen':

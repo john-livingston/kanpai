@@ -19,6 +19,7 @@ from pytransit import MandelAgol
 import plot
 from .like import loglike_u as spz_loglike
 from .mod import model_u as spz_model
+from .util import setup_aux
 from io import load_spz
 from ld import get_ld_claret
 from .. import util
@@ -36,8 +37,6 @@ sb.set_color_codes('muted')
 
 K2_TIME_OFFSET = 2454833
 PI2 = np.pi/2
-
-METHODS = 'cen pld base pca pca2 pca-quad cen-quad pld-quad'.split()
 
 
 def logprob(theta, t, f, p, aux, k2data, u_kep, u_spz, ret_pvnames=False):
@@ -134,61 +133,7 @@ class Fit(object):
 
     def _setup_aux(self):
 
-        method = self._method
-
-        if method == 'cen':
-
-            n = self._xy.shape[0]
-            bias = np.repeat(1, n)
-            self._aux = np.c_[bias, self._xy].T
-
-        elif method == 'cen-quad':
-
-            n = self._xy.shape[0]
-            bias = np.repeat(1, n)
-            self._aux = np.c_[bias, self._xy, self._xy**2].T
-
-        elif method == 'pld':
-
-            self._aux = self._pix.T
-
-        elif method == 'pld-quad':
-
-            self._aux = np.c_[self._pix, self._pix**2].T
-
-        elif method == 'base':
-
-            n = self._xy.shape[0]
-            bias = np.repeat(1, n)
-            self._aux = bias.reshape(1, n)
-
-        elif method == 'pca':
-
-            n = self._xy.shape[0]
-            bias = np.repeat(1, n)
-            X = self._pix.T
-            top2 = util.pca(X, n=2)
-            self._aux = np.c_[bias, top2].T
-
-        elif method == 'pca2':
-
-            n = self._xy.shape[0]
-            bias = np.repeat(1, n)
-            X = np.c_[self._pix, self._pix**2].T
-            top2 = util.pca(X, n=2)
-            self._aux = np.c_[bias, top2].T
-
-        elif method == 'pca-quad':
-
-            n = self._xy.shape[0]
-            bias = np.repeat(1, n)
-            X = self._pix.T
-            top2 = util.pca(X, n=2)
-            self._aux = np.c_[bias, top2, top2**2].T
-
-        else:
-
-            raise ValueError('method must be one of: {}'.format(METHODS))
+        self._aux = setup_aux(self._method, self._xy, self._pix)
 
 
     def _setup_ld(self):
