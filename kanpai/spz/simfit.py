@@ -1,9 +1,11 @@
 import os
 import sys
 import yaml
+import pickle
 
 import numpy as np
 np.warnings.simplefilter('ignore')
+import sxp
 
 from . import prob
 from .. import plot
@@ -208,6 +210,9 @@ class FitK2Spz(Fit):
         summary['spz_rchisq'] = float(rchisq_spz)
         summary['spz_bic'] = float(bic_spz)
 
+        mag, umag = map(float, self._oot_phot())
+        summary['spz_mag'] = [mag, umag]
+
         fp = os.path.join(self._out_dir, 'mcmc-summary.yaml')
         yaml.dump(summary, open(fp, 'w'), default_flow_style=False)
 
@@ -284,3 +289,23 @@ class FitK2Spz(Fit):
             epoch = self._setup['config']['epoch']
             title += ' epoch {}'.format(epoch)
         return title
+
+
+    def _oot_phot(self):
+
+        aor = self._setup['config']['aor']
+        data_dir = self._setup['config']['datadir']
+        fp = os.path.join(data_dir, '{}_phot.pkl'.format(aor))
+        cornichon = pickle.load(open(fp, 'rb'))
+
+        pv = get_theta(self._pv_best, 'spz')
+        args_mod = self._fit_spz._args[:-1]
+        t = self._fit_spz._args[0]
+        ti = np.linspace(t.min()-0.5, t.max()+0.5, 10000)
+        mod = spz_model(pv, ti, *self._fit_spz._args[1:-1], ret_ma=True)
+
+        t1, t4 = ti[mod<1][0], ti[mod<1][-1]
+        r = '3_3_7'
+        mag, umag = sxp.phot.oot_phot(cornichon, t1, t4, r=r, verbose=False)
+
+        return mag, umag
