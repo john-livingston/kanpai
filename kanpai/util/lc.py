@@ -25,7 +25,7 @@ def get_tns(t, p, t0):
     return tns
 
 
-def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None):
+def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None, ret_ind=False):
 
     idx = np.isnan(t) | np.isnan(f)
     t, f = t[~idx], f[~idx]
@@ -37,6 +37,7 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None):
             tns.pop(i)
 
     tf, ff = np.empty(0), np.empty(0)
+    tu, fu = [], []
 
     for i,tn in enumerate(tns):
 
@@ -44,6 +45,8 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None):
         ti = t[idx]-tn
         fi = f[idx]
         fi /= np.nanmedian(fi)
+
+        tu.append(t[idx].tolist())
 
         if bl:
 
@@ -69,8 +72,13 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None):
                 print "Num. datapoints: {}".format(idx.sum())
                 print ti
 
+        fu.append(fi.tolist())
+
         tf = np.append(tf, ti)
         ff = np.append(ff, fi / np.nanmedian(fi))
+
+    if ret_ind:
+        return tu, fu
 
     idx = np.argsort(tf)
     tf = tf[idx]

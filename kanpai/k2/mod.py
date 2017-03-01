@@ -35,3 +35,9 @@ def model4(theta, t, p):
     i = util.transit.inclination(a, b)
     m = MA.evaluate(t, k, (u, 0), tc, p, a, i)
     return m
+
+
+def model_u_tc(theta, t, k, a, i, u1, u2, p):
+    tc = theta
+    m = MA.evaluate(t, k, (u1, u2), tc, p, a, i)
+    return m

@@ -87,3 +87,16 @@ def beta(residuals, timestep, start_min=5, stop_min=20):
         betas.append(beta)
 
     return np.median(betas)
+
+
+def simple_ols(x, y, intercept=True):
+    """
+    Simple OLS with no y uncertainties.
+    x : array-like, abscissa
+    y : array-like, ordinate
+    """
+    if intercept:
+        X = np.c_[np.ones_like(x), x]
+    else:
+        X = x
+    return np.dot( np.dot( np.linalg.inv( np.dot(X.T, X) ), X.T), y )

@@ -10,10 +10,7 @@ PIPELINES = 'everest k2sff k2sc'.split()
 K2_TIME_OFFSET = 2454833
 
 
-def folded(epic, p, t0, t14, pipeline='everest',
-    width=0.8, clip=False, bl=False, skip=None, refine=False):
-
-    t0 -= K2_TIME_OFFSET
+def unfolded(epic, p, t0, t14, pipeline='everest'):
 
     epic = int(epic)
     if pipeline == 'everest':
@@ -28,6 +25,16 @@ def folded(epic, p, t0, t14, pipeline='everest',
         t, f = star.time, star.pdcflux
     else:
         raise ValueError('Pipeline must be one of: {}'.format(PIPELINES))
+
+    t += K2_TIME_OFFSET
+
+    return t, f
+
+
+def folded(epic, p, t0, t14, pipeline='everest',
+    width=0.8, clip=False, bl=False, skip=None, refine=False):
+
+    t, f = unfolded(epic, pipeline=pipeline)
 
     idx = np.isnan(t) | np.isnan(f)
     t, f = t[~idx], f[~idx]

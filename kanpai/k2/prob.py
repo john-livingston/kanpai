@@ -91,3 +91,17 @@ def logprob4(theta, t, f, p, up=None, ret_pvnames=False, ret_mod=False):
     if np.isnan(ll).any():
         return -np.inf
     return ll
+
+
+def logprob_u_tc(theta, t, f, k, a, i, u1, u2, p, ret_pvnames=False, ret_mod=False):
+
+    if ret_pvnames:
+        return 'tc,s,k0'.split(',')
+    elif ret_mod:
+        return like.loglike_u_tc(theta, t, f, k, a, i, u1, u2, p, ret_mod=True)
+
+    ll = like.loglike_u_tc(theta, t, f, k, a, i, u1, u2, p)
+
+    if np.isnan(ll).any():
+        return -np.inf
+    return ll

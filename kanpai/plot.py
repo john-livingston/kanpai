@@ -205,3 +205,23 @@ def multi_gauss_fit(samples, p0, fp=None, return_popt=False, verbose=True):
 
     if return_popt:
         return popt
+
+
+def oc(orb, tc, p, t0, fp=None):
+
+    tns = np.array([t0 + p*i for i in orb])
+    y = (np.array(tc) - tns) * 24 * 60
+    x = orb
+
+    with sb.axes_style('white'):
+        fig, ax = pl.subplots(1, 1, figsize=(5,3))
+        ax = fig.get_axes()[0]
+        ax.plot(x, y, 'bo')
+        xl = [x[0]-1, x[-1]+1]
+        ax.set_xlim(*xl)
+        ax.hlines([0], *pl.xlim(), linestyles='dashed')
+        ax.set_xlabel('Orbit Number')
+        ax.set_ylabel('O-C [minutes]')
+        if fp is not None:
+            fig.savefig(fp)
+            pl.close()

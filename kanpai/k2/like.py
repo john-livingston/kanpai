@@ -41,3 +41,13 @@ def loglike4(theta, t, f, p, ret_mod=False):
     resid = f - m
     inv_sig2 = s ** -2
     return -0.5*(np.sum((resid)**2 * inv_sig2 - np.log(inv_sig2)))
+
+
+def loglike_u_tc(theta, t, f, k, a, i, u1, u2, p, ret_mod=False):
+    tc,s,k0 = theta
+    m = mod.model_u_tc(tc, t, k, a, i, u1, u2, p) + k0
+    if ret_mod:
+        return m
+    resid = f - m
+    inv_sig2 = s ** -2
+    return -0.5*(np.sum((resid)**2 * inv_sig2 - np.log(inv_sig2)))

@@ -46,6 +46,7 @@ setup(
         'scripts/kanpai-fitk2spz-old',
         'scripts/kanpai-k2lc',
         'scripts/kanpai-fitk2',
+        'scripts/kanpai-fitk2tc',
         'scripts/kanpai-fitspz'],
     include_package_data=True,
     keywords=[],

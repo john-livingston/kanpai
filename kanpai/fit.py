@@ -121,32 +121,34 @@ class Fit(object):
         args = self._args
         names = self._pv_names
 
-        fp = os.path.join(self._out_dir, 'mcmc.npz')
-        if os.path.isfile(fp):
+        if self._out_dir is not None:
 
-            if resume:
+            fp = os.path.join(self._out_dir, 'mcmc.npz')
+            if os.path.isfile(fp):
 
-                print "Resuming from previous best position"
-                npz = np.load(fp)
-                ini = npz['pv_best']
+                if resume:
 
-            elif not restart:
+                    print "Resuming from previous best position"
+                    npz = np.load(fp)
+                    ini = npz['pv_best']
 
-                print "Loading chain from previous run"
-                npz = np.load(fp)
-                self._pv_mcmc = npz['pv_best']
-                self._lp_mcmc = npz['logprob_best']
-                self._fc = npz['flat_chain']
-                self._gr = npz['gelman_rubin']
+                elif not restart:
 
-                if self._lp_mcmc > self._lp_best:
-                    self._pv_best = self._pv_mcmc
-                    self._lp_best = self._lp_mcmc
+                    print "Loading chain from previous run"
+                    npz = np.load(fp)
+                    self._pv_mcmc = npz['pv_best']
+                    self._lp_mcmc = npz['logprob_best']
+                    self._fc = npz['flat_chain']
+                    self._gr = npz['gelman_rubin']
 
-                return
+                    if self._lp_mcmc > self._lp_best:
+                        self._pv_best = self._pv_mcmc
+                        self._lp_best = self._lp_mcmc
+
+                    return
 
         self._mcmc = engines.MCMC(self._logprob, ini, args, names, outdir=self._out_dir)
-        self._mcmc.run(**kwargs)
+        self._mcmc.run(make_plots=make_plots, **kwargs)
         pv, lp, fc, gr, acor = self._mcmc.results
 
         self._pv_mcmc = pv
@@ -177,7 +179,7 @@ class Fit(object):
             plot.samples(t, f, ps, tmodel=ti, fp=fp)
 
 
-    def summarize_mcmc(self):
+    def summarize_mcmc(self, save=True):
 
         summary = {}
         summary['pv_best'] = dict(zip(self._pv_names, self._pv_best.tolist()))
@@ -192,5 +194,8 @@ class Fit(object):
         pc = np.percentile(self._fc, percs, axis=0).T.tolist()
         summary['percentiles'] = dict(zip(self._pv_names, pc))
 
-        fp = os.path.join(self._out_dir, 'mcmc-summary.yaml')
-        yaml.dump(summary, open(fp, 'w'), default_flow_style=False)
+        if save:
+            fp = os.path.join(self._out_dir, 'mcmc-summary.yaml')
+            yaml.dump(summary, open(fp, 'w'), default_flow_style=False)
+        else:
+            return summary

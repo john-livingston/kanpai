@@ -1,0 +1,78 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import glob
+import argparse
+import multiprocessing
+
+import yaml
+import numpy as np
+import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
+
+import kanpai
+
+
+cwd = os.path.abspath('.')
+
+# General options
+parser = argparse.ArgumentParser(description="Fit individual mid-transit times")
+parser.add_argument('epic', help='EPIC ID', type=str, default=None)
+parser.add_argument('period', help='Period', type=float, default=None)
+parser.add_argument('t0', help='T0', type=float, default=None)
+parser.add_argument('t14', help='T14', type=float, default=None)
+parser.add_argument('--input', help='Input directory (created by kanpai-fitk2)', type=str, default=cwd)
+parser.add_argument('--skip', help='individual K2 epochs to skip'
+    ', comma-separated', type=str, default=None)
+parser.add_argument('--mcmc', help='use MCMC', dest='mcmc', action='store_true')
+
+args = parser.parse_args()
+
+epic = args.epic
+p = args.period
+t0 = args.t0
+t14 = args.t14
+input_dir = args.input
+
+if args.skip is not None:
+    skip = [int(i) for i in args.skip.split(',')]
+else:
+    skip = args.skip
+
+fp = os.path.join(input_dir, 'mcmc-summary.yaml')
+res = yaml.load(open(fp))
+k, a, b, q1, q2 = [res['pv_best'].get(pv) for pv in 'k a b q1 q2'.split()]
+i = kanpai.util.transit.inclination(a, b)
+u1, u2 = kanpai.util.ld.q_to_u(q1, q2)
+
+t, f = kanpai.k2.lc.unfolded(epic, p, t0, t14)
+tu, fu = kanpai.util.lc.fold(t, f, p, t0, t14, bl=True, skip=skip, ret_ind=True)
+
+if not args.mcmc:
+    tc_best = []
+    for t, f in zip(tu, fu):
+        fit = kanpai.k2.fit.FitK2Tc(t, f, k, a, i, u1, u2, p)
+        fit.run_map(make_plots=False)
+        tc_best.append(fit.best['tc'])
+else:
+    tc_best = []
+    tc_perc = []
+    for t, f in zip(tu, fu):
+        fit = kanpai.k2.fit.FitK2Tc(t, f, k, a, i, u1, u2, p)
+        fit.run_map(make_plots=False)
+        fit.run_mcmc(make_plots=False, save=False)
+        summary = fit.summarize_mcmc(save=False)
+        tc_best.append(summary['pv_best']['tc'])
+        tc_perc.append(summary['percentiles']['tc'])
+
+for j,tc in enumerate(tc_best):
+    print "Tc,{} = {}".format(j, tc)
+
+orb = range(len(tc_best))
+t0, p = kanpai.util.stats.simple_ols(orb, tc_best)
+print "P = {}\nT0 = {}".format(p, t0)
+
+fp = os.path.join(input_dir, 'oc.png')
+kanpai.plot.oc(orb, tc_best, p, t0, fp)
