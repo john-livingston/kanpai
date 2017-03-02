@@ -2,6 +2,8 @@ import numpy as np
 from astropy import constants as c
 from astropy import units as u
 
+from . import stats
+
 
 def impact(a, i):
     return np.abs(a * np.cos(i))
@@ -68,3 +70,11 @@ def sample_logg(rho_samples, rstar, urstar):
     rs = rstar + urstar * np.random.randn(len(rho_samples))
     idx = rs > 0
     return logg(rho_samples[idx], rs[idx])
+
+
+def sample_ephem(orb, tc_samples, n=10000):
+    tc_samples = np.array(tc_samples).T
+    ephem = []
+    for tc_s in tc_samples[np.random.randint(tc_samples.shape[0], size=n)]:
+        ephem.append(stats.simple_ols(orb, tc_s))
+    return np.array(ephem)

@@ -15,7 +15,8 @@ import kanpai
 
 
 cwd = os.path.abspath('.')
-fp_csv = glob.glob('./*.csv')[0]
+csvs = glob.glob('./*.csv')
+fp_csv = csvs[0] if len(csvs) > 0 else None
 
 # General options
 parser = argparse.ArgumentParser(description="Fit K2 light curve")
@@ -53,13 +54,15 @@ parser.set_defaults(save=False, restart=False, resume=False)
 
 args = parser.parse_args()
 
+if fp_csv is None:
+    sys.exit('Must supply the path to photometry CSV file or place in working directory')
 
 if args.ld == 'q':
     logprob = kanpai.k2.prob.logprob_q
 elif args.ld == 'u':
     logprob = kanpai.k2.prob.logprob_u
 else:
-    sys.exit('limb-darkening space must be "q" or "u"')
+    sys.exit('Limb-darkening space must be "q" or "u"')
 
 bin_k2 = args.bin_k2
 p = args.period

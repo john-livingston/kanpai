@@ -43,6 +43,7 @@ class MAP(Engine):
         self._pv = None
         self._lp = None
         self._method = None
+        self._hasrun = False
 
     def _map(self, method='nelder-mead'):
 
@@ -108,6 +109,7 @@ class MCMC(Engine):
         self._names = names
         self._outdir = outdir
         self._logprob_ini = logprob(ini, *args)
+        self._hasrun = False
 
     def run(self, nproc=4, nsteps1=1e3, nsteps2=1e3, max_steps=1e4, gr_threshold=1.1, pos_idx=None, save=True, make_plots=True):
 

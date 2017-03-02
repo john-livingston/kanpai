@@ -26,8 +26,16 @@ def unfolded(epic, p, t0, t14, pipeline='everest'):
     else:
         raise ValueError('Pipeline must be one of: {}'.format(PIPELINES))
 
+    t, f = map(np.array, (t, f))
     t += K2_TIME_OFFSET
 
+    bad = (t == K2_TIME_OFFSET) | np.isnan(f)
+    t, f = t[~bad], f[~bad]
+
+    idx = np.argsort(t)
+    t, f = t[idx], f[idx]
+
+    f /= np.median(f)
     return t, f
 
 

@@ -11,6 +11,12 @@ import util
 ncolors = 5
 cp = [sb.desaturate(pl.cm.gnuplot((j+1)/float(ncolors+1)), 0.75) for j in range(ncolors)]
 
+rc = {'xtick.direction': 'in',
+      'ytick.direction': 'in',
+      'xtick.major.size': 5,
+      'ytick.major.size': 5,
+      'xtick.minor.size': 2,
+      'ytick.minor.size': 2}
 
 def gr_iter(gr_vals, fp=None):
     with sb.axes_style('white'):
@@ -58,7 +64,7 @@ def corner(fc, labels, fp=None, truths=None, quantiles=[0.16,0.5,0.84],
             title_kwargs=title_kwargs,
             show_titles=True,
             quantiles=quantiles,
-            title_fmt='.4f')
+            title_fmt='.6f')
         # pl.setp(axs, xlabel=[], ylabel=[])
         if fp:
             if tight:
@@ -66,19 +72,22 @@ def corner(fc, labels, fp=None, truths=None, quantiles=[0.16,0.5,0.84],
             pl.savefig(fp, dpi=dpi)
             pl.close()
 
-def simple_ts(t, f, tmodel=None, model=None, fp=None, title="", **kwargs):
-    with sb.axes_style('whitegrid'):
+def simple_ts(t, f, tmodel=None, model=None, fp=None, title="",
+    color='b', alpha=0.5, mew=1, mec='k', **kwargs):
+
+    with sb.axes_style('white', rc):
         fig, ax = pl.subplots(1, 1, figsize=(10,3))
         ax.plot(t, f, linestyle='none', marker='o',
-            color='b', alpha=0.5, mew=1, mec='k', **kwargs)
+            color=color, alpha=alpha, mew=mew, mec=mec, **kwargs)
         if tmodel is not None and model is not None:
-            ax.plot(tmodel, model, 'r-', mew=1, mec='k', **kwargs)
+            ax.plot(tmodel, model, 'r-', **kwargs)
         elif model is not None:
-            ax.plot(t, model, 'r-', mew=1, mec='k', **kwargs)
+            ax.plot(t, model, 'r-', **kwargs)
         pl.setp(ax, xlabel='Time [BJD]',
             ylabel='Normalized Flux',
             title=title,
             xlim=(t.min(), t.max()))
+        ax.minorticks_on()
         ax.yaxis.get_major_formatter().set_useOffset(False)
 
         fig.tight_layout()
@@ -109,13 +118,6 @@ def samples(t, f, ps, tmodel=None, fp=None, title="", **kwargs):
 
 
 def cred_reg(t, f, ps, fp=None, title="", **kwargs):
-
-    rc = {'xtick.direction': 'in',
-          'ytick.direction': 'in',
-          'xtick.major.size': 5,
-          'ytick.major.size': 5,
-          'xtick.minor.size': 2,
-          'ytick.minor.size': 2}
 
     dfmt = 'k.'
     bfmt = 'k.'
@@ -207,21 +209,30 @@ def multi_gauss_fit(samples, p0, fp=None, return_popt=False, verbose=True):
         return popt
 
 
-def oc(orb, tc, p, t0, fp=None):
+def oc(orb, tc, p, t0, tc_err=None, p_err=None, fp=None):
 
     tns = np.array([t0 + p*i for i in orb])
     y = (np.array(tc) - tns) * 24 * 60
     x = orb
 
-    with sb.axes_style('white'):
+    with sb.axes_style('ticks', rc):
         fig, ax = pl.subplots(1, 1, figsize=(5,3))
         ax = fig.get_axes()[0]
-        ax.plot(x, y, 'bo')
+        if tc_err is None:
+            ax.plot(x, y, 'bo')
+        else:
+            yerr = np.array(tc_err) * 24 * 60
+            ax.errorbar(x, y, yerr, fmt='bo', capthick=0)
         xl = [x[0]-1, x[-1]+1]
         ax.set_xlim(*xl)
-        ax.hlines([0], *pl.xlim(), linestyles='dashed')
+        ax.hlines([0], *pl.xlim(), linestyles='dotted')
+        if p_err is not None:
+            ax.fill_between(xl, -p_err[0]*24*60, p_err[1]*24*60,
+                facecolor='r', edgecolor='r', alpha=0.5)
         ax.set_xlabel('Orbit Number')
         ax.set_ylabel('O-C [minutes]')
+        ax.minorticks_on()
+        fig.tight_layout()
         if fp is not None:
             fig.savefig(fp)
             pl.close()

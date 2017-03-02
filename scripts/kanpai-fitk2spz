@@ -16,7 +16,8 @@ import kanpai
 
 
 cwd = os.path.abspath('.')
-fp_yaml = glob.glob('./*.yaml')[0]
+yamls = glob.glob('./*.yaml')
+fp_yaml = yamls[0] if len(yamls) > 1 else None
 
 # General options
 parser = argparse.ArgumentParser(description="simultaneously fit Spitzer and K2 light curves")
@@ -71,6 +72,9 @@ parser.add_argument('--resume', dest='resume', help='resume MCMC'
 parser.set_defaults(save=False, ldp=False, cen=False, pld=False, restart=False, resume=False)
 
 args = parser.parse_args()
+
+if fp_yaml is None:
+    sys.exit('Must supply the path to YAML setup file or place in working directory')
 
 
 k2lc = args.k2lc

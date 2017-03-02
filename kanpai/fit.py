@@ -24,7 +24,8 @@ class Fit(object):
 
     def __init__(self):
 
-        raise NotImplementedError
+        self._map = None
+        self._mcmc = None
 
     @property
     def _ini(self):
@@ -75,7 +76,7 @@ class Fit(object):
 
         if make_plots:
             fp = os.path.join(self._out_dir, 'map-bestfit.png')
-            self.plot(fp=fp, nmodel=nmodel)
+            self.plot_best(nmodel=nmodel, fp=fp)
 
 
     def model(self, t=None, pv=None):
@@ -163,6 +164,17 @@ class Fit(object):
 
         if make_plots:
 
+            fp = os.path.join(self._out_dir, 'mcmc-bestfit.png')
+            self.plot_best(nmodel=nmodel, fp=fp)
+
+            fp = os.path.join(self._out_dir, 'mcmc-samples.png')
+            self.plot_samples(nmodel=nmodel, fp=fp)
+
+
+    def plot_best(self, nmodel=None, fp=None):
+
+            assert self._map._hasrun or self._mcmc._hasrun
+
             t, f = self._data.T
 
             if nmodel is not None:
@@ -171,10 +183,21 @@ class Fit(object):
                 ti = t
 
             m = self.model(t=ti)
-            fp = os.path.join(self._out_dir, 'mcmc-bestfit.png')
             plot.simple_ts(t, f, tmodel=ti, model=m, fp=fp)
 
-            fp = os.path.join(self._out_dir, 'mcmc-samples.png')
+
+    def plot_samples(self, nmodel=None, fp=None):
+
+            assert self._mcmc._hasrun
+
+            t, f = self._data.T
+
+            if nmodel is not None:
+                ti = np.linspace(t.min(), t.max(), nmodel)
+            else:
+                ti = t
+
+            fc = self._fc
             ps = [self.model(t=ti, pv=s) for s in fc[np.random.randint(len(fc), size=100)]]
             plot.samples(t, f, ps, tmodel=ti, fp=fp)
 
