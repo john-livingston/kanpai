@@ -109,7 +109,7 @@ for k,v in zip(keys, vals):
 
 # Load data
 df_spz, pix = kanpai.spz.io.load_spz(setup, out_dir=out_dir)
-df_k2 = kanpai.k2.io.load_k2(setup['config']['k2lc'])
+df_k2 = kanpai.k2.io.load_k2(setup['config']['k2lc'], binning=bin_k2)
 
 # Setup auxiliary vectors for Spitzer detrending
 aux = None

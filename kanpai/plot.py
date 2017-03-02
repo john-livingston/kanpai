@@ -75,7 +75,7 @@ def corner(fc, labels, fp=None, truths=None, quantiles=[0.16,0.5,0.84],
 def simple_ts(t, f, tmodel=None, model=None, fp=None, title="",
     color='b', alpha=0.5, mew=1, mec='k', **kwargs):
 
-    with sb.axes_style('white', rc):
+    with sb.axes_style('ticks', rc):
         fig, ax = pl.subplots(1, 1, figsize=(10,3))
         ax.plot(t, f, linestyle='none', marker='o',
             color=color, alpha=alpha, mew=mew, mec=mec, **kwargs)
@@ -97,7 +97,7 @@ def simple_ts(t, f, tmodel=None, model=None, fp=None, title="",
 
 
 def samples(t, f, ps, tmodel=None, fp=None, title="", **kwargs):
-    with sb.axes_style('whitegrid'):
+    with sb.axes_style('ticks'):
         fig, ax = pl.subplots(1, 1, figsize=(10,3))
         ax.plot(t, f, linestyle='none', marker='o',
             color='b', alpha=0.5, mew=1, mec='k', **kwargs)

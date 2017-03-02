@@ -10,6 +10,7 @@ def binned(a, binsize, fun=np.mean):
 def binned_ts(t, x, w, fun=np.mean):
     """
     What one normally wants when binning time-series data.
+    Only works for evenly-sampled data!
 
     :param t    : the abscissa
     :param x    : the ordinate

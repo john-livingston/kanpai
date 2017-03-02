@@ -82,7 +82,7 @@ restart = args.restart
 resume = args.resume
 
 # Load data
-df = kanpai.k2.io.load_k2(args.input)
+df = kanpai.k2.io.load_k2(args.input, binning=bin_k2)
 t, f = df['t f'.split()].values.T
 
 def print_ldp(band, ldp):
