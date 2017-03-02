@@ -46,6 +46,16 @@ class Fit(object):
         raise NotImplementedError
 
 
+    @property
+    def _pv_names(self):
+        return self._logprob(self._ini, *self._args, ret_pvnames=True)
+
+
+    @property
+    def best(self):
+        return dict(zip(self._pv_names, self._pv_best))
+
+
     def set_ld_prior(self, ldp):
 
         """
@@ -89,31 +99,11 @@ class Fit(object):
         return m
 
 
-    def resid(self, pv):
+    def resid(self, pv=None):
+        if pv is None:
+            pv = self._pv_best
         t, f = self._data.T
         return f - self.model(pv=pv)
-
-
-    def plot(self, fp=None, nmodel=None, pv=None, **kwargs):
-        t, f = self._data.T
-        title = "Std. dev. of residuals: {}".format(np.std(self.resid(pv=pv)))
-        if nmodel is not None:
-            ti = np.linspace(t.min(), t.max(), nmodel)
-            m = self.model(t=ti, pv=pv)
-            plot.simple_ts(t, f, tmodel=ti, model=m, fp=fp, title=title, **kwargs)
-        else:
-            m = self.model(t=t, pv=pv)
-            plot.simple_ts(t, f, model=m, fp=fp, title=title, **kwargs)
-
-
-    @property
-    def _pv_names(self):
-        return self._logprob(self._ini, *self._args, ret_pvnames=True)
-
-
-    @property
-    def best(self):
-        return dict(zip(self._pv_names, self._pv_best))
 
 
     def run_mcmc(self, make_plots=True, nmodel=None, restart=False, resume=False, **kwargs):
@@ -171,7 +161,7 @@ class Fit(object):
             self.plot_samples(nmodel=nmodel, fp=fp)
 
 
-    def plot_best(self, nmodel=None, fp=None):
+    def plot_best(self, nmodel=None, fp=None, **kwargs):
 
             assert self._map._hasrun or self._mcmc._hasrun
 
@@ -183,10 +173,10 @@ class Fit(object):
                 ti = t
 
             m = self.model(t=ti)
-            plot.simple_ts(t, f, tmodel=ti, model=m, fp=fp)
+            plot.simple_ts(t, f, tmodel=ti, model=m, fp=fp, **kwargs)
 
 
-    def plot_samples(self, nmodel=None, fp=None):
+    def plot_samples(self, nmodel=None, fp=None, **kwargs):
 
             assert self._mcmc._hasrun
 
@@ -199,7 +189,7 @@ class Fit(object):
 
             fc = self._fc
             ps = [self.model(t=ti, pv=s) for s in fc[np.random.randint(len(fc), size=100)]]
-            plot.samples(t, f, ps, tmodel=ti, fp=fp)
+            plot.samples(t, f, ps, tmodel=ti, fp=fp, **kwargs)
 
 
     def summarize_mcmc(self, save=True):
@@ -216,7 +206,7 @@ class Fit(object):
         percs = [15.87, 50.0, 84.13]
         pc = np.percentile(self._fc, percs, axis=0).T.tolist()
         summary['percentiles'] = dict(zip(self._pv_names, pc))
-
+        summary['rms'] = util.stats.rms(self.resid())
         if save:
             fp = os.path.join(self._out_dir, 'mcmc-summary.yaml')
             yaml.dump(summary, open(fp, 'w'), default_flow_style=False)

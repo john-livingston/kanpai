@@ -90,7 +90,7 @@ class Fold(object):
 
         # initial fit
         fit = FitK2(tf, ff, t14=t14, p=p, out_dir=outdir, logprob=prob.logprob_u)
-        fit.run_map()
+        fit.run_map(make_plots=False)
         pv = fit.best
         t14 = util.transit.tdur_circ(p, pv['a'], pv['k'], pv['b'])
 
@@ -105,7 +105,7 @@ class Fold(object):
 
         # second fit to correct for any offset in initial T0
         fit = FitK2(tf, ff, t14=t14, p=p, out_dir=outdir, logprob=prob.logprob_u)
-        fit.run_map()
+        fit.run_map(make_plots=False)
         pv = fit.best
         t14 = util.transit.tdur_circ(p, pv['a'], pv['k'], pv['b'])
         t0 += pv['tc']
@@ -122,9 +122,9 @@ class Fold(object):
 
         # identify final outliers by sigma clipping residuals
         fit = FitK2(tf, ff, t14=t14, p=p, out_dir=outdir, logprob=prob.logprob_u)
-        fit.run_map()
+        fit.run_map(make_plots=False)
         su, sl = self._clip
-        idx = util.stats.outliers(fit.resid, su=su, sl=sl)
+        idx = util.stats.outliers(fit.resid(), su=su, sl=sl)
         tf, ff = tf[~idx], ff[~idx]
         print("Final sigma clip ({},{}): {}".format(su, sl, idx.sum()))
 
@@ -135,7 +135,7 @@ class Fold(object):
         # final fit to cleaned light curve
         fit = FitK2(tf, ff, t14=t14, p=p, k=pv['k'], b=pv['b'],
             out_dir=outdir, logprob=prob.logprob_u)
-        fit.run_map()
+        fit.run_map(make_plots=False)
         pv = fit.best
         k = pv['k']
         a = pv['a']
@@ -151,11 +151,11 @@ class Fold(object):
         print "Limb-darkening coefficients (u1, u2): {0:.4f}, {1:.4f}".format(pv['u1'], pv['u2'])
         print "Baseline offset (k0): {0:.8f}".format(pv['k0'])
         print "Sigma: {0:.8f}".format(pv['s'])
-        print "Residual RMS: {0:.8f}".format(util.stats.rms(fit.resid))
+        print "Residual RMS: {0:.8f}".format(util.stats.rms(fit.resid()))
 
         self._fit = fit
         self._tf, self._ff = tf, ff
-        self._sig = np.std(fit.resid)
+        self._sig = np.std(fit.resid())
 
 
     @property
@@ -166,4 +166,4 @@ class Fold(object):
 
     def plot_fit(self, fp):
 
-        self._fit.plot(fp, lw=5, ms=10, nmodel=1000)
+        self._fit.plot_best(fp=fp, lw=3, ms=10, nmodel=1000)
