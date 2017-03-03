@@ -129,11 +129,11 @@ class FitK2Spz(Fit):
 
         pv = get_theta(self._pv_map, 'k2')
         fp = os.path.join(self._out_dir, 'map-k2.png')
-        self._fit_k2.plot(fp=fp, nmodel=1000, pv=pv)
+        self._fit_k2.plot_best(fp=fp, nmodel=1000, pv=pv)
 
         pv = get_theta(self._pv_map, 'spz')
         fp = os.path.join(self._out_dir, 'map-spz.png')
-        self._fit_spz.plot(fp=fp, pv=pv)
+        self._fit_spz.plot_best(fp=fp, pv=pv)
 
 
     def post_mcmc(self):

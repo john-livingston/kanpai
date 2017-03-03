@@ -17,7 +17,7 @@ import kanpai
 
 cwd = os.path.abspath('.')
 yamls = glob.glob('./*.yaml')
-fp_yaml = yamls[0] if len(yamls) > 1 else None
+fp_yaml = yamls[0] if len(yamls) > 0 else None
 
 # General options
 parser = argparse.ArgumentParser(description="simultaneously fit Spitzer and K2 light curves")

@@ -37,6 +37,8 @@ class FitSpz(Fit):
         self._logprob = logprob
         self._out_dir = out_dir
         self._ld_prior = None
+        self._map = None
+        self._mcmc = None
 
     @property
     def _ini(self):

@@ -161,9 +161,9 @@ class Fit(object):
             self.plot_samples(nmodel=nmodel, fp=fp)
 
 
-    def plot_best(self, nmodel=None, fp=None, **kwargs):
+    def plot_best(self, pv=None, nmodel=None, fp=None, **kwargs):
 
-            assert self._map._hasrun or self._mcmc._hasrun
+            # assert self._map._hasrun or self._mcmc._hasrun
 
             t, f = self._data.T
 
@@ -172,13 +172,13 @@ class Fit(object):
             else:
                 ti = t
 
-            m = self.model(t=ti)
+            m = self.model(t=ti, pv=pv)
             plot.simple_ts(t, f, tmodel=ti, model=m, fp=fp, **kwargs)
 
 
     def plot_samples(self, nmodel=None, fp=None, **kwargs):
 
-            assert self._mcmc._hasrun
+            # assert self._mcmc._hasrun
 
             t, f = self._data.T
 
