@@ -62,14 +62,14 @@ parser.add_argument('--nsteps2', type=int, default=int(1e3),
     help='number of production MCMC steps')
 parser.add_argument('--max_steps', type=int, default=int(1e4),
     help='maximum number of MCMC steps')
-parser.add_argument('--save', help='save MCMC samples', dest='save', action='store_true')
+parser.add_argument('--no_save', help='do not save MCMC samples', dest='save', action='store_false')
 parser.add_argument('--restart', dest='restart', help='restart MCMC',
     action='store_true')
 parser.add_argument('--resume', dest='resume', help='resume MCMC'
     ' from previous best position', action='store_true')
 
 
-parser.set_defaults(save=False, ldp=False, cen=False, pld=False, restart=False, resume=False)
+parser.set_defaults(save=True, ldp=False, cen=False, pld=False, restart=False, resume=False)
 
 args = parser.parse_args()
 
@@ -186,6 +186,6 @@ fit.set_ld_prior(ldp_k2, ldp_spz)
 fit.run_map(make_plots=False)
 fit.post_map()
 fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms,
-    gr_threshold=gr_threshold, make_plots=False, restart=restart, resume=resume)
+    gr_threshold=gr_threshold, make_plots=True, restart=restart, resume=resume)
 fit.post_mcmc()
 fit.summarize_mcmc()

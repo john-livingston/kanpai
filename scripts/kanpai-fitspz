@@ -16,7 +16,8 @@ import kanpai
 
 
 cwd = os.path.abspath('.')
-fp_yaml = glob.glob('./*.yaml')[0]
+yamls = glob.glob('./*.yaml')
+fp_yaml = yamls[0] if len(yamls) > 0 else None
 
 # General options
 parser = argparse.ArgumentParser(description="Fit Spitzer light curve")
@@ -53,17 +54,19 @@ parser.add_argument('--nsteps2', type=int, default=int(1e3),
     help='number of production MCMC steps')
 parser.add_argument('--max_steps', type=int, default=int(1e4),
     help='maximum number of MCMC steps')
-parser.add_argument('--save', help='save MCMC samples', dest='save', action='store_true')
+parser.add_argument('--no_save', help='do not save MCMC samples', dest='save', action='store_false')
 parser.add_argument('--restart', dest='restart', help='restart MCMC',
     action='store_true')
 parser.add_argument('--resume', dest='resume', help='resume MCMC'
     ' from previous best position', action='store_true')
 
 
-parser.set_defaults(save=False, cen=False, pld=False, restart=False, resume=False)
+parser.set_defaults(save=True, cen=False, pld=False, restart=False, resume=False)
 
 args = parser.parse_args()
 
+if fp_yaml is None:
+    sys.exit('Must supply the path to YAML setup file or place in working directory')
 
 if args.ld == 'q':
     logprob = kanpai.spz.prob.logprob_q
