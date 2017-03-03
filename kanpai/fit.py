@@ -139,7 +139,7 @@ class Fit(object):
                     return
 
         self._mcmc = engines.MCMC(self._logprob, ini, args, names, outdir=self._out_dir)
-        self._mcmc.run(make_plots=make_plots, **kwargs)
+        self._mcmc.run(make_plots=True, **kwargs)
         pv, lp, fc, gr, acor = self._mcmc.results
 
         self._pv_mcmc = pv

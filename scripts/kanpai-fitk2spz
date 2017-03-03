@@ -186,6 +186,6 @@ fit.set_ld_prior(ldp_k2, ldp_spz)
 fit.run_map(make_plots=False)
 fit.post_map()
 fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms,
-    gr_threshold=gr_threshold, make_plots=True, restart=restart, resume=resume)
+    gr_threshold=gr_threshold, make_plots=False, restart=restart, resume=resume)
 fit.post_mcmc()
 fit.summarize_mcmc()
