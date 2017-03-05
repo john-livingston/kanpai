@@ -106,7 +106,7 @@ class Fit(object):
         return f - self.model(pv=pv)
 
 
-    def run_mcmc(self, make_plots=True, nmodel=None, restart=False, resume=False, **kwargs):
+    def run_mcmc(self, make_plots=True, restart=False, resume=False, **kwargs):
 
         ini = self._pv_map
         args = self._args
@@ -139,7 +139,7 @@ class Fit(object):
                     return
 
         self._mcmc = engines.MCMC(self._logprob, ini, args, names, outdir=self._out_dir)
-        self._mcmc.run(make_plots=True, **kwargs)
+        self._mcmc.run(make_plots=make_plots, **kwargs)
         pv, lp, fc, gr, acor = self._mcmc.results
 
         self._pv_mcmc = pv
@@ -152,13 +152,14 @@ class Fit(object):
             self._pv_best = self._pv_mcmc
             self._lp_best = self._lp_mcmc
 
-        if make_plots:
 
-            fp = os.path.join(self._out_dir, 'mcmc-bestfit.png')
-            self.plot_best(nmodel=nmodel, fp=fp)
+    def plot_mcmc(self, nmodel=None):
 
-            fp = os.path.join(self._out_dir, 'mcmc-samples.png')
-            self.plot_samples(nmodel=nmodel, fp=fp)
+        fp = os.path.join(self._out_dir, 'mcmc-bestfit.png')
+        self.plot_best(nmodel=nmodel, fp=fp)
+
+        fp = os.path.join(self._out_dir, 'mcmc-samples.png')
+        self.plot_samples(nmodel=nmodel, fp=fp)
 
 
     def plot_best(self, pv=None, nmodel=None, fp=None, **kwargs):
