@@ -207,7 +207,7 @@ class Fit(object):
         percs = [15.87, 50.0, 84.13]
         pc = np.percentile(self._fc, percs, axis=0).T.tolist()
         summary['percentiles'] = dict(zip(self._pv_names, pc))
-        summary['rms'] = util.stats.rms(self.resid())
+        summary['rms'] = float(util.stats.rms(self.resid()))
         if save:
             fp = os.path.join(self._out_dir, 'mcmc-summary.yaml')
             yaml.dump(summary, open(fp, 'w'), default_flow_style=False)

@@ -46,7 +46,7 @@ def tshape_approx(a, k, b):
     """
     Seager & Mallen-Ornelas 2003, eq. 15
     """
-    i = kanpai.util.transit.inclination(a, b)
+    i = inclination(a, b)
     alpha = (1 - k)**2 - b**2
     beta = (1 + k)**2 - b**2
     return np.sqrt( alpha / beta )
@@ -56,7 +56,7 @@ def max_k(tshape):
     """
     Seager & Mallen-Ornelas 2003, eq. 21
     """
-    return ( (1 - tshape) / (1 + tshape) ) ** 2
+    return (1 - tshape) / (1 + tshape)
 
 
 def scaled_a(p, t14, k, i=np.pi/2, b=0):
