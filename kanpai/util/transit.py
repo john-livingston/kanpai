@@ -5,11 +5,10 @@ from astropy import units as u
 from . import stats
 
 
-def impact(a, i):
-    return np.abs(a * np.cos(i))
-
-
 def inclination(a, b, e=None, w=None):
+    """
+    Winn 2014 ("Transits and Occultations"), eq. 7
+    """
     if e is None and w is None:
         return np.arccos(b / a)
     elif e is not None and w is not None:
@@ -36,6 +35,13 @@ def t23_circ(p, a, k, b):
     return (p / np.pi) * np.arcsin( alpha / np.sin(i) / a )
 
 
+def tau_circ(p, a, k, b):
+    """
+    Winn 2014 ("Transits and Occultations"), eq. 18
+    """
+    return p / np.pi / a * k / np.sqrt(1 - b**2)
+
+
 def tshape_approx(a, k, b):
     """
     Seager & Mallen-Ornelas 2003, eq. 15
@@ -44,6 +50,14 @@ def tshape_approx(a, k, b):
     alpha = (1 - k)**2 - b**2
     beta = (1 + k)**2 - b**2
     return np.sqrt( alpha / beta )
+
+
+def max_k(tshape):
+    """
+    Seager & Mallen-Ornelas 2003, eq. 21
+    """
+    return ( (1 - tshape) / (1 + tshape) ) ** 2
+
 
 def scaled_a(p, t14, k, i=np.pi/2, b=0):
     numer = np.sqrt( (k + 1)**2 - b**2 )
