@@ -92,7 +92,7 @@ class Fold(object):
         fit = FitK2(tf, ff, t14=t14, p=p, out_dir=outdir, logprob=prob.logprob_u)
         fit.run_map(make_plots=False)
         pv = fit.best
-        t14 = util.transit.tdur_circ(p, pv['a'], pv['k'], pv['b'])
+        t14 = util.transit.t14_circ(p, pv['a'], pv['k'], pv['b'])
 
         # fold with refined t14 to ensure proper baseline removal
         tf, ff = util.lc.fold(t, f, p, t0, t14=t14,
@@ -107,7 +107,7 @@ class Fold(object):
         fit = FitK2(tf, ff, t14=t14, p=p, out_dir=outdir, logprob=prob.logprob_u)
         fit.run_map(make_plots=False)
         pv = fit.best
-        t14 = util.transit.tdur_circ(p, pv['a'], pv['k'], pv['b'])
+        t14 = util.transit.t14_circ(p, pv['a'], pv['k'], pv['b'])
         t0 += pv['tc']
         print "Refined T0 [BJD]: {}".format(t0 + K2_TIME_OFFSET)
 
@@ -141,7 +141,7 @@ class Fold(object):
         a = pv['a']
         b = pv['b']
         i = util.transit.inclination(a, b)
-        t14 = util.transit.tdur_circ(p, a, k, b)
+        t14 = util.transit.t14_circ(p, a, k, b)
 
         print "Transit duration (t14) [days]: {0:.4f}".format(t14)
         print "Scaled semi-major axis (a): {0:.4f}".format(a)

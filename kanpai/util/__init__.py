@@ -15,7 +15,7 @@ def parse_setup(fp):
         tr['b'] = 0
     if 't14' not in tr.keys():
         try:
-            tr['t14'] = transit.tdur_circ(tr['p'],
+            tr['t14'] = transit.t14_circ(tr['p'],
                 tr['a'], tr['k'], tr['b'])
         except KeyError as e:
             msg = "{} is missing! unable to compute transit duration"

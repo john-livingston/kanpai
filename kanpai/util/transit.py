@@ -9,15 +9,41 @@ def impact(a, i):
     return np.abs(a * np.cos(i))
 
 
-def inclination(a, b):
-    return np.arccos(b / a)
+def inclination(a, b, e=None, w=None):
+    if e is None and w is None:
+        return np.arccos(b / a)
+    elif e is not None and w is not None:
+        return np.arccos(b / a * (1 + e * np.sin(w)) / (1 - e**2))
+    else:
+        return np.nan
 
 
-def tdur_circ(p, a, k, b):
+def t14_circ(p, a, k, b):
+    """
+    Winn 2014 ("Transits and Occultations"), eq. 14
+    """
     i = inclination(a, b)
-    alpha = np.sqrt( (k + 1)**2 - b**2 )
+    alpha = np.sqrt( (1 + k)**2 - b**2 )
     return (p / np.pi) * np.arcsin( alpha / np.sin(i) / a )
 
+
+def t23_circ(p, a, k, b):
+    """
+    Winn 2014 ("Transits and Occultations"), eq. 15
+    """
+    i = inclination(a, b)
+    alpha = np.sqrt( (1 - k)**2 - b**2 )
+    return (p / np.pi) * np.arcsin( alpha / np.sin(i) / a )
+
+
+def tshape_approx(a, k, b):
+    """
+    Seager & Mallen-Ornelas 2003, eq. 15
+    """
+    i = kanpai.util.transit.inclination(a, b)
+    alpha = (1 - k)**2 - b**2
+    beta = (1 + k)**2 - b**2
+    return np.sqrt( alpha / beta )
 
 def scaled_a(p, t14, k, i=np.pi/2, b=0):
     numer = np.sqrt( (k + 1)**2 - b**2 )
