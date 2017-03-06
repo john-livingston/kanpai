@@ -73,6 +73,25 @@ def make_samples_h5(npz_fp, p):
     fp = npz_fp.replace('.npz', '-samples.h5')
     df[cols].to_hdf(fp, key='samples')
 
+    qt = df[cols].quantile([0.1587, 0.5, 0.8413]).transpose()
+    fp = npz_fp.replace('.npz', '-quantiles.txt')
+    with open(fp, 'w') as w:
+        w.write(qt.to_string() + '\n')
 
-def make_latex(h5_fp):
-    pass
+    # import pdb; pdb.set_trace()
+    # qtt = qt.apply(lambda x: (x[1], x[2]-x[1], x[1]-x[0]), axis=1)
+    fmt_str = '&${0:.4f}^{{+{1:.4f}}}_{{-{2:.4f}}}$'
+    formatter = lambda x: fmt_str.format(x.values[0], x.values[2]-x.values[1], x.values[1]-x.values[0])
+    tex = qt.apply(formatter, axis=1)
+    fp = npz_fp.replace('.npz', '-quantiles-latex.txt')
+    with open(fp, 'w') as w:
+        w.write(tex.to_string() + '\n')
+
+
+def make_latex(epics, quantfilepaths, fp):
+    dfs = [pd.read_fwf(qfp, names=[epic]) for epic,qfp in zip(epics,quantfilepaths)]
+    df = pd.concat(dfs, axis=1)
+    df.index = ['${}$'.format(i) for i in df.index]
+    with open(fp, 'w') as w:
+        for line in df.to_string().split('\n'):
+            w.write(line + ' \\\\\n')
