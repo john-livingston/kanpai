@@ -31,7 +31,8 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None, ret_s
     t, f = t[~idx], f[~idx]
     tns = get_tns(t, p, t0)
 
-    if skip:
+    if skip is not None:
+        orb = [i for i in range(len(tns)) if i not in skip]
         assert max(skip) < len(tns)
         for i in reversed(sorted(skip)):
             tns.pop(i)
@@ -78,7 +79,7 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None, ret_s
         ff = np.append(ff, fi / np.nanmedian(fi))
 
     if ret_seg:
-        return ts, fs
+        return orb, ts, fs
 
     idx = np.argsort(tf)
     tf = tf[idx]

@@ -150,7 +150,7 @@ class MCMC(Engine):
 
         if make_plots:
             fp = os.path.join(self._outdir, 'mcmc-chain-initial.png')
-            plot.chain(sampler.chain, names, fp)
+            plot.chain(sampler.chain, names, burn=None, fp=fp)
 
         idx = np.argmax(sampler.lnprobability)
         new_best = sampler.flatchain[idx]
@@ -185,17 +185,19 @@ class MCMC(Engine):
         assert sampler.lnprobability.flat[idx] == self._lp
         self._pv = sampler.flatchain[idx]
 
-        burn = nsteps - nsteps2 if nsteps > nsteps2 else 0
-        thin = 1
+        # burn = nsteps - nsteps2 if nsteps > nsteps2 else 0
+        burn = nsteps2 if nsteps > nsteps2 else 0
+        # thin = 1
+        thin = 10
         self._fc = sampler.chain[:,burn::thin,:].reshape(-1, ndim)
         self._lps = sampler.lnprobability[:,burn::thin].reshape(-1)
 
         if make_plots:
             fp = os.path.join(self._outdir, 'mcmc-gr.png')
-            plot.gr_iter(gr_vals, fp)
+            plot.gr_iter(gr_vals, fp=fp)
 
             fp = os.path.join(self._outdir, 'mcmc-chain-final.png')
-            plot.chain(sampler.chain, names, fp)
+            plot.chain(sampler.chain, names, burn=burn, fp=fp)
 
             fp = os.path.join(self._outdir, 'mcmc-corner.png')
             plot.corner(self._fc, names, fp=fp, truths=self._pv)

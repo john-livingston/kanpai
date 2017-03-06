@@ -9,13 +9,14 @@ def inclination(a, b, e=None, w=None):
     """
     Winn 2014 ("Transits and Occultations"), eq. 7
     """
-    if e is None and w is None:
-        return np.arccos(b / a)
-    elif e is not None and w is not None:
-        return np.arccos(b / a * (1 + e * np.sin(w)) / (1 - e**2))
-    else:
-        return np.nan
-
+    # if e is None and w is None:
+    #     return np.arccos(b / a)
+    # elif e is not None and w is not None:
+    #     return np.arccos(b / a * (1 + e * np.sin(w)) / (1 - e**2))
+    # else:
+    #     return np.nan
+    return np.arccos(b / a)
+    
 
 def t14_circ(p, a, k, b):
     """

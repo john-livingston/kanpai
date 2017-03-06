@@ -31,11 +31,13 @@ def gr_iter(gr_vals, fp=None):
             pl.close()
 
 
-def chain(chain, labels, fp=None, dpi=96):
+def chain(chain, labels, burn=None, fp=None, dpi=96):
     with sb.axes_style('white'):
         nwalkers, nsteps, ndim = chain.shape
         fig, axs = pl.subplots(ndim, 1, figsize=(15,ndim/1.5), sharex=True)
         [axs.flat[i].plot(c, drawstyle='steps', color='k', alpha=4./nwalkers) for i,c in enumerate(chain.T)]
+        if burn is not None:
+            [axs.flat[i].vlines(burn, *axs.flat[i].get_ylim(), color='b') for i in range(ndim)]
         [pl.setp(axs.flat[i], ylabel=labels[i]) for i,c in enumerate(chain.T)]
         if fp:
             fig.savefig(fp, dpi=dpi)

@@ -29,6 +29,9 @@ parser.add_argument('--skip', help='individual K2 epochs to skip'
 parser.add_argument('--mcmc', help='use MCMC', dest='mcmc', action='store_true')
 parser.add_argument('--gr', type=float, default=1.1,
     help='Gelmin-Rubin threshold')
+parser.add_argument('-c', '--clip', help='sigma clip (upper, lower)',
+    type=str, default='3,4')
+
 
 args = parser.parse_args()
 
@@ -43,6 +46,8 @@ if args.skip is not None:
 else:
     skip = args.skip
 
+su, sl = [float(i) for i in args.clip.split(',')]
+
 fp = os.path.join(input_dir, 'mcmc-summary.yaml')
 res = yaml.load(open(fp))
 k, a, b, q1, q2 = [res['pv_best'].get(pv) for pv in 'k a b q1 q2'.split()]
@@ -50,19 +55,28 @@ i = kanpai.util.transit.inclination(a, b)
 u1, u2 = kanpai.util.ld.q_to_u(q1, q2)
 
 t, f = kanpai.k2.lc.unfolded(epic, p, t0, t14)
+# initial sigma clip
+idx = kanpai.util.stats.outliers(f, su=su, sl=sl)
+t, f = t[~idx], f[~idx]
+
+# get transit segments
 fp = os.path.join(input_dir, 'ephem-lc.png')
 kanpai.plot.simple_ts(t, f, fp=fp, color='b', alpha=0.3, mew=1, mec='k', ms=3)
-ts, fs = kanpai.util.lc.fold(t, f, p, t0, t14, bl=True, skip=skip, ret_seg=True)
+orb, ts, fs = kanpai.util.lc.fold(t, f, p, t0, t14, bl=True, skip=skip, ret_seg=True)
 
-orb = range(len(ts))
-# FIXME because of --skip option, cannot assume consecutive orbits
+# individual sigma clip
+for n, (t, f) in enumerate(zip(ts, fs)):
+    idx = kanpai.util.stats.outliers(f, su=su, sl=sl)
+    ts[n], fs[n] = np.array(t)[~idx], np.array(f)[~idx]
 
 out = {}
 if not args.mcmc:
     tc_best = []
-    for t, f in zip(ts, fs):
+    for t, f, o in zip(ts, fs, orb):
         fit = kanpai.k2.fit.FitK2Tc(t, f, k, a, i, u1, u2, p)
         fit.run_map(make_plots=False)
+        fp = os.path.join(input_dir, 'ephem-map-tc{}.png'.format(o))
+        fit.plot_best(nmodel=500, fp=fp)
         tc_best.append(fit.best['tc'])
     out['tc_best'] = tc_best
 else:

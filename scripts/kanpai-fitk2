@@ -105,7 +105,7 @@ elif args.ldp_k2 is None:
         print "No limb-darkening priors applied for K2"
 
 # Instantiate Fit object
-fit = kanpai.k2.FitK2(t, f, out_dir=out_dir, logprob=logprob)
+fit = kanpai.k2.FitK2(t, f, p=p, out_dir=out_dir, logprob=logprob)
 
 # Apply limb-darkening priors
 fit.set_ld_prior(ldp_k2)

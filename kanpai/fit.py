@@ -53,7 +53,7 @@ class Fit(object):
 
     @property
     def best(self):
-        return dict(zip(self._pv_names, self._pv_best))
+        return dict(zip(self._pv_names, [float(i) for i in self._pv_best]))
 
 
     def set_ld_prior(self, ldp):

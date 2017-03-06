@@ -60,19 +60,18 @@ def make_samples_h5(npz_fp, p):
     npz = np.load(npz_fp)
     df = pd.DataFrame(dict(zip(npz['pv_names'], npz['flat_chain'].T)))
 
-    df['rhostar'] = util.transit.rhostar(p, df['a'])
-    df['t14_k'] = util.transit.t14_circ(p, df['a'], df['k_k'], df['b'])
-    df['t14_s'] = util.transit.t14_circ(p, df['a'], df['k_s'], df['b'])
-    df['k'] = df['k_k k_s'.split()].mean(axis=1)
     df['i'] = util.transit.inclination(df['a'], df['b']) * 180 / np.pi
+    df['k'] = df['k_k k_s'.split()].mean(axis=1)
+    df['rhostar'] = util.transit.rhostar(p, df['a'])
     df['t14'] = util.transit.t14_circ(p, df['a'], df['k'], df['b'])
     df['t23'] = util.transit.t23_circ(p, df['a'], df['k'], df['b'])
-    df['tshape'] = df['t23'] / df['t14']
     df['tau'] = util.transit.tau_circ(p, df['a'], df['k'], df['b'])
+    df['tshape'] = df['t23'] / df['t14']
     df['max_k'] = util.transit.max_k(df['tshape'])
 
+    cols = 'a b i k k_k k_s s_k s_s tc_s rhostar t14 t23 tau tshape max_k'.split()
     fp = npz_fp.replace('.npz', '-samples.h5')
-    df.to_hdf(fp, key='samples')
+    df[cols].to_hdf(fp, key='samples')
 
 
 def make_latex(h5_fp):
