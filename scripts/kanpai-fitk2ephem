@@ -30,7 +30,7 @@ parser.add_argument('--mcmc', help='use MCMC', dest='mcmc', action='store_true')
 parser.add_argument('--gr', type=float, default=1.1,
     help='Gelmin-Rubin threshold')
 parser.add_argument('-c', '--clip', help='sigma clip (upper, lower)',
-    type=str, default='3,4')
+    type=str, default='2,20')
 
 
 args = parser.parse_args()
