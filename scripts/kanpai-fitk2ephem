@@ -23,6 +23,8 @@ parser.add_argument('epic', help='EPIC ID', type=str, default=None)
 parser.add_argument('period', help='Period', type=float, default=None)
 parser.add_argument('t0', help='T0', type=float, default=None)
 parser.add_argument('t14', help='T14', type=float, default=None)
+parser.add_argument('-w', '--width', help='Extraction width [days]',
+    type=float, default=0.8)
 parser.add_argument('--input', help='Input directory (created by kanpai-fitk2)', type=str, default=cwd)
 parser.add_argument('--skip', help='individual K2 epochs to skip'
     ', comma-separated', type=str, default=None)
@@ -39,6 +41,7 @@ epic = args.epic
 p = args.period
 t0 = args.t0
 t14 = args.t14
+width = args.width
 input_dir = args.input
 
 if args.skip is not None:
@@ -62,7 +65,7 @@ t, f = t[~idx], f[~idx]
 # get transit segments
 fp = os.path.join(input_dir, 'ephem-lc.png')
 kanpai.plot.simple_ts(t, f, fp=fp, color='b', alpha=0.3, mew=1, mec='k', ms=3)
-orb, ts, fs = kanpai.util.lc.fold(t, f, p, t0, t14, bl=True, skip=skip, ret_seg=True)
+orb, ts, fs = kanpai.util.lc.fold(t, f, p, t0, t14, width=width, bl=True, skip=skip, ret_seg=True)
 
 # individual sigma clip
 for n, (t, f) in enumerate(zip(ts, fs)):
