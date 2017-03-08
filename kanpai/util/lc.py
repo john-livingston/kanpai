@@ -25,7 +25,7 @@ def get_tns(t, p, t0):
     return tns
 
 
-def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None, ret_seg=False):
+def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None, ret_seg=False, max_slope=1e-1):
 
     idx = np.isnan(t) | np.isnan(f)
     t, f = t[~idx], f[~idx]
@@ -62,9 +62,10 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None, ret_s
 
                 res = sm.RLM(fi[idx], sm.add_constant(ti[idx])).fit()
 
-                if np.abs(res.params[1]) > 1e-2:
+                if np.abs(res.params[1]) > max_slope:
                     print "Bad data possibly causing poor fit"
                     print "Transit {} baseline params: {}".format(i, res.params)
+                    orb.pop(orb.index(i))
                     continue
 
                 model = res.params[0] + res.params[1] * ti

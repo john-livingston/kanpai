@@ -36,6 +36,7 @@ parser.add_argument('-c', '--clip', help='sigma clip (upper, lower)',
 
 
 args = parser.parse_args()
+yaml.dump(vars(args), open('input.yaml', 'w'), default_flow_style=False)
 
 epic = args.epic
 p = args.period
@@ -101,6 +102,7 @@ else:
 
 for o,tc in zip(orb, tc_best):
     print "Tc,{} = {}".format(o, tc)
+
 t0, p = kanpai.util.stats.simple_ols(orb, tc_best)
 print "Max. Prob. P = {}, T0 = {}".format(p, t0)
 
