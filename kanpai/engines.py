@@ -111,7 +111,7 @@ class MCMC(Engine):
         self._logprob_ini = logprob(ini, *args)
         self._hasrun = False
 
-    def run(self, nproc=4, nsteps1=1e3, nsteps2=1e3, max_steps=1e4, gr_threshold=1.1, pos_idx=None, save=True, make_plots=True):
+    def run(self, nproc=4, nsteps1=1e3, nsteps2=1e3, max_steps=1e4, burn=None, gr_threshold=1.1, pos_idx=None, save=True, make_plots=True):
 
         """
         :param nproc        : number of processes to use for sampling
@@ -186,7 +186,8 @@ class MCMC(Engine):
         self._pv = sampler.flatchain[idx]
 
         # burn = nsteps - nsteps2 if nsteps > nsteps2 else 0
-        burn = nsteps2 if nsteps > nsteps2 else 0
+        if burn is None:
+            burn = nsteps2 if nsteps > nsteps2 else 0
         # thin = 1
         thin = 10
         self._fc = sampler.chain[:,burn::thin,:].reshape(-1, ndim)

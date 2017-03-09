@@ -31,7 +31,7 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None, ret_s
     t, f = t[~idx], f[~idx]
     tns = get_tns(t, p, t0)
 
-    if ret_seg:
+    if ret_seg or skip is None:
         orb = range(len(tns))
 
     if skip is not None:

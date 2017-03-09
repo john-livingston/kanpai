@@ -54,6 +54,8 @@ parser.add_argument('--nsteps2', type=int, default=int(1e3),
     help='number of production MCMC steps')
 parser.add_argument('--max_steps', type=int, default=int(1e4),
     help='maximum number of MCMC steps')
+parser.add_argument('--burn', type=int, default=None,
+    help='number of MCMC steps to discard for final burn-in')
 parser.add_argument('--no_save', help='do not save MCMC samples', dest='save', action='store_false')
 parser.add_argument('--restart', dest='restart', help='restart MCMC',
     action='store_true')
@@ -91,6 +93,7 @@ gr_threshold = args.gr
 ns1 = args.nsteps1
 ns2 = args.nsteps2
 ms = args.max_steps
+burn = args.burn
 restart = args.restart
 resume = args.resume
 

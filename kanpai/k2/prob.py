@@ -14,7 +14,7 @@ def logprob_u(theta, t, f, p, up=None, ret_pvnames=False, ret_mod=False):
 
     k,tc,a,b,u1,u2,s,k0 = theta
 
-    if u1 < 0 or u1 > 2 or u2 < -1 or u2 > 1 or b < 0 or b > 1+k:
+    if u1 < 0 or u1 > 2 or u2 < -1 or u2 > 1 or b < 0 or b > 1 or k < 0 or k > 1:
         return -np.inf
 
     lp = 0
@@ -38,7 +38,7 @@ def logprob_q(theta, t, f, p, up=None, ret_pvnames=False, ret_mod=False):
 
     k,tc,a,b,q1,q2,s,k0 = theta
 
-    if q1 < 0 or q1 > 1 or q2 < 0 or q2 > 1 or b < 0 or b > 1+k:
+    if q1 < 0 or q1 > 1 or q2 < 0 or q2 > 1 or b < 0 or b > 1 or k < 0 or k > 1:
         return -np.inf
 
     u1, u2 = util.ld.q_to_u(q1, q2)

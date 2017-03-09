@@ -62,6 +62,8 @@ parser.add_argument('--nsteps2', type=int, default=int(1e3),
     help='number of production MCMC steps')
 parser.add_argument('--max_steps', type=int, default=int(1e4),
     help='maximum number of MCMC steps')
+parser.add_argument('--burn', type=int, default=None,
+    help='number of MCMC steps to discard for final burn-in')
 parser.add_argument('--no_save', help='do not save MCMC samples', dest='save', action='store_false')
 parser.add_argument('--restart', dest='restart', help='restart MCMC',
     action='store_true')
@@ -95,6 +97,7 @@ gr_threshold = args.gr
 ns1 = args.nsteps1
 ns2 = args.nsteps2
 ms = args.max_steps
+burn = args.burn
 restart = args.restart
 resume = args.resume
 
@@ -185,7 +188,7 @@ fit.set_ld_prior(ldp_k2, ldp_spz)
 # Run MAP, MCMC, and output plots, samples, etc.
 fit.run_map(make_plots=False)
 fit.post_map()
-fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms,
+fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms, burn=burn,
     gr_threshold=gr_threshold, make_plots=True, restart=restart, resume=resume)
 fit.post_mcmc()
 fit.summarize_mcmc()

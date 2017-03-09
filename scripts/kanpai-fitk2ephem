@@ -132,6 +132,12 @@ else:
     out['tc_best'] = tc_best
     out['tc_perc'] = tc_perc
 
+    # make tc sample sets same size:
+    ns = [len(tcs) for tcs in tc_samples]
+    ns_min = min(ns)
+    for n,tcs in enumerate(tc_samples):
+        tc_samples[n] = tcs[-min_ns:]
+
 for o,tc in zip(orb, tc_best):
     print "Tc,{} = {}".format(o, tc)
 
