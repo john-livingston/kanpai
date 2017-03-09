@@ -43,6 +43,7 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None, ret_s
     tf, ff = np.empty(0), np.empty(0)
     ts, fs = [], []
 
+    bad = []
     for i,tn in enumerate(tns):
 
         idx = (t > tn - width/2.) & (t < tn + width/2.)
@@ -50,12 +51,11 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None, ret_s
         fi = f[idx]
         fi /= np.nanmedian(fi)
 
-        ts.append(t[idx].tolist())
-
         if bl:
 
             idx = (ti < -t14/2.) | (ti > t14/2.)
             if idx.sum() == 0:
+                orb.pop(orb.index(i))
                 continue
 
             try:
@@ -76,7 +76,11 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None, ret_s
                 print "Error computing baseline for transit {}".format(i)
                 print "Num. datapoints: {}".format(idx.sum())
                 print ti
+                orb.pop(orb.index(i))
+                continue
 
+        idx = (t > tn - width/2.) & (t < tn + width/2.)
+        ts.append(t[idx].tolist())
         fs.append(fi.tolist())
 
         tf = np.append(tf, ti)

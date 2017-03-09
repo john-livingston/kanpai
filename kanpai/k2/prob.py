@@ -100,6 +100,11 @@ def logprob_u_tc(theta, t, f, k, a, i, u1, u2, p, ret_pvnames=False, ret_mod=Fal
     elif ret_mod:
         return like.loglike_u_tc(theta, t, f, k, a, i, u1, u2, p, ret_mod=True)
 
+    tc,s,k0 = theta
+
+    if tc < t[0] or tc > t[-1]:
+        return -np.inf
+
     ll = like.loglike_u_tc(theta, t, f, k, a, i, u1, u2, p)
 
     if np.isnan(ll).any():
