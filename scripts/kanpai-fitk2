@@ -26,6 +26,7 @@ parser.add_argument('-o', '--out_dir', help='output directory', type=str, defaul
 parser.add_argument('-p', '--period', help='period [days]', type=float)
 parser.add_argument('--bin_k2', help='bin size for K2 data [seconds]',
     type=int, default=None)
+parser.add_argument('--setup', help='Path to YAML setup file', type=str, default=None)
 
 # Limb-darkening options
 parser.add_argument('--ld', help='sample in "q" or "u" limb-darkening space', default='q')
@@ -69,8 +70,13 @@ elif args.ld == 'u':
 else:
     sys.exit('Limb-darkening space must be "q" or "u"')
 
+if args.setup is not None:
+    setup = yaml.load(open(args.setup))
+    p = setup['transit']['p']
+else:
+    p = args.period
+
 bin_k2 = args.bin_k2
-p = args.period
 out_dir = args.out_dir
 if not os.path.isdir(out_dir):
     os.mkdir(out_dir)
@@ -103,6 +109,11 @@ def print_ldp(band, ldp):
 ldp = None
 if args.ldp is not None:
     ldp = [float(i) for i in args.ldp.split(',')]
+    print_ldp("K2", ldp)
+elif args.setup is not None:
+    teff, uteff = setup['stellar']['teff']
+    logg, ulogg = setup['stellar']['logg']
+    ldp = kanpai.k2.ld.get_ld_claret(teff, uteff, logg, ulogg)
     print_ldp("K2", ldp)
 elif args.ldp_exofop is not None:
     try:

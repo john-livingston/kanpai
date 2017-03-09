@@ -2,7 +2,6 @@
 
 import os
 import sys
-import glob
 import argparse
 import multiprocessing
 
@@ -19,13 +18,16 @@ cwd = os.path.abspath('.')
 
 # General options
 parser = argparse.ArgumentParser(description="Fit individual mid-transit times")
-parser.add_argument('epic', help='EPIC ID', type=str, default=None)
-parser.add_argument('period', help='Period', type=float, default=None)
-parser.add_argument('t0', help='T0', type=float, default=None)
-parser.add_argument('t14', help='T14', type=float, default=None)
+parser.add_argument('--input', help='Input directory (created by kanpai-fitk2)', type=str, default=cwd)
+parser.add_argument('--setup', help='Path to YAML setup file', type=str, default=None)
+parser.add_argument('--epic', help='EPIC ID', type=str, default=None)
+parser.add_argument('--period', help='Period', type=float, default=None)
+parser.add_argument('--t0', help='T0', type=float, default=None)
+parser.add_argument('--t14', help='T14', type=float, default=None)
 parser.add_argument('-w', '--width', help='Extraction width [days]',
     type=float, default=0.8)
-parser.add_argument('--input', help='Input directory (created by kanpai-fitk2)', type=str, default=cwd)
+parser.add_argument('-c', '--clip', help='sigma clip (upper, lower)',
+    type=str, default='4,10')
 parser.add_argument('--phot', help='Path to photometric time series '
     'file to use (instead of EVEREST)', type=str, default=None)
 parser.add_argument('--skip', help='individual K2 epochs to skip'
@@ -33,16 +35,23 @@ parser.add_argument('--skip', help='individual K2 epochs to skip'
 parser.add_argument('--mcmc', help='use MCMC', dest='mcmc', action='store_true')
 parser.add_argument('--gr', type=float, default=1.1,
     help='Gelmin-Rubin threshold')
-parser.add_argument('-c', '--clip', help='sigma clip (upper, lower)',
-    type=str, default='4,10')
 
 
 args = parser.parse_args()
 
-epic = args.epic
-p = args.period
-t0 = args.t0
-t14 = args.t14
+if args.setup is None:
+    assert args.epic and args.period and args.t0 and args.t14
+    epic = args.epic
+    p = args.period
+    t0 = args.t0
+    t14 = args.t14
+else:
+    setup = yaml.load(open(args.setup))
+    epic = setup['config']['starid']
+    p = setup['transit']['p']
+    t0 = setup['transit']['t0']
+    t14 = setup['transit']['t14']
+
 width = args.width
 input_dir = args.input
 
@@ -136,7 +145,7 @@ else:
     ns = [len(tcs) for tcs in tc_samples]
     ns_min = min(ns)
     for n,tcs in enumerate(tc_samples):
-        tc_samples[n] = tcs[-min_ns:]
+        tc_samples[n] = tcs[-ns_min:]
 
 for o,tc in zip(orb, tc_best):
     print "Tc,{} = {}".format(o, tc)
