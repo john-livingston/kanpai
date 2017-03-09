@@ -27,11 +27,13 @@ parser.add_argument('--bin_k2', help='bin size for K2 data [seconds]',
     type=int, default=None)
 
 # Limb-darkening options
-parser.add_argument('--ld', help='sample in "q" or "u" limb darkening space', default='q')
+parser.add_argument('--ld', help='sample in "q" or "u" limb-darkening space', default='q')
 parser.add_argument('--teff', help='host star teff,uteff', type=str, default=None)
 parser.add_argument('--logg', help='host star logg,ulogg', type=str, default=None)
-parser.add_argument('--ldp_k2', help='apply K2 limb darkening prior (u1_mu, u1_sig, u2_mu, u2_sig)',
+parser.add_argument('--ldp', help='apply K2 limb-darkening prior (u1_mu, u1_sig, u2_mu, u2_sig)',
     default=None, type=str)
+parser.add_argument('--ldp_exofop', help='try Teff and logg from ExoFOP for LD priors',
+    type=str, default=None)
 
 # MCMC options
 parser.add_argument('-n', '--nproc', help='number of processes to use', type=int, default=None)
@@ -81,6 +83,9 @@ ms = args.max_steps
 restart = args.restart
 resume = args.resume
 
+fp = os.path.join(out_dir, 'input.yaml')
+yaml.dump(vars(args), open(fp, 'w'), default_flow_style=False)
+
 # Load data
 df = kanpai.k2.io.load_k2(args.input, binning=bin_k2)
 t, f = df['t f'.split()].values.T
@@ -91,16 +96,26 @@ def print_ldp(band, ldp):
     print msg.format(band, *ldp)
 
 # handle K2 limb-darkening priors
-ldp_k2 = None
-if args.ldp_k2 is not None:
-    ldp_k2 = [float(i) for i in args.ldp_k2.split(',')]
-    print_ldp("K2", ldp_k2)
-elif args.ldp_k2 is None:
+ldp = None
+if args.ldp is not None:
+    ldp = [float(i) for i in args.ldp.split(',')]
+    print_ldp("K2", ldp)
+elif args.ldp_exofop is not None:
+    try:
+        import exofop
+        res = exofop.get_stellar(args.ldp_exofop)
+        teff, uteff = res['Teff']
+        logg, ulogg = res['logg']
+        ldp = kanpai.k2.ld.get_ld_claret(teff, uteff, logg, ulogg)
+        print_ldp("K2", ldp)
+    except:
+        print "No limb-darkening priors applied for K2"
+else:
     try:
         teff, uteff = [float(i) for i in args.teff.split(',')]
         logg, ulogg = [float(i) for i in args.logg.split(',')]
-        ldp_k2 = kanpai.k2.ld.get_ld_claret(teff, uteff, logg, ulogg)
-        print_ldp("K2", ldp_k2)
+        ldp = kanpai.k2.ld.get_ld_claret(teff, uteff, logg, ulogg)
+        print_ldp("K2", ldp)
     except:
         print "No limb-darkening priors applied for K2"
 
@@ -108,7 +123,7 @@ elif args.ldp_k2 is None:
 fit = kanpai.k2.FitK2(t, f, p=p, out_dir=out_dir, logprob=logprob)
 
 # Apply limb-darkening priors
-fit.set_ld_prior(ldp_k2)
+fit.set_ld_prior(ldp)
 
 # Run MAP, MCMC, and output plots, samples, etc.
 fit.run_map(make_plots=True, nmodel=1000)

@@ -32,11 +32,10 @@ parser.add_argument('--mcmc', help='use MCMC', dest='mcmc', action='store_true')
 parser.add_argument('--gr', type=float, default=1.1,
     help='Gelmin-Rubin threshold')
 parser.add_argument('-c', '--clip', help='sigma clip (upper, lower)',
-    type=str, default='2,20')
+    type=str, default='4,10')
 
 
 args = parser.parse_args()
-yaml.dump(vars(args), open('input.yaml', 'w'), default_flow_style=False)
 
 epic = args.epic
 p = args.period
@@ -44,6 +43,9 @@ t0 = args.t0
 t14 = args.t14
 width = args.width
 input_dir = args.input
+
+fp = os.path.join(input_dir, 'ephem-input.yaml')
+yaml.dump(vars(args), open(fp, 'w'), default_flow_style=False)
 
 if args.skip is not None:
     skip = [int(i) for i in args.skip.split(',')]
@@ -112,6 +114,8 @@ if not args.mcmc:
     out['p'] = float(p)
     out['t0'] = float(t0)
 else:
+    out['p_best'] = float(p)
+    out['t0_best'] = float(t0)
     ephem_samples = kanpai.util.transit.sample_ephem(orb, tc_samples)
     fp = os.path.join(input_dir, 'ephem-corner.png')
     kanpai.plot.corner(ephem_samples, labels=r'$T_0$ $P$'.split(), truths=[t0,p], fp=fp)
@@ -121,8 +125,8 @@ else:
     tc_err = np.array(tc_err).T
     fp = os.path.join(input_dir, 'ephem-oc.png')
     kanpai.plot.oc(orb, tc_best, p, t0, tc_err=tc_err, p_err=p_err, fp=fp)
-    out['p'] = float(p)
-    out['t0'] = float(t0)
+    out['p_med'] = float(p)
+    out['t0_med'] = float(t0)
     out['p_err'] = [float(i) for i in p_err]
     out['t0_err'] = [float(i) for i in t0_err]
 
