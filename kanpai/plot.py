@@ -75,7 +75,7 @@ def corner(fc, labels, fp=None, truths=None, quantiles=[0.16,0.5,0.84],
             pl.close()
 
 def simple_ts(t, f, tmodel=None, model=None, fp=None, title="",
-    color='b', alpha=0.5, mew=1, mec='k', vticks=None, **kwargs):
+    color='b', alpha=0.5, mew=1, mec='k', vticks=None, timeoffset=False, **kwargs):
 
     with sb.axes_style('ticks', rc):
         fig, ax = pl.subplots(1, 1, figsize=(10,3))
@@ -87,8 +87,8 @@ def simple_ts(t, f, tmodel=None, model=None, fp=None, title="",
             ax.plot(t, model, 'r-', **kwargs)
         if vticks is not None:
             yl = list(ax.get_ylim())
-            yl[0] = yl[0] + 0.1 * np.diff(yl)
-            yl[1] = yl[0] + 0.2 * np.diff(yl)
+            yl[0] = yl[0] + 0.08 * np.diff(yl)
+            yl[1] = yl[0] + 0.18 * np.diff(yl)
             ax.vlines(vticks, yl[0], yl[1], color='r')
         pl.setp(ax, xlabel='Time [BJD]',
             ylabel='Normalized Flux',
@@ -96,7 +96,7 @@ def simple_ts(t, f, tmodel=None, model=None, fp=None, title="",
             xlim=(t.min(), t.max()))
         ax.minorticks_on()
         ax.yaxis.get_major_formatter().set_useOffset(False)
-
+        ax.xaxis.get_major_formatter().set_useOffset(timeoffset)
         fig.tight_layout()
         if fp:
             fig.savefig(fp)
