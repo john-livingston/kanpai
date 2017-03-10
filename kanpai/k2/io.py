@@ -4,7 +4,7 @@ import pandas as pd
 from .. import util
 
 
-def load_k2(k2_folded_fp, binning=None):
+def load_k2(k2_folded_fp, binning=None, trim=None):
 
     try:
 
@@ -33,5 +33,14 @@ def load_k2(k2_folded_fp, binning=None):
         sb /= np.sqrt(binsize)
 
         df = pd.DataFrame(dict(t=tb, f=fb, s=sb))
+
+    if trim is not None:
+
+        t_range = df.t.max() - df.t.min()
+        if trim < t_range:
+            # assume the input light curve is centered (T=0 at mid-transit)
+            idx = (df.t > -trim/2.) & (df.t < trim/2.)
+            print "Trimming {} data points outside of desired window".format(idx.sum())
+            return df[idx]
 
     return df

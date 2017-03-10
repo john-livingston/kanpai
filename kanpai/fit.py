@@ -26,7 +26,9 @@ class Fit(object):
 
         self._map = None
         self._mcmc = None
-
+        self._pv_best = None
+        self._lp_best = None
+        
     @property
     def _ini(self):
 
@@ -108,7 +110,7 @@ class Fit(object):
 
     def run_mcmc(self, make_plots=True, restart=False, resume=False, **kwargs):
 
-        ini = self._pv_map
+        ini = self._pv_best if self._pv_best is not None else self._ini
         args = self._args
         names = self._pv_names
 

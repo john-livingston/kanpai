@@ -27,8 +27,10 @@ parser.add_argument('-p', '--period', help='period [days]', type=float)
 parser.add_argument('--bin_k2', help='bin size for K2 data [seconds]',
     type=int, default=None)
 parser.add_argument('--setup', help='Path to YAML setup file', type=str, default=None)
-parser.add_argument('--short_cadence', help='K2 short cadence data',
+parser.add_argument('--sc', help='K2 short cadence data',
     dest='short_cadence', action='store_true')
+parser.add_argument('-w', '--width', help='Trim input light curve to width [days]',
+    type=float, default=None)
 
 # Limb-darkening options
 parser.add_argument('--ld', help='sample in "q" or "u" limb-darkening space', default='q')
@@ -99,7 +101,7 @@ fp = os.path.join(out_dir, 'input.yaml')
 yaml.dump(vars(args), open(fp, 'w'), default_flow_style=False)
 
 # Load data
-df = kanpai.k2.io.load_k2(args.input, binning=bin_k2)
+df = kanpai.k2.io.load_k2(args.input, binning=bin_k2, trim=args.width)
 t, f = df['t f'.split()].values.T
 
 def print_ldp(band, ldp):
@@ -143,7 +145,6 @@ fit = kanpai.k2.FitK2(t, f, p=p, out_dir=out_dir, logprob=logprob, sc=args.short
 fit.set_ld_prior(ldp)
 
 # Run MAP, MCMC, and output plots, samples, etc.
-import pdb; pdb.set_trace()
 fit.run_map(make_plots=True, nmodel=1000)
 fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms, burn=burn,
     gr_threshold=gr_threshold, make_plots=True, restart=restart, resume=resume)

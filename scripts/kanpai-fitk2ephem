@@ -30,15 +30,17 @@ parser.add_argument('-c', '--clip', help='sigma clip (upper, lower)',
     type=str, default='4,10')
 parser.add_argument('--phot', help='Path to photometric time series '
     'file to use (instead of EVEREST)', type=str, default=None)
-parser.add_argument('--short_cadence', help='K2 short cadence data',
+parser.add_argument('--sc', help='K2 short cadence data',
     dest='short_cadence', action='store_true')
 parser.add_argument('--skip', help='individual K2 epochs to skip'
     ', comma-separated', type=str, default=None)
 parser.add_argument('--mcmc', help='use MCMC', dest='mcmc', action='store_true')
 parser.add_argument('--gr', type=float, default=1.1,
     help='Gelmin-Rubin threshold')
+parser.add_argument('--map_init', help='Initialize MCMC with MAP fit',
+    dest='map_init', action='store_true')
 
-parser.set_defaults(short_cadence=False)
+parser.set_defaults(short_cadence=False, map_init=False)
 
 args = parser.parse_args()
 
@@ -133,7 +135,8 @@ else:
     tc_samples = []
     for o, t, f in zip(orb, ts, fs):
         fit = kanpai.k2.fit.FitK2Tc(t, f, k, a, i, u1, u2, p, sc=args.short_cadence)
-        fit.run_map(make_plots=False)
+        if args.map_init:
+            fit.run_map(make_plots=False)
         fit.run_mcmc(make_plots=False, save=False, gr_threshold=args.gr)
         fp = os.path.join(input_dir, 'ephem-samples-tc{}.png'.format(o))
         fit.plot_samples(nmodel=500, fp=fp)

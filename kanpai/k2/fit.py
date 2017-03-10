@@ -28,8 +28,7 @@ class FitK2(Fit):
         self._logprob = logprob
         self._sc = sc
         self._ld_prior = None
-        self._map = None
-        self._mcmc = None
+        super(self.__class__, self).__init__()
 
     @property
     def _ini(self):
@@ -73,8 +72,7 @@ class FitK2Tc(Fit):
         self._out_dir = out_dir
         self._logprob = prob.logprob_u_tc
         self._sc = sc
-        self._map = None
-        self._mcmc = None
+        super(self.__class__, self).__init__()
 
     @property
     def _ini(self):

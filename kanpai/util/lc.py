@@ -31,8 +31,7 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None, ret_s
     t, f = t[~idx], f[~idx]
     tns = get_tns(t, p, t0)
 
-    if ret_seg or skip is None:
-        orb = range(len(tns))
+    orb = range(len(tns))
 
     if skip is not None:
         orb = [i for i in range(len(tns)) if i not in skip]
@@ -40,11 +39,12 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None, ret_s
         for i in reversed(sorted(skip)):
             tns.pop(i)
 
+    assert len(orb) is len(tns)
+
     tf, ff = np.empty(0), np.empty(0)
     ts, fs = [], []
 
-    bad = []
-    for i,tn in enumerate(tns):
+    for o,tn in zip(orb,tns):
 
         idx = (t > tn - width/2.) & (t < tn + width/2.)
         ti = t[idx]-tn
@@ -55,7 +55,8 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None, ret_s
 
             idx = (ti < -t14/2.) | (ti > t14/2.)
             if idx.sum() == 0:
-                orb.pop(orb.index(i))
+                orb.pop(orb.index(o))
+                print "No valid data for baseline fit"
                 continue
 
             try:
@@ -65,7 +66,7 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None, ret_s
                 if np.abs(res.params[1]) > max_slope:
                     print "Bad data possibly causing poor fit"
                     print "Transit {} baseline params: {}".format(i, res.params)
-                    orb.pop(orb.index(i))
+                    orb.pop(orb.index(o))
                     continue
 
                 model = res.params[0] + res.params[1] * ti
@@ -76,7 +77,7 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None, ret_s
                 print "Error computing baseline for transit {}".format(i)
                 print "Num. datapoints: {}".format(idx.sum())
                 print ti
-                orb.pop(orb.index(i))
+                orb.pop(orb.index(o))
                 continue
 
         idx = (t > tn - width/2.) & (t < tn + width/2.)
