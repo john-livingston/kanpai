@@ -14,7 +14,7 @@ from ..fit import Fit
 
 class FitK2(Fit):
 
-    def __init__(self, t, f, k=None, tc=0, t14=0.2, p=20, b=0, out_dir=None, logprob=prob.logprob_q):
+    def __init__(self, t, f, k=None, tc=0, t14=0.2, p=20, b=0, out_dir=None, logprob=prob.logprob_q, sc=False):
 
         self._data = np.c_[t,f]
         if k is None:
@@ -24,8 +24,9 @@ class FitK2(Fit):
         self._t14 = t14
         self._p = p
         self._b = b
-        self._logprob = logprob
         self._out_dir = out_dir
+        self._logprob = logprob
+        self._sc = sc
         self._ld_prior = None
         self._map = None
         self._mcmc = None
@@ -54,12 +55,13 @@ class FitK2(Fit):
         t, f = self._data.T
         p = self._p
         ldp = self._ld_prior
-        return t, f, p, ldp
+        sc = self._sc
+        return t, f, p, ldp, sc
 
 
 class FitK2Tc(Fit):
 
-    def __init__(self, t, f, k, a, i, u1, u2, p, out_dir=None):
+    def __init__(self, t, f, k, a, i, u1, u2, p, out_dir=None, sc=False):
 
         self._data = np.c_[t,f]
         self._k = k
@@ -68,8 +70,9 @@ class FitK2Tc(Fit):
         self._u1 = u1
         self._u2 = u2
         self._p = p
-        self._logprob = prob.logprob_u_tc
         self._out_dir = out_dir
+        self._logprob = prob.logprob_u_tc
+        self._sc = sc
         self._map = None
         self._mcmc = None
 
@@ -90,4 +93,5 @@ class FitK2Tc(Fit):
         u1 = self._u1
         u2 = self._u2
         p = self._p
-        return t, f, k, a, i, u1, u2, p
+        sc = self._sc
+        return t, f, k, a, i, u1, u2, p, sc
