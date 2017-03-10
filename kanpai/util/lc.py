@@ -64,7 +64,7 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None, ret_s
                 res = sm.RLM(fi[idx], sm.add_constant(ti[idx])).fit()
 
                 if np.abs(res.params[1]) > max_slope:
-                    print "Bad data possibly causing poor fit"
+                    print "Bad data possibly causing poor fit. ",
                     print "Transit {} baseline params: {}".format(i, res.params)
                     orb.pop(orb.index(o))
                     continue
@@ -74,9 +74,8 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None, ret_s
 
             except:
 
-                print "Error computing baseline for transit {}".format(i)
-                print "Num. datapoints: {}".format(idx.sum())
-                print ti
+                print "Error computing baseline for transit {}. ".format(o),
+                print "Number of datapoints: {}".format(idx.sum())
                 orb.pop(orb.index(o))
                 continue
 

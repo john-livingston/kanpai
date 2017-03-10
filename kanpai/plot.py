@@ -75,7 +75,7 @@ def corner(fc, labels, fp=None, truths=None, quantiles=[0.16,0.5,0.84],
             pl.close()
 
 def simple_ts(t, f, tmodel=None, model=None, fp=None, title="",
-    color='b', alpha=0.5, mew=1, mec='k', **kwargs):
+    color='b', alpha=0.5, mew=1, mec='k', vticks=None, **kwargs):
 
     with sb.axes_style('ticks', rc):
         fig, ax = pl.subplots(1, 1, figsize=(10,3))
@@ -85,6 +85,11 @@ def simple_ts(t, f, tmodel=None, model=None, fp=None, title="",
             ax.plot(tmodel, model, 'r-', **kwargs)
         elif model is not None:
             ax.plot(t, model, 'r-', **kwargs)
+        if vticks is not None:
+            yl = list(ax.get_ylim())
+            yl[0] = yl[0] + 0.1 * np.diff(yl)
+            yl[1] = yl[0] + 0.2 * np.diff(yl)
+            ax.vlines(vticks, yl[0], yl[1], color='r')
         pl.setp(ax, xlabel='Time [BJD]',
             ylabel='Normalized Flux',
             title=title,
@@ -99,7 +104,7 @@ def simple_ts(t, f, tmodel=None, model=None, fp=None, title="",
 
 
 def samples(t, f, ps, tmodel=None, fp=None, title="", **kwargs):
-    with sb.axes_style('ticks'):
+    with sb.axes_style('ticks', rc):
         fig, ax = pl.subplots(1, 1, figsize=(10,3))
         ax.plot(t, f, linestyle='none', marker='o',
             color='b', alpha=0.5, mew=1, mec='k', **kwargs)
