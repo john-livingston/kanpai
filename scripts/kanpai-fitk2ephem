@@ -163,11 +163,12 @@ else:
             tc_samples[n] = tcs[-ns_min:]
 
         fp = os.path.join(input_dir, 'ephem-mcmc.npz')
-        np.savez_compressed(fp, tc_best=tc_best, tc_perc=tc_perc, tc_samples=tc_samples)
+        np.savez_compressed(fp, orb=orb, tc_best=tc_best, tc_perc=tc_perc, tc_samples=tc_samples)
 
     else:
 
         npz = np.load(fp)
+        orb = npz['orb']
         tc_best = npz['tc_best']
         tc_perc = npz['tc_perc']
         tc_samples = npz['tc_samples']
