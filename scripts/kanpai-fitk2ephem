@@ -174,7 +174,9 @@ else:
         tc_samples = npz['tc_samples']
 
         if skip is not None:
-            idx = np.array([orb.index(i) if i in skip for i in skip])
+            idx = np.zeros(orb.size).astype(bool)
+            for i in skip:
+                idx |= orb == i
             orb = orb[~idx]
             tc_best = tc_best[~idx]
             tc_perc = tc_perc[~idx]
