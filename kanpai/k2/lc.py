@@ -10,13 +10,19 @@ PIPELINES = 'everest k2sff k2sc'.split()
 K2_TIME_OFFSET = 2454833
 
 
-def unfolded(epic, p, t0, t14, pipeline='everest'):
+def unfolded(epic, p, t0, t14, pipeline='everest', use_everest_mask=True):
 
     epic = int(epic)
     if pipeline == 'everest':
         star = Everest(epic)
-        star.set_mask(transits = [(p, t0, t14)])
+        star.mask_planet(t0, p, t14)
+        star.compute()
         t, f = star.time, star.flux
+        if use_everest_mask:
+            bad = np.zeros_like(t).astype(bool)
+            bad[star.badmask] = True
+            print "Masking {} bad data points identified by EVEREST".format(bad.sum())
+            t, f = t[~bad], f[~bad]
     elif pipeline == 'k2sff':
         star = kplr.K2SFF(epic)
         t, f = star.time, star.fcor
@@ -27,15 +33,16 @@ def unfolded(epic, p, t0, t14, pipeline='everest'):
         raise ValueError('Pipeline must be one of: {}'.format(PIPELINES))
 
     t, f = map(np.array, (t, f))
-    t += K2_TIME_OFFSET
 
-    bad = (t == K2_TIME_OFFSET) | np.isnan(f)
+    bad = (t == 0) | np.isnan(f)
     t, f = t[~bad], f[~bad]
 
     idx = np.argsort(t)
     t, f = t[idx], f[idx]
 
+    t += K2_TIME_OFFSET
     f /= np.median(f)
+
     return t, f
 
 

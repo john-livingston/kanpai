@@ -4,6 +4,7 @@ import os
 import sys
 import argparse
 
+import yaml
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
@@ -15,10 +16,11 @@ cwd = os.path.abspath('.')
 
 parser = argparse.ArgumentParser(description="Get phased-folded K2"
     " Everest light curve")
-parser.add_argument('epic', help='Target star EPIC id number', type=int)
-parser.add_argument('period', help='Period of candidate [days]', type=float)
-parser.add_argument('t0', help='Time of first transit [BJD]', type=float)
-parser.add_argument('t14', help='Transit duration [days]', type=float)
+parser.add_argument('--epic', help='Target star EPIC id number', type=int)
+parser.add_argument('--period', help='Period of candidate [days]', type=float)
+parser.add_argument('--t0', help='Time of first transit [BJD]', type=float)
+parser.add_argument('--t14', help='Transit duration [days]', type=float)
+parser.add_argument('--setup', help='Path to YAML setup file', type=str, default=None)
 parser.add_argument('-w', '--width', help='Extraction width [days]',
     type=float, default=0.8)
 parser.add_argument('-o', '--outdir', help='output directory',
@@ -38,10 +40,21 @@ parser.add_argument('-i', '--infile', help='path to text file containing'
 parser.set_defaults(baseline=True, refine=False)
 args = parser.parse_args()
 
-epic = args.epic
-p = args.period
-t0 = args.t0
-t14 = args.t14
+if args.setup is not None:
+    setup = yaml.load(open(args.setup))
+    epic = setup['config']['starid']
+    p = setup['transit']['p']
+    t0 = setup['transit']['t0']
+    t14 = setup['transit']['t14']
+else:
+    try:
+        epic = args.epic
+        p = args.period
+        t0 = args.t0
+        t14 = args.t14
+    except:
+        sys.exit('Must supply YAML setup or: epic, period, t0, and t14')
+
 width = args.width
 outdir = args.outdir
 baseline = args.baseline

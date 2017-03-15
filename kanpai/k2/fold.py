@@ -71,7 +71,7 @@ class Fold(object):
             return
 
         # initial fit
-        fit = FitK2(tf, ff, t14=t14, p=p, out_dir=outdir, logprob=prob.logprob_u)
+        fit = FitK2(tf, ff, t14=t14, p=p, out_dir=outdir, logprob=prob.logprob_q)
         fit.run_map(make_plots=False)
         pv = fit.best
         t14 = util.transit.t14_circ(p, pv['a'], pv['k'], pv['b'])
@@ -86,7 +86,7 @@ class Fold(object):
         print("2nd sigma clip: {}".format(idx.sum()))
 
         # second fit to correct for any offset in initial T0
-        fit = FitK2(tf, ff, t14=t14, p=p, out_dir=outdir, logprob=prob.logprob_u)
+        fit = FitK2(tf, ff, t14=t14, p=p, out_dir=outdir, logprob=prob.logprob_q)
         fit.run_map(make_plots=False)
         pv = fit.best
         t14 = util.transit.t14_circ(p, pv['a'], pv['k'], pv['b'])
@@ -103,7 +103,7 @@ class Fold(object):
         print("3rd sigma clip: {}".format(idx.sum()))
 
         # identify final outliers by sigma clipping residuals
-        fit = FitK2(tf, ff, t14=t14, p=p, out_dir=outdir, logprob=prob.logprob_u)
+        fit = FitK2(tf, ff, t14=t14, p=p, out_dir=outdir, logprob=prob.logprob_q)
         fit.run_map(make_plots=False)
         su, sl = self._clip
         idx = util.stats.outliers(fit.resid(), su=su, sl=sl)
@@ -116,7 +116,7 @@ class Fold(object):
 
         # final fit to cleaned light curve
         fit = FitK2(tf, ff, t14=t14, p=p, k=pv['k'], b=pv['b'],
-            out_dir=outdir, logprob=prob.logprob_u)
+            out_dir=outdir, logprob=prob.logprob_q)
         fit.run_map(make_plots=False)
         pv = fit.best
         k = pv['k']
@@ -130,7 +130,7 @@ class Fold(object):
         print "Radius ratio (k): {0:.4f}".format(k)
         print "Impact parameter: {0:.4f}".format(b)
         print "Inclination (i) [degrees]: {0:.4f}".format(i * 180./np.pi)
-        print "Limb-darkening coefficients (u1, u2): {0:.4f}, {1:.4f}".format(pv['u1'], pv['u2'])
+        print "Limb-darkening coefficients (q1, q2): {0:.4f}, {1:.4f}".format(pv['q1'], pv['q2'])
         print "Baseline offset (k0): {0:.8f}".format(pv['k0'])
         print "Sigma: {0:.8f}".format(pv['s'])
         print "Residual RMS: {0:.8f}".format(util.stats.rms(fit.resid()))
