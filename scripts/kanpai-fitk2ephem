@@ -137,7 +137,7 @@ if not args.mcmc:
 else:
 
     fp = os.path.join(input_dir, 'ephem-mcmc.npz')
-    if not os.path.isfile(fp) and not args.restart:
+    if not os.path.isfile(fp) or args.restart:
 
         tc_best = []
         tc_perc = []
