@@ -5,9 +5,8 @@ from astropy.stats import sigma_clip
 
 from .fit import FitK2
 from . import prob
+from . import lc
 from .. import util
-
-K2_TIME_OFFSET = 2454833
 
 
 class Fold(object):
@@ -17,7 +16,7 @@ class Fold(object):
 
         self._epic = int(epic)
         self._p = p
-        self._t0 = t0 - K2_TIME_OFFSET
+        self._t0 = t0
         self._t14 = t14
         self._pipeline = pipeline
         self._width = width
@@ -33,33 +32,16 @@ class Fold(object):
         if self._lcfp is None:
 
             epic = self._epic
+            p = self._p
+            t0 = self._t0
+            t14 = self._t14
             pipeline = self._pipeline
             print("Retrieving {} light curve...".format(pipeline))
-
-            if pipeline == 'everest':
-
-                star = Everest(epic)
-                star.set_mask(transits = [(self._p, self._t0, self._t14)])
-                t, f = star.time, star.flux
-
-            elif pipeline == 'k2sff':
-
-                star = kplr.K2SFF(epic)
-                t, f = star.time, star.fcor
-
-            elif pipeline == 'k2sc':
-
-                star = kplr.K2SC(epic)
-                t, f = star.time, star.pdcflux
-
-            else:
-
-                raise ValueError('Pipeline must be one of: {}'.format(PIPELINES))
+            t, f = lc.unfolded(epic, p, t0, t14, pipeline=pipeline)
 
         else:
 
             t, f = np.loadtxt(self._lcfp, unpack=True)
-            t -= K2_TIME_OFFSET
             self._pipeline = 'user'
 
         idx = np.isnan(t) | np.isnan(f)
@@ -109,7 +91,7 @@ class Fold(object):
         pv = fit.best
         t14 = util.transit.t14_circ(p, pv['a'], pv['k'], pv['b'])
         t0 += pv['tc']
-        print "Refined T0 [BJD]: {}".format(t0 + K2_TIME_OFFSET)
+        print "Refined T0 [BJD]: {}".format(t0)
 
         # fold with refined T0
         tf, ff = util.lc.fold(t, f, p, t0, t14=t14,
