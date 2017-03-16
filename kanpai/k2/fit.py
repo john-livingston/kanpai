@@ -44,9 +44,9 @@ class FitK2(Fit):
         q2 = 0.5
         k0 = 0
         t, f = self._data.T
-        s = f.std()
+        ls = np.log(f.std())
         a = util.transit.scaled_a(p, t14, k, np.pi/2)
-        pv = [k,tc,a,b,q1,q2,s,k0]
+        pv = [k,tc,a,b,q1,q2,ls,k0]
         return np.array(pv)
 
     @property
