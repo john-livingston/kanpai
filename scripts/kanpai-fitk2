@@ -36,6 +36,7 @@ parser.add_argument('-w', '--width', help='Trim input light curve to width [days
 parser.add_argument('--ld', help='sample in "q" or "u" limb-darkening space', default='q')
 parser.add_argument('--teff', help='host star teff,uteff', type=str, default=None)
 parser.add_argument('--logg', help='host star logg,ulogg', type=str, default=None)
+parser.add_argument('--feh', help='host star feh,ufeh', type=str, default=None)
 parser.add_argument('--ldp', help='apply K2 limb-darkening prior (u1_mu, u1_sig, u2_mu, u2_sig)',
     default=None, type=str)
 parser.add_argument('--ldp_exofop', help='try Teff and logg from ExoFOP for LD priors',
@@ -117,7 +118,8 @@ if args.ldp is not None:
 elif args.setup is not None:
     teff, uteff = setup['stellar']['teff']
     logg, ulogg = setup['stellar']['logg']
-    ldp = kanpai.k2.ld.get_ld_claret(teff, uteff, logg, ulogg)
+    feh, ufeh = setup['stellar']['feh']
+    ldp = kanpai.k2.ld.claret(teff, uteff, logg, ulogg, feh, ufeh)
     print_ldp("K2", ldp)
 elif args.ldp_exofop is not None:
     try:
@@ -125,7 +127,8 @@ elif args.ldp_exofop is not None:
         res = exofop.get_stellar(args.ldp_exofop)
         teff, uteff = res['Teff']
         logg, ulogg = res['logg']
-        ldp = kanpai.k2.ld.get_ld_claret(teff, uteff, logg, ulogg)
+        feh, ufeh = res['feh']
+        ldp = kanpai.k2.ld.claret(teff, uteff, logg, ulogg, feh, ufeh)
         print_ldp("K2", ldp)
     except:
         print "No limb-darkening priors applied for K2"
@@ -133,7 +136,8 @@ else:
     try:
         teff, uteff = [float(i) for i in args.teff.split(',')]
         logg, ulogg = [float(i) for i in args.logg.split(',')]
-        ldp = kanpai.k2.ld.get_ld_claret(teff, uteff, logg, ulogg)
+        feh, ufeh = [float(i) for i in args.feh.split(',')]
+        ldp = kanpai.k2.ld.claret(teff, uteff, logg, ulogg, feh, ufeh)
         print_ldp("K2", ldp)
     except:
         print "No limb-darkening priors applied for K2"

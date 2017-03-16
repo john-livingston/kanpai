@@ -43,6 +43,7 @@ parser.add_argument('--radius', help='Spitzer photometric aperture radius',
 # parser.add_argument('--ld', help='sample in "q" or "u" limb darkening space', default='q')
 parser.add_argument('--teff', help='host star teff,uteff', type=str, default=None)
 parser.add_argument('--logg', help='host star logg,ulogg', type=str, default=None)
+parser.add_argument('--feh', help='host star feh,ufeh', type=str, default=None)
 parser.add_argument('--ldp_k2', help='apply K2 limb darkening prior (u1_mu, u1_sig, u2_mu, u2_sig)',
     default=None, type=str)
 parser.add_argument('--ldp_spz', help='apply Spitzer limb darkening prior (u1_mu, u1_sig, u2_mu, u2_sig)',
@@ -139,13 +140,15 @@ elif args.ldp_k2 is None:
         try:
             teff, uteff = [float(i) for i in args.teff.split(',')]
             logg, ulogg = [float(i) for i in args.logg.split(',')]
-            ldp_k2 = kanpai.k2.ld.get_ld_claret(teff, uteff, logg, ulogg)
+            feh, ufeh = [float(i) for i in args.feh.split(',')]
+            ldp_k2 = kanpai.k2.ld.claret(teff, uteff, logg, ulogg, feh, ufeh)
             print_ldp("K2", ldp_k2)
         except:
             try:
                 teff, uteff = setup['stellar']['teff']
                 logg, ulogg = setup['stellar']['logg']
-                ldp_k2 = kanpai.k2.ld.get_ld_claret(teff, uteff, logg, ulogg)
+                feh, ufeh = setup['stellar']['feh']
+                ldp_k2 = kanpai.k2.ld.claret(teff, uteff, logg, ulogg, feh, ufeh)
                 print_ldp("K2", ldp_k2)
             except:
                 print "No limb-darkening priors applied for K2"
@@ -163,13 +166,15 @@ elif args.ldp_spz is None:
         try:
             teff, uteff = [float(i) for i in args.teff.split(',')]
             logg, ulogg = [float(i) for i in args.logg.split(',')]
-            ldp_spz = kanpai.spz.ld.get_ld_claret(teff, uteff, logg, ulogg)
+            feh, ufeh = [float(i) for i in args.feh.split(',')]
+            ldp_spz = kanpai.spz.ld.claret(teff, uteff, logg, ulogg, feh, ufeh)
             print_ldp("Spitzer", ldp_spz)
         except:
             try:
                 teff, uteff = setup['stellar']['teff']
                 logg, ulogg = setup['stellar']['logg']
-                ldp_spz = kanpai.spz.ld.get_ld_claret(teff, uteff, logg, ulogg)
+                feh, ufeh = setup['stellar']['feh']
+                ldp_spz = kanpai.spz.ld.claret(teff, uteff, logg, ulogg, feh, ufeh)
                 print_ldp("Spitzer", ldp_spz)
             except:
                 print "No limb-darkening priors applied for Spitzer"
