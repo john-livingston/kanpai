@@ -21,7 +21,7 @@ from .like import loglike_u as spz_loglike
 from .mod import model_u as spz_model
 from .util import setup_aux
 from io import load_spz
-from ld import get_ld_claret
+from ld import claret
 from .. import util
 from ..k2.like import loglike_u as k2_loglike
 from ..k2 import fit as k2_fit
@@ -154,7 +154,7 @@ class Fit(object):
         except KeyError as e:
             print "Input missing Spitzer limb-darkening priors"
             print "Using Claret+2012..."
-            self._u_spz = get_ld_claret(teff, uteff, logg, ulogg, 'S2')
+            self._u_spz = claret(teff, uteff, logg, ulogg, 'S2')
 
         self._output['ld_priors'] = dict(kep=self._u_kep, spz=self._u_spz)
 
