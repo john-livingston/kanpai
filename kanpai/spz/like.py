@@ -10,9 +10,8 @@ def loglike_u(theta, t, f, p, aux, ret_mod=False):
     if ret_mod:
         return m
     resid = f - m
-    inv_sigma2 = 1.0/(s**2)
-    return -0.5*(np.sum((resid)**2*inv_sigma2 - np.log(inv_sigma2)))
-
+    inv_sig2 = np.exp(-2*ls)
+    return -0.5*(np.sum((resid)**2 * inv_sig2 + 2*ls))
 
 def loglike_q(theta, t, f, p, aux, ret_mod=False):
     k,tc,a,b,q1,q2,ls,k1 = theta[:8]
@@ -20,5 +19,5 @@ def loglike_q(theta, t, f, p, aux, ret_mod=False):
     if ret_mod:
         return m
     resid = f - m
-    inv_sigma2 = 1.0/(s**2)
-    return -0.5*(np.sum((resid)**2*inv_sigma2 - np.log(inv_sigma2)))
+    inv_sig2 = np.exp(-2*ls)
+    return -0.5*(np.sum((resid)**2 * inv_sig2 + 2*ls))

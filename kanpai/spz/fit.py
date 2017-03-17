@@ -55,7 +55,7 @@ class FitSpz(Fit):
         k1 = 0
         t, f = self._data.T
         idx = (t < tc - t14/2.) | (tc + t14/2. < t)
-        s = f.std()
+        s = np.log(f.std())
         a = util.transit.scaled_a(p, t14, k, np.pi/2)
         pv = [k,tc,a,b,q1,q2,s,k1]
         if self._aux is not None:
