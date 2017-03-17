@@ -29,8 +29,8 @@ parser.add_argument('--pipeline', help='which pipeline to use',
     type=str, default='everest')
 parser.add_argument('--no_baseline', dest='baseline', help="don't fit a"
     " linear baseline model to each transit", action='store_false')
-parser.add_argument('-r', '--refine', dest='refine', help="refine parameters"
-    " the parameters", action='store_true')
+parser.add_argument('-r', '--refine', dest='refine', help="refine parameters",
+    action='store_true')
 parser.add_argument('-c', '--clip', help='sigma clip (upper, lower)',
     type=str, default='3,4')
 parser.add_argument('-s', '--skip', help='individual K2 epochs to skip'

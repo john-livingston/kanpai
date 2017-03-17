@@ -132,7 +132,7 @@ class Fold(object):
         print "Inclination (i) [degrees]: {0:.4f}".format(i * 180./np.pi)
         print "Limb-darkening coefficients (q1, q2): {0:.4f}, {1:.4f}".format(pv['q1'], pv['q2'])
         print "Baseline offset (k0): {0:.8f}".format(pv['k0'])
-        print "Sigma: {0:.8f}".format(pv['s'])
+        print "Sigma: {0:.8f}".format(np.exp(pv['ls']))
         print "Residual RMS: {0:.8f}".format(util.stats.rms(fit.resid()))
 
         self._fit = fit
