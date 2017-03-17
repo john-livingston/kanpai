@@ -99,8 +99,8 @@ class FitK2Spz(Fit):
         q2_s = 0.2
         k0_k = 0
         k1_s = 0
-        s_k = np.log(self._data_k2['f'].std())
-        s_s = np.log(self._data_spz['f'].std())
+        ls_k = np.log(self._data_k2['f'].std())
+        ls_s = np.log(self._data_spz['f'].std())
         a = util.transit.scaled_a(p, t14, k_k, np.pi/2)
         pv = [a,b,k_s,k_k,tc_s,tc_k,q1_s,q2_s,q1_k,q2_k,ls_s,ls_k,k1_s,k0_k]
         if self._aux is not None:
