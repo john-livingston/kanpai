@@ -23,7 +23,6 @@ fp_yaml = yamls[0] if len(yamls) > 0 else None
 parser = argparse.ArgumentParser(description="simultaneously fit Spitzer and K2 light curves")
 parser.add_argument('-i', '--input', help='YAML setup file', type=str, default=fp_yaml)
 parser.add_argument('-o', '--out_dir', help='output directory', type=str, default=cwd)
-# parser.add_argument('-p', '--period', help='period [days]', type=float)
 
 # K2 options
 parser.add_argument('--k2lc', help='k2 folded lc file',
@@ -85,7 +84,6 @@ bin_k2 = args.bin_k2
 bin_spz = args.bin_spz
 geom = args.geom
 radius = args.radius
-# p = args.period
 out_dir = args.out_dir
 if not os.path.isdir(out_dir):
     os.mkdir(out_dir)

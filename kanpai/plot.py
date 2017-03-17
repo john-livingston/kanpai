@@ -103,7 +103,7 @@ def simple_ts(t, f, tmodel=None, model=None, fp=None, title="",
             pl.close()
 
 
-def samples(t, f, ps, tmodel=None, fp=None, title="", **kwargs):
+def samples(t, f, ps, tmodel=None, fp=None, title="", timeoffset=False, **kwargs):
     with sb.axes_style('ticks', rc):
         fig, ax = pl.subplots(1, 1, figsize=(10,3))
         ax.plot(t, f, linestyle='none', marker='o',
@@ -116,7 +116,9 @@ def samples(t, f, ps, tmodel=None, fp=None, title="", **kwargs):
             ylabel='Normalized Flux',
             title=title,
             xlim=(t.min(), t.max()))
+        ax.minorticks_on()
         ax.yaxis.get_major_formatter().set_useOffset(False)
+        ax.xaxis.get_major_formatter().set_useOffset(timeoffset)
 
         fig.tight_layout()
         if fp:

@@ -8,14 +8,14 @@ from .. import util
 def logprob_u(theta, t, f, p, aux=None, ldp=None, ret_pvnames=False, ret_mod=False):
 
     if ret_pvnames:
-        pvn = 'k,tc,a,b,u1,u2,s,k1'.split(',')
+        pvn = 'k,tc,a,b,u1,u2,ls,k1'.split(',')
         if aux is not None:
             pvn += ['c{}'.format(i) for i in range(len(aux))]
         return pvn
     elif ret_mod:
         return like.loglike_u(theta, t, f, p, aux, ret_mod=True)
 
-    k,tc,a,b,u1,u2,s,k1 = theta[:8]
+    k,tc,a,b,u1,u2,ls,k1 = theta[:8]
 
     if u1 < 0 or u1 > 2 or u2 < -1 or u2 > 1 or b < 0 or b > 1+k or \
         tc < t[0] - 0.05 or tc > t[-1] + 0.05:
@@ -36,14 +36,14 @@ def logprob_u(theta, t, f, p, aux=None, ldp=None, ret_pvnames=False, ret_mod=Fal
 def logprob_q(theta, t, f, p, aux=None, ldp=None, ret_pvnames=False, ret_mod=False):
 
     if ret_pvnames:
-        pvn = 'k,tc,a,b,q1,q2,s,k1'.split(',')
+        pvn = 'k,tc,a,b,q1,q2,ls,k1'.split(',')
         if aux is not None:
             pvn += ['c{}'.format(i) for i in range(len(aux))]
         return pvn
     elif ret_mod:
         return like.loglike_q(theta, t, f, p, aux, ret_mod=True)
 
-    k,tc,a,b,q1,q2,s,k1 = theta[:8]
+    k,tc,a,b,q1,q2,ls,k1 = theta[:8]
 
     if q1 < 0 or q1 > 1 or q2 < 0 or q2 > 1 or b < 0 or b > 1+k or \
         tc < t[0] - 0.05 or tc > t[-1] + 0.05:

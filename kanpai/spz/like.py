@@ -5,7 +5,7 @@ from . import mod
 
 
 def loglike_u(theta, t, f, p, aux, ret_mod=False):
-    k,tc,a,b,u1,u2,s,k1 = theta[:8]
+    k,tc,a,b,u1,u2,ls,k1 = theta[:8]
     m = mod.model_u(theta, t, f, p, aux)
     if ret_mod:
         return m
@@ -15,7 +15,7 @@ def loglike_u(theta, t, f, p, aux, ret_mod=False):
 
 
 def loglike_q(theta, t, f, p, aux, ret_mod=False):
-    k,tc,a,b,q1,q2,s,k1 = theta[:8]
+    k,tc,a,b,q1,q2,ls,k1 = theta[:8]
     m = mod.model_q(theta, t, f, p, aux)
     if ret_mod:
         return m

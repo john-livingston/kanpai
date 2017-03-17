@@ -7,7 +7,7 @@ MA = MandelAgol()
 
 
 def model_u(theta, t, f, p, aux, ret_ma=False, ret_sys=False):
-    k,tc,a,b,u1,u2,s,k1 = theta[:8]
+    k,tc,a,b,u1,u2,ls,k1 = theta[:8]
     auxcoeff = theta[8:]
     i = util.transit.inclination(a, b)
     ma = MA.evaluate(t, k, (u1, u2), tc, p, a, i)
@@ -27,7 +27,7 @@ def model_u(theta, t, f, p, aux, ret_ma=False, ret_sys=False):
 
 
 def model_q(theta, t, f, p, aux, ret_ma=False, ret_sys=False):
-    k,tc,a,b,q1,q2,s,k1 = theta[:8]
+    k,tc,a,b,q1,q2,ls,k1 = theta[:8]
     auxcoeff = theta[8:]
     i = util.transit.inclination(a, b)
     u1, u2 = util.ld.q_to_u(q1, q2)
