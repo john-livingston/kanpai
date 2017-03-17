@@ -200,8 +200,8 @@ class FitK2Spz(Fit):
         beta_spz = util.stats.beta(resid_spz, tstep_spz)
 
         nd, npar = self._data_spz['t'].shape[0], len(pv_best_spz)
-        idx = self._pv_names.index('s_s')
-        sigma_spz = np.median(self._fc[:,idx])
+        idx = self._pv_names.index('ls_s')
+        sigma_spz = np.exp(np.median(self._fc[:,idx]))
         rchisq_spz = util.stats.chisq(resid_spz, sigma_spz, nd, npar, reduced=True)
         bic_spz = util.stats.bic(self._lp_mcmc, nd, npar)
 
