@@ -17,7 +17,7 @@ def unfolded(epic, p, t0, t14, pipeline='everest', use_everest_mask=True):
         star = Everest(epic)
         star.mask_planet(t0, p, t14)
         star.compute()
-        t, f = star.time, star.flux
+        t, f = star.time, star.fcor
         if use_everest_mask:
             bad = np.zeros_like(t).astype(bool)
             bad[star.badmask] = True

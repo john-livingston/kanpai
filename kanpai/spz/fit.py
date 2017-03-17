@@ -94,8 +94,8 @@ class FitSpz(Fit):
         beta_spz = util.stats.beta(resid_spz, tstep)
 
         nd, npar = self._data[:,0].shape[0], len(self._pv_best)
-        idx = self._pv_names.index('s')
-        sigma_spz = np.median(self._fc[:,idx])
+        idx = self._pv_names.index('ls')
+        sigma_spz = np.exp(np.median(self._fc[:,idx]))
         rchisq_spz = util.stats.chisq(resid_spz, sigma_spz, nd, npar, reduced=True)
         bic_spz = util.stats.bic(self._lp_mcmc, nd, npar)
 
