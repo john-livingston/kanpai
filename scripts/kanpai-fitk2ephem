@@ -125,6 +125,8 @@ out = {}
 if not args.mcmc:
 
     tc_best = []
+    phase = np.array([])
+    flux = np.array([])
     for o, t, f in zip(orb, ts, fs):
         print "\nAttempting fit for orbit {}".format(o),
         fit = kanpai.k2.fit.FitK2Tc(t, f, k, a, i, u1, u2, p, sc=args.short_cadence)
@@ -132,7 +134,20 @@ if not args.mcmc:
         fp = os.path.join(input_dir, 'ephem-map-tc{}.png'.format(o))
         fit.plot_best(nmodel=500, fp=fp)
         tc_best.append(fit.best['tc'])
+        phase = np.append(phase, t-fit.best['tc'])
+        flux = np.append(flux, f)
+
     out['tc_best'] = tc_best
+
+    # make TTV-corrected phasefolded light curve:
+    idx = np.argsort(phase)
+    phase = phase[idx]
+    flux = flux[idx]
+    fp = os.path.join(input_dir, 'ephem-folded.png')
+    kanpai.plot.simple_ts(phase, flux, fp=fp)
+    df = pd.DataFrame(dict(t=phase, f=flux))
+    fp = os.path.join(input_dir, 'ephem-folded.csv')
+    df['t f'.split()].to_csv(fp, index=False, header=False)
 
 else:
 
@@ -142,6 +157,8 @@ else:
         tc_best = []
         tc_perc = []
         tc_samples = []
+        phase = np.array([])
+        flux = np.array([])
         for o, t, f in zip(orb, ts, fs):
             fit = kanpai.k2.fit.FitK2Tc(t, f, k, a, i, u1, u2, p, sc=args.short_cadence)
             if args.map_init:
@@ -153,8 +170,21 @@ else:
             tc_best.append(summary['pv_best']['tc'])
             tc_perc.append(summary['percentiles']['tc'])
             tc_samples.append(fit._fc[:,fit._pv_names.index('tc')])
+            phase = np.append(phase, t-summary['pv_best']['tc'])
+            flux = np.append(flux, f)
+
         out['tc_best'] = tc_best
         out['tc_perc'] = tc_perc
+
+        # make TTV-corrected phasefolded light curve:
+        idx = np.argsort(phase)
+        phase = phase[idx]
+        flux = flux[idx]
+        fp = os.path.join(input_dir, 'ephem-folded.png')
+        kanpai.plot.simple_ts(phase, flux, fp=fp)
+        df = pd.DataFrame(dict(t=phase, f=flux))
+        fp = os.path.join(input_dir, 'ephem-folded.csv')
+        df['t f'.split()].to_csv(fp, index=False, header=False)
 
         # make tc sample sets same size:
         ns = [len(tcs) for tcs in tc_samples]
