@@ -102,7 +102,14 @@ fp = os.path.join(out_dir, 'input.yaml')
 yaml.dump(vars(args), open(fp, 'w'), default_flow_style=False)
 
 # Load data
-df = kanpai.k2.io.load_k2(args.input, binning=bin_k2, trim=args.width)
+if args.input is None:
+    k2lc = setup['config']['k2lc']
+else:
+    try:
+        k2lc = args.input
+    except:
+        sys.exit('Need path to folded light curve (via --input or in setup file)')
+df = kanpai.k2.io.load_k2(k2lc, binning=bin_k2, trim=args.width)
 t, f = df['t f'.split()].values.T
 
 def print_ldp(band, ldp):
@@ -141,6 +148,10 @@ else:
         print_ldp("K2", ldp)
     except:
         print "No limb-darkening priors applied for K2"
+
+if ldp is not None:
+    fp = os.path.join(out_dir, 'ld-prior.yaml')
+    yaml.dump(zip('u1 e_u1 u2 e_u2'.split(), ldp), open(fp, 'w'), default_flow_style=False)
 
 # Instantiate Fit object
 fit = kanpai.k2.FitK2(t, f, p=p, out_dir=out_dir, logprob=logprob, sc=args.short_cadence)

@@ -21,9 +21,8 @@ fp_yaml = yamls[0] if len(yamls) > 0 else None
 
 # General options
 parser = argparse.ArgumentParser(description="Fit Spitzer light curve")
-parser.add_argument('-i', '--input', help='YAML setup file', type=str, default=fp_yaml)
+parser.add_argument('--setup', help='YAML setup file', type=str, default=fp_yaml)
 parser.add_argument('-o', '--out_dir', help='output directory', type=str, default=cwd)
-parser.add_argument('-p', '--period', help='period [days]', type=float, default=None)
 
 # Spitzer options
 parser.add_argument('--bin_spz', help='bin size for'
@@ -38,7 +37,7 @@ parser.add_argument('--ld', help='sample in "q" or "u" limb darkening space', de
 parser.add_argument('--teff', help='host star teff,uteff', type=str, default=None)
 parser.add_argument('--logg', help='host star logg,ulogg', type=str, default=None)
 parser.add_argument('--feh', help='host star feh,ufeh', type=str, default=None)
-parser.add_argument('--ldp_spz', help='apply Spitzer limb darkening prior (u1_mu, u1_sig, u2_mu, u2_sig)',
+parser.add_argument('--ldp', help='apply Spitzer limb darkening prior (u1_mu, u1_sig, u2_mu, u2_sig)',
     default=None, type=str)
 
 # Detrending options
@@ -81,7 +80,6 @@ else:
 bin_spz = args.bin_spz
 geom = args.geom
 radius = args.radius
-p = args.period
 out_dir = args.out_dir
 if not os.path.isdir(out_dir):
     os.mkdir(out_dir)
@@ -98,7 +96,8 @@ burn = args.burn
 restart = args.restart
 resume = args.resume
 
-setup = yaml.load(open(args.input))
+print("Reading setup file: {}".format(args.setup))
+setup = yaml.load(open(args.setup))
 
 # YAML setup file config overrides
 keys = 'binsize geom nsteps1 nsteps2 maxsteps grthreshold nthreads radius'.split()
@@ -106,6 +105,12 @@ vals = bin_spz, geom, ns1, ns2, ms, gr_threshold, nproc, radius
 for k,v in zip(keys, vals):
     if v is not None:
         setup['config'][k] = v
+
+fp = os.path.join(out_dir, 'input.yaml')
+yaml.dump(vars(args), open(fp, 'w'), default_flow_style=False)
+
+fp = os.path.join(out_dir, 'setup.yaml')
+yaml.dump(setup, open(fp, 'w'), default_flow_style=False)
 
 # Load data
 df, pix = kanpai.spz.io.load_spz(setup, out_dir=out_dir)
@@ -124,42 +129,41 @@ def print_ldp(band, ldp):
     print msg.format(band, *ldp)
 
 # handle Spitzer limb-darkening priors
-ldp_spz = None
-if args.ldp_spz is not None:
-    ldp_spz = [float(i) for i in args.ldp_spz.split(',')]
-    print_ldp("Spitzer", ldp_spz)
-elif args.ldp_spz is None:
+ldp = None
+if args.ldp is not None:
+    ldp = [float(i) for i in args.ldp.split(',')]
+    print_ldp("Spitzer", ldp)
+elif args.ldp is None:
     try:
-        ldp_spz = setup['ld']['spz']
-        print_ldp("Spitzer", ldp_spz)
+        ldp = setup['ld']['spz']
+        print_ldp("Spitzer", ldp)
     except:
         try:
             teff, uteff = [float(i) for i in args.teff.split(',')]
             logg, ulogg = [float(i) for i in args.logg.split(',')]
             feh, ufeh = [float(i) for i in args.feh.split(',')]
-            ldp_spz = kanpai.spz.ld.get_ld_claret(teff, uteff, logg, ulogg, feh, ufeh)
-            print_ldp("Spitzer", ldp_spz)
+            ldp = kanpai.spz.ld.claret(teff, uteff, logg, ulogg, feh, ufeh)
+            print_ldp("Spitzer", ldp)
         except:
             try:
                 teff, uteff = setup['stellar']['teff']
                 logg, ulogg = setup['stellar']['logg']
                 feh, ufeh = setup['stellar']['feh']
-                ldp_spz = kanpai.spz.ld.get_ld_claret(teff, uteff, logg, ulogg, feh, ufeh)
-                print_ldp("Spitzer", ldp_spz)
+                ldp = kanpai.spz.ld.claret(teff, uteff, logg, ulogg, feh, ufeh)
+                print_ldp("Spitzer", ldp)
             except:
                 print "No limb-darkening priors applied for Spitzer"
 
 if 'ld' not in setup.keys():
     setup['ld'] = {}
-setup['ld']['spz'] = ldp_spz
+setup['ld']['spz'] = ldp
 
 # Instantiate Fit object
-if p is None:
-    p = setup['transit']['p']
+p = setup['transit']['p']
 fit = kanpai.spz.FitSpz(t, f, p=p, aux=aux, out_dir=out_dir, logprob=logprob)
 
 # Apply limb-darkening priors
-fit.set_ld_prior(ldp_spz)
+fit.set_ld_prior(ldp)
 
 # Run MAP, MCMC, and output plots, samples, etc.
 fit.run_map()

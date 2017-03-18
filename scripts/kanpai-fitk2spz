@@ -21,7 +21,7 @@ fp_yaml = yamls[0] if len(yamls) > 0 else None
 
 # General options
 parser = argparse.ArgumentParser(description="simultaneously fit Spitzer and K2 light curves")
-parser.add_argument('-i', '--input', help='YAML setup file', type=str, default=fp_yaml)
+parser.add_argument('--setup', help='YAML setup file', type=str, default=fp_yaml)
 parser.add_argument('-o', '--out_dir', help='output directory', type=str, default=cwd)
 
 # K2 options
@@ -100,7 +100,8 @@ burn = args.burn
 restart = args.restart
 resume = args.resume
 
-setup = yaml.load(open(args.input))
+print("Reading setup file: {}".format(args.setup))
+setup = yaml.load(open(args.setup))
 
 # YAML setup file config overrides
 keys = 'k2lc binsize geom nsteps1 nsteps2 maxsteps grthreshold nthreads bin_k2 radius'.split()
