@@ -1,5 +1,6 @@
 import numpy as np
 
+import limbdark
 
 
 def q_to_u(q1, q2):
