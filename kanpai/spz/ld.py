@@ -1,3 +1,4 @@
+import functools
 import numpy as np
 
 from .. import util
