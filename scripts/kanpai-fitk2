@@ -76,6 +76,7 @@ else:
     sys.exit('Limb-darkening space must be "q" or "u"')
 
 if args.setup is not None:
+    print("Reading setup file: {}".format(args.setup))
     setup = yaml.load(open(args.setup))
     p = setup['transit']['p']
 else:
@@ -151,7 +152,8 @@ else:
 
 if ldp is not None:
     fp = os.path.join(out_dir, 'ld-prior.yaml')
-    yaml.dump(zip('u1 e_u1 u2 e_u2'.split(), ldp), open(fp, 'w'), default_flow_style=False)
+    ldp_dict = dict(zip('u1 u1_sig u2 u2_sig'.split(), ldp))
+    yaml.dump(ldp_dict, open(fp, 'w'), default_flow_style=False)
 
 # Instantiate Fit object
 fit = kanpai.k2.FitK2(t, f, p=p, out_dir=out_dir, logprob=logprob, sc=args.short_cadence)
