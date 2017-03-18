@@ -21,6 +21,7 @@ def claret(teff, uteff, logg, ulogg, feh, ufeh, band):
     u = limbdark.claret_ld(band, teff, uteff, logg, ulogg, feh, ufeh)
 
     # boost uncertainties by factor of 2
+    u = list(u)
     u[1] *= 2
     u[3] *= 2
 
