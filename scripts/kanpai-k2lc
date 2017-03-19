@@ -74,6 +74,11 @@ else:
 fold = kanpai.k2.Fold(epic, p, t0, t14, pipeline=pipeline,
     width=width, clip=clip, bl=baseline, skip=skip, lcfp=infile)
 
+tns = kanpai.util.lc.get_tns(fold._t, p, t0)
+fp = os.path.join(outdir, 'k2_lc_{}-{}-full.png'.format(epic, pipeline))
+kanpai.plot.simple_ts(fold._t, fold._f, fp=fp, vticks=tns,
+    color='b', alpha=0.3, mew=1, mec='k', ms=3)
+
 fold.run(outdir, refine=args.refine)
 tf, ff, sig = fold.results
 
