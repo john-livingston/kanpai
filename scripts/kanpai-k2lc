@@ -76,7 +76,9 @@ fold = kanpai.k2.Fold(epic, p, t0, t14, pipeline=pipeline,
 
 tns = kanpai.util.lc.get_tns(fold._t, p, t0)
 fp = os.path.join(outdir, 'k2_lc_{}-{}-full.png'.format(epic, pipeline))
-kanpai.plot.simple_ts(fold._t, fold._f, fp=fp, vticks=tns,
+ix = kanpai.util.stats.outliers(fold._f, su=clip[0], sl=clip[1])
+print "Clipped {} outliers in raw light curve".format(ix.sum())
+kanpai.plot.simple_ts(fold._t[~ix], fold._f[~ix], fp=fp, vticks=tns,
     color='b', alpha=0.3, mew=1, mec='k', ms=3)
 
 fold.run(outdir, refine=args.refine)

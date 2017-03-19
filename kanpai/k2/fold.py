@@ -60,7 +60,7 @@ class Fold(object):
             width=w, bl=bl, skip=s)
 
         # outlier rejection
-        idx = util.stats.outliers(ff, su=3, sl=6, iterative=True)
+        idx = util.stats.outliers(ff, su=8, sl=12, iterative=True)
         tf, ff = tf[~idx], ff[~idx]
         print("1st sigma clip: {}".format(idx.sum()))
 
@@ -81,7 +81,7 @@ class Fold(object):
             width=w, bl=bl, skip=s)
 
         # outlier rejection
-        idx = util.stats.outliers(ff, su=3, sl=6, iterative=True)
+        idx = util.stats.outliers(ff, su=6, sl=10, iterative=True)
         tf, ff = tf[~idx], ff[~idx]
         print("2nd sigma clip: {}".format(idx.sum()))
 
@@ -98,7 +98,7 @@ class Fold(object):
             width=w, bl=bl, skip=s)
 
         # outlier rejection
-        idx = util.stats.outliers(ff, su=3, sl=6, iterative=True)
+        idx = util.stats.outliers(ff, su=4, sl=8, iterative=True)
         tf, ff = tf[~idx], ff[~idx]
         print("3rd sigma clip: {}".format(idx.sum()))
 
