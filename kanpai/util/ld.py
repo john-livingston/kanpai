@@ -18,7 +18,7 @@ def u_to_q(u1, u2):
 
 def claret(teff, uteff, logg, ulogg, feh, ufeh, band):
 
-    u = limbdark.claret_ld(band, teff, uteff, logg, ulogg, feh, ufeh)
+    u = limbdark.claret(band, teff, uteff, logg, ulogg, feh, ufeh)
 
     # boost uncertainties by factor of 2
     u = list(u)
