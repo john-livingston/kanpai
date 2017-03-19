@@ -12,8 +12,8 @@ from .. import plot
 
 class Fold(object):
 
-    def __init__(self, epic, p, t0, t14=0.2, pipeline='everest',
-        width=0.8, clip=[3,3], bl=True, skip=None, lcfp=None):
+    def __init__(self, epic, p, t0, t14=0.2, pipeline='everest', width=0.8,
+        clip=[3,3], bl=True, skip=None, lcfp=None, clip_resid=False, pad=1.1):
 
         self._epic = int(epic)
         self._p = p
@@ -25,7 +25,10 @@ class Fold(object):
         self._bl = bl
         self._skip = skip
         self._lcfp = lcfp
+        self._clip_resid = clip_resid
+        self._pad = pad
         self._get_lc()
+        self._reject_oot_outliers()
 
 
     def _get_lc(self):
@@ -48,26 +51,26 @@ class Fold(object):
         idx = np.isnan(t) | np.isnan(f)
         self._t, self._f = t[~idx], f[~idx]
 
-        self._reject_oot_outliers()
 
-
-    def _reject_oot_outliers(self, pad=1.1):
+    def _reject_oot_outliers(self):
 
         t, f = self._t, self._f
         p, t0, t14 = self._p, self._t0, self._t14
         su, sl = self._clip
+        pad = self._pad
         tns = util.lc.get_tns(t, p, t0)
         in_tr = np.zeros_like(f).astype(bool)
         for tn in tns:
-            idx = (t > tn - pad*t14/2.) | (t < tn + pad*t14/2.)
+            idx = (t > tn - pad*t14/2.) & (t < tn + pad*t14/2.)
             in_tr[idx] = True
         oot = ~in_tr
-        bad = util.stats.outliers(f[oot], su=su, sl=sl, iterative=True)
+        bad_oot = util.stats.outliers(f[oot], su=su, sl=sl, iterative=True)
+        bad = np.where(oot)[0][bad_oot]
         good = np.ones_like(f).astype(bool)
-        good[oot][bad] = False
+        good[bad] = False
         self._t = t[good]
         self._f = f[good]
-        print "Clipped {} out-of-transit outliers in raw light curve".format(ix.sum())
+        print "Clipped {} out-of-transit outliers".format((~good).sum())
 
 
     def run(self, outdir, refine=True):
@@ -80,11 +83,6 @@ class Fold(object):
         # initial fold
         tf, ff = util.lc.fold(t, f, p, t0, t14=t14,
             width=w, bl=bl, skip=s)
-
-        # outlier rejection
-        idx = util.stats.outliers(ff, su=8, sl=12, iterative=True)
-        tf, ff = tf[~idx], ff[~idx]
-        print("1st sigma clip: {}".format(idx.sum()))
 
         if not refine:
             self._tf, self._ff = tf, ff
@@ -102,11 +100,6 @@ class Fold(object):
         tf, ff = util.lc.fold(t, f, p, t0, t14=t14,
             width=w, bl=bl, skip=s)
 
-        # outlier rejection
-        idx = util.stats.outliers(ff, su=6, sl=10, iterative=True)
-        tf, ff = tf[~idx], ff[~idx]
-        print("2nd sigma clip: {}".format(idx.sum()))
-
         # second fit to correct for any offset in initial T0
         fit = FitK2(tf, ff, t14=t14, p=p, out_dir=outdir, logprob=prob.logprob_q)
         fit.run_map(make_plots=False)
@@ -119,18 +112,14 @@ class Fold(object):
         tf, ff = util.lc.fold(t, f, p, t0, t14=t14,
             width=w, bl=bl, skip=s)
 
-        # outlier rejection
-        idx = util.stats.outliers(ff, su=4, sl=8, iterative=True)
-        tf, ff = tf[~idx], ff[~idx]
-        print("3rd sigma clip: {}".format(idx.sum()))
-
-        # identify final outliers by sigma clipping residuals
-        fit = FitK2(tf, ff, t14=t14, p=p, out_dir=outdir, logprob=prob.logprob_q)
-        fit.run_map(make_plots=False)
-        su, sl = self._clip
-        idx = util.stats.outliers(fit.resid(), su=su, sl=sl)
-        tf, ff = tf[~idx], ff[~idx]
-        print("Final sigma clip ({},{}): {}".format(su, sl, idx.sum()))
+        # sigma clip residuals
+        if self._clip_resid:
+            fit = FitK2(tf, ff, t14=t14, p=p, out_dir=outdir, logprob=prob.logprob_q)
+            fit.run_map(make_plots=False)
+            su, sl = self._clip
+            idx = util.stats.outliers(fit.resid(), su=su, sl=sl)
+            tf, ff = tf[~idx], ff[~idx]
+            print("Sigma clip residuals: {}".format(idx.sum()))
 
         # re-normalize to median OOT flux
         idx = (tf < -t14/2.) | (tf > t14/2.)
@@ -175,5 +164,6 @@ class Fold(object):
 
     def plot_full(self,fp):
 
+        tns = util.lc.get_tns(self._t, self._p, self._t0)
         plot.simple_ts(self._t, self._f, fp=fp, vticks=tns,
             color='b', alpha=0.3, mew=1, mec='k', ms=3)

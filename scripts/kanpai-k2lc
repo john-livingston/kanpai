@@ -31,13 +31,19 @@ parser.add_argument('--no_baseline', dest='baseline', help="don't fit a"
     " linear baseline model to each transit", action='store_false')
 parser.add_argument('-r', '--refine', dest='refine', help="refine parameters",
     action='store_true')
-parser.add_argument('-c', '--clip', help='sigma clip (upper, lower)',
+parser.add_argument('-c', '--clip', help='OOT sigma clip (upper, lower)',
     type=str, default='3,4')
+parser.add_argument('--pad', help='pad for OOT sigma clip (multiplicative)',
+    type=float, default=1.1)
 parser.add_argument('-s', '--skip', help='individual K2 epochs to skip'
     ', comma-separated', type=str, default=None)
 parser.add_argument('-i', '--infile', help='path to text file containing'
     ' light curve, (2 cols, no header row: time, flux)', type=str, default=None)
-parser.set_defaults(baseline=True, refine=False)
+parser.add_argument('--clip_residuals', help='sigma clip residuals',
+    dest='clip_resid', action='store_true')
+
+
+parser.set_defaults(baseline=True, refine=False, clip_resid=False)
 args = parser.parse_args()
 
 if args.setup is not None:
@@ -60,6 +66,8 @@ outdir = args.outdir
 baseline = args.baseline
 pipeline = args.pipeline
 infile = args.infile
+clip_resid = args.clip_resid
+pad = args.pad
 
 if infile is not None:
     pipeline = 'user'
@@ -72,7 +80,8 @@ else:
     skip = args.skip
 
 fold = kanpai.k2.Fold(epic, p, t0, t14, pipeline=pipeline,
-    width=width, clip=clip, bl=baseline, skip=skip, lcfp=infile)
+    width=width, clip=clip, bl=baseline, skip=skip, lcfp=infile,
+    clip_resid=clip_resid, pad=pad)
 
 fp = os.path.join(outdir, 'k2_lc_{}-{}-full.png'.format(epic, pipeline))
 fold.plot_full(fp)
