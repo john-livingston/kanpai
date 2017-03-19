@@ -152,7 +152,7 @@ else:
 
 if ldp is not None:
     fp = os.path.join(out_dir, 'ld-prior.yaml')
-    ldp_dict = dict(zip('u1 u1_sig u2 u2_sig'.split(), ldp))
+    ldp_dict = dict(zip('u1 u1_sig u2 u2_sig'.split(), [float(i) for i in ldp]))
     yaml.dump(ldp_dict, open(fp, 'w'), default_flow_style=False)
 
 # Instantiate Fit object

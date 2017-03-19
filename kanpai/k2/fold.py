@@ -7,6 +7,7 @@ from .fit import FitK2
 from . import prob
 from . import lc
 from .. import util
+from .. import plot
 
 
 class Fold(object):
@@ -46,6 +47,27 @@ class Fold(object):
 
         idx = np.isnan(t) | np.isnan(f)
         self._t, self._f = t[~idx], f[~idx]
+
+        self._reject_oot_outliers()
+
+
+    def _reject_oot_outliers(self, pad=1.1):
+
+        t, f = self._t, self._f
+        p, t0, t14 = self._p, self._t0, self._t14
+        su, sl = self._clip
+        tns = util.lc.get_tns(t, p, t0)
+        in_tr = np.zeros_like(f).astype(bool)
+        for tn in tns:
+            idx = (t > tn - pad*t14/2.) | (t < tn + pad*t14/2.)
+            in_tr[idx] = True
+        oot = ~in_tr
+        bad = util.stats.outliers(f[oot], su=su, sl=sl, iterative=True)
+        good = np.ones_like(f).astype(bool)
+        good[oot][bad] = False
+        self._t = t[good]
+        self._f = f[good]
+        print "Clipped {} out-of-transit outliers in raw light curve".format(ix.sum())
 
 
     def run(self, outdir, refine=True):
@@ -149,3 +171,9 @@ class Fold(object):
     def plot_fit(self, fp):
 
         self._fit.plot_best(fp=fp, lw=3, ms=10, nmodel=1000)
+
+
+    def plot_full(self,fp):
+
+        plot.simple_ts(self._t, self._f, fp=fp, vticks=tns,
+            color='b', alpha=0.3, mew=1, mec='k', ms=3)

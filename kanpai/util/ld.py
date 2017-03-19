@@ -20,9 +20,11 @@ def claret(teff, uteff, logg, ulogg, feh, ufeh, band):
 
     u = limbdark.claret(band, teff, uteff, logg, ulogg, feh, ufeh)
 
-    # boost uncertainties by factor of 2
+    # impose 10% minimum uncertainty on LD parameters
     u = list(u)
-    u[1] *= 2
-    u[3] *= 2
+    if u[1]/u[0] < 0.1:
+        u[1] = 0.1 * u[0]
+    if u[3]/u[2] < 0.1:
+        u[3] = 0.1 * u[2]
 
     return u
