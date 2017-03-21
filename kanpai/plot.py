@@ -75,8 +75,13 @@ def corner(fc, labels, fp=None, truths=None, quantiles=[0.16,0.5,0.84],
             pl.close()
 
 def simple_ts(t, f, tmodel=None, model=None, fp=None, title="", color='b',
-    alpha=0.5, mew=1, mec='k', vticks=None, timeoffset=False, ax=None, **kwargs):
+    alpha=0.5, mew=1, mec='k', vticks=None, timeoffset=False, ax=None,
+    xlabel=None, ylabel=None, **kwargs):
 
+    if xlabel is None:
+        xlabel = 'Time [BJD]'
+    if ylabel is None:
+        ylabel = 'Normalized Flux'
     with sb.axes_style('ticks', rc):
         if ax is None:
             fig, ax = pl.subplots(1, 1, figsize=(10,3))
@@ -93,8 +98,8 @@ def simple_ts(t, f, tmodel=None, model=None, fp=None, title="", color='b',
             yl[0] = yl[0] + 0.08 * np.diff(yl)
             yl[1] = yl[0] + 0.18 * np.diff(yl)
             ax.vlines(vticks, yl[0], yl[1], color='r')
-        pl.setp(ax, xlabel='Time [BJD]',
-            ylabel='Normalized Flux',
+        pl.setp(ax, xlabel=xlabel,
+            ylabel=ylabel,
             title=title,
             xlim=(t.min(), t.max()))
         ax.minorticks_on()

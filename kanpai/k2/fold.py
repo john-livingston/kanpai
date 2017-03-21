@@ -151,6 +151,8 @@ class Fold(object):
         self._fit = fit
         self._tf, self._ff = tf, ff
         self._sig = np.std(fit.resid())
+        self._t14 = t14
+        self._t0 = t0
 
 
     @property
@@ -175,8 +177,10 @@ class Fold(object):
                 color='b', alpha=0.3, mew=1, mec='k', ms=3, ax=axs[0])
 
             tf, ff, sig = self.results
-            plot.simple_ts(tf, ff, color='b', alpha=0.3,
-                mew=2, mec='k', ms=5, ax=axs[1])
+            idx = (tf > -2*self._t14) & (tf < 2*self._t14)
+            xlabel = 'Hours from mid-transit'
+            plot.simple_ts(tf[idx]*24, ff[idx], color='b', alpha=0.5,
+                mew=1, mec='k', ax=axs[1], xlabel=xlabel)
 
             fig.savefig(fp)
             pl.close()
