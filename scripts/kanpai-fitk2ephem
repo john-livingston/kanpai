@@ -39,7 +39,6 @@ parser.add_argument('--plot_individual', help='plot individual K2 epochs',
     dest='plot_individual', action='store_true')
 
 # MCMC options
-parser.add_argument('--mcmc', help='use MCMC', dest='mcmc', action='store_true')
 parser.add_argument('-n', '--nproc', help='number of processes to use', type=int, default=1)
 parser.add_argument('--gr', type=float, default=1.1,
     help='Gelmin-Rubin threshold')
@@ -47,12 +46,10 @@ parser.add_argument('--nsteps1', type=int, default=int(500),
     help='number of initialization MCMC steps')
 parser.add_argument('--nsteps2', type=int, default=int(1000),
     help='number of production MCMC steps')
-parser.add_argument('--map_init', help='Initialize MCMC with MAP fit',
-    dest='map_init', action='store_true')
 parser.add_argument('--restart', dest='restart', help='restart MCMC',
     action='store_true')
 
-parser.set_defaults(short_cadence=False, map_init=False, restart=False, plot_individual=False)
+parser.set_defaults(short_cadence=False, restart=False, plot_individual=False)
 
 args = parser.parse_args()
 
@@ -84,11 +81,9 @@ else:
 
 su, sl = [float(i) for i in args.clip.split(',')]
 
-fp = os.path.join(input_dir, 'mcmc-summary.yaml')
-res = yaml.load(open(fp))
-k, a, b, q1, q2 = [res['pv_best'].get(pv) for pv in 'k a b q1 q2'.split()]
-i = kanpai.util.transit.inclination(a, b)
-u1, u2 = kanpai.util.ld.q_to_u(q1, q2)
+fp = os.path.join(input_dir, 'mcmc.npz')
+npz = np.load(fp)
+ps = npz['flat_chain']
 
 if args.phot is None:
     t, f = kanpai.k2.lc.unfolded(epic, p, t0, t14, pipeline=args.pipeline)
@@ -134,23 +129,30 @@ for o, t, f in zip(orb, ts, fs):
         print "Dimension mis-match: {} vs. {}".format(len(t), len(f))
 
 out = {}
-if not args.mcmc:
+fp = os.path.join(input_dir, 'ephem-mcmc.npz')
+if not os.path.isfile(fp) or args.restart:
 
     tc_best = []
+    tc_perc = []
+    tc_samples = []
     phase = np.array([])
     flux = np.array([])
     for o, t, f in zip(orb, ts, fs):
-        print "\nAttempting fit for orbit {}".format(o),
-        fit = kanpai.k2.fit.FitK2Tc(t, f, k, a, i, u1, u2, p, sc=args.short_cadence)
-        fit.run_map(make_plots=False)
-        fp = os.path.join(input_dir, 'ephem-map-tc{}.png'.format(o))
+        fit = kanpai.k2.fit.FitK2Tc(t, f, p, ps, sc=args.short_cadence)
+        fit.run_mcmc(make_plots=False, save=False, gr_threshold=args.gr,
+            nproc=args.nproc, nsteps1=ns1, nsteps2=ns2)
+        fp = os.path.join(input_dir, 'ephem-samples-tc{}.png'.format(o))
         if args.plot_individual:
-            fit.plot_best(nmodel=500, fp=fp)
-        tc_best.append(fit.best['tc'])
-        phase = np.append(phase, t-fit.best['tc'])
+            fit.plot_samples(nmodel=500, fp=fp)
+        summary = fit.summarize_mcmc(save=False)
+        tc_best.append(summary['pv_best']['tc'])
+        tc_perc.append(summary['percentiles']['tc'])
+        tc_samples.append(fit._fc[:,fit._pv_names.index('tc')])
+        phase = np.append(phase, t-summary['pv_best']['tc'])
         flux = np.append(flux, f)
 
     out['tc_best'] = tc_best
+    out['tc_perc'] = tc_perc
 
     # make TTV-corrected phasefolded light curve:
     idx = np.argsort(phase)
@@ -162,73 +164,34 @@ if not args.mcmc:
     fp = os.path.join(input_dir, 'ephem-folded.csv')
     df['t f'.split()].to_csv(fp, index=False, header=False)
 
-else:
+    # make tc sample sets same size:
+    ns = [len(tcs) for tcs in tc_samples]
+    ns_min = min(ns)
+    for n,tcs in enumerate(tc_samples):
+        tc_samples[n] = tcs[-ns_min:]
 
     fp = os.path.join(input_dir, 'ephem-mcmc.npz')
-    if not os.path.isfile(fp) or args.restart:
+    np.savez_compressed(fp, orb=orb, tc_best=tc_best, tc_perc=tc_perc, tc_samples=tc_samples)
 
-        tc_best = []
-        tc_perc = []
-        tc_samples = []
-        phase = np.array([])
-        flux = np.array([])
-        for o, t, f in zip(orb, ts, fs):
-            fit = kanpai.k2.fit.FitK2Tc(t, f, k, a, i, u1, u2, p, sc=args.short_cadence)
-            if args.map_init:
-                fit.run_map(make_plots=False)
-            fit.run_mcmc(make_plots=False, save=False, gr_threshold=args.gr,
-                nproc=args.nproc, nsteps1=ns1, nsteps2=ns2)
-            fp = os.path.join(input_dir, 'ephem-samples-tc{}.png'.format(o))
-            if args.plot_individual:
-                fit.plot_samples(nmodel=500, fp=fp)
-            summary = fit.summarize_mcmc(save=False)
-            tc_best.append(summary['pv_best']['tc'])
-            tc_perc.append(summary['percentiles']['tc'])
-            tc_samples.append(fit._fc[:,fit._pv_names.index('tc')])
-            phase = np.append(phase, t-summary['pv_best']['tc'])
-            flux = np.append(flux, f)
+else:
 
-        out['tc_best'] = tc_best
-        out['tc_perc'] = tc_perc
+    npz = np.load(fp)
+    orb = npz['orb']
+    tc_best = npz['tc_best']
+    tc_perc = npz['tc_perc']
+    tc_samples = npz['tc_samples']
 
-        # make TTV-corrected phasefolded light curve:
-        idx = np.argsort(phase)
-        phase = phase[idx]
-        flux = flux[idx]
-        fp = os.path.join(input_dir, 'ephem-folded.png')
-        kanpai.plot.simple_ts(phase, flux, fp=fp)
-        df = pd.DataFrame(dict(t=phase, f=flux))
-        fp = os.path.join(input_dir, 'ephem-folded.csv')
-        df['t f'.split()].to_csv(fp, index=False, header=False)
+    if skip is not None:
+        idx = np.zeros(orb.size).astype(bool)
+        for i in skip:
+            idx |= orb == i
+        orb = orb[~idx]
+        tc_best = tc_best[~idx]
+        tc_perc = tc_perc[~idx]
+        tc_samples = tc_samples[~idx]
 
-        # make tc sample sets same size:
-        ns = [len(tcs) for tcs in tc_samples]
-        ns_min = min(ns)
-        for n,tcs in enumerate(tc_samples):
-            tc_samples[n] = tcs[-ns_min:]
-
-        fp = os.path.join(input_dir, 'ephem-mcmc.npz')
-        np.savez_compressed(fp, orb=orb, tc_best=tc_best, tc_perc=tc_perc, tc_samples=tc_samples)
-
-    else:
-
-        npz = np.load(fp)
-        orb = npz['orb']
-        tc_best = npz['tc_best']
-        tc_perc = npz['tc_perc']
-        tc_samples = npz['tc_samples']
-
-        if skip is not None:
-            idx = np.zeros(orb.size).astype(bool)
-            for i in skip:
-                idx |= orb == i
-            orb = orb[~idx]
-            tc_best = tc_best[~idx]
-            tc_perc = tc_perc[~idx]
-            tc_samples = tc_samples[~idx]
-
-        out['tc_best'] = tc_best
-        out['tc_perc'] = tc_perc
+    out['tc_best'] = tc_best
+    out['tc_perc'] = tc_perc
 
 for o,tc in zip(orb, tc_best):
     print "Tc,{} = {}".format(o, tc)
@@ -236,27 +199,21 @@ for o,tc in zip(orb, tc_best):
 t0, p = kanpai.util.stats.simple_ols(orb, tc_best)
 print "Max. Prob. P = {}, T0 = {}".format(p, t0)
 
-if not args.mcmc:
-    fp = os.path.join(input_dir, 'ephem-oc.png')
-    kanpai.plot.oc(orb, tc_best, p, t0, fp=fp)
-    out['p'] = float(p)
-    out['t0'] = float(t0)
-else:
-    out['p_best'] = float(p)
-    out['t0_best'] = float(t0)
-    ephem_samples = kanpai.util.transit.sample_ephem(orb, tc_samples)
-    fp = os.path.join(input_dir, 'ephem-corner.png')
-    kanpai.plot.corner(ephem_samples, labels=r'$T_0$ $P$'.split(), truths=[t0,p], fp=fp)
-    perc = np.percentile(ephem_samples, [15.87,50.0,84.13], axis=0)
-    (t0, t0_err), (p, p_err) = map(lambda x: (x[1], (x[1]-x[0], x[2]-x[1])), perc.T)
-    tc_err = map(lambda x: (x[1]-x[0], x[2]-x[1]), tc_perc)
-    tc_err = np.array(tc_err).T
-    fp = os.path.join(input_dir, 'ephem-oc.png')
-    kanpai.plot.oc(orb, tc_best, p, t0, tc_err=tc_err, p_err=p_err, fp=fp)
-    out['p_med'] = float(p)
-    out['t0_med'] = float(t0)
-    out['p_err'] = [float(i) for i in p_err]
-    out['t0_err'] = [float(i) for i in t0_err]
+out['p_best'] = float(p)
+out['t0_best'] = float(t0)
+ephem_samples = kanpai.util.transit.sample_ephem(orb, tc_samples)
+fp = os.path.join(input_dir, 'ephem-corner.png')
+kanpai.plot.corner(ephem_samples, labels=r'$T_0$ $P$'.split(), truths=[t0,p], fp=fp)
+perc = np.percentile(ephem_samples, [15.87,50.0,84.13], axis=0)
+(t0, t0_err), (p, p_err) = map(lambda x: (x[1], (x[1]-x[0], x[2]-x[1])), perc.T)
+tc_err = map(lambda x: (x[1]-x[0], x[2]-x[1]), tc_perc)
+tc_err = np.array(tc_err).T
+fp = os.path.join(input_dir, 'ephem-oc.png')
+kanpai.plot.oc(orb, tc_best, p, t0, tc_err=tc_err, p_err=p_err, fp=fp)
+out['p_med'] = float(p)
+out['t0_med'] = float(t0)
+out['p_err'] = [float(i) for i in p_err]
+out['t0_err'] = [float(i) for i in t0_err]
 
 fp = os.path.join(input_dir, 'ephem-summary.yaml')
 yaml.dump(out, open(fp, 'w'), default_flow_style=False)

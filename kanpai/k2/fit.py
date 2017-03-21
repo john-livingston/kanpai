@@ -60,36 +60,28 @@ class FitK2(Fit):
 
 class FitK2Tc(Fit):
 
-    def __init__(self, t, f, k, a, i, u1, u2, p, out_dir=None, sc=False):
+    def __init__(self, t, f, p, ps, out_dir=None, sc=False):
 
         self._data = np.c_[t,f]
-        self._k = k
-        self._a = a
-        self._i = i
-        self._u1 = u1
-        self._u2 = u2
         self._p = p
+        self._ps = ps
         self._out_dir = out_dir
-        self._logprob = prob.logprob_u_tc
+        self._logprob = prob.logprob_q_tc
         self._sc = sc
         super(self.__class__, self).__init__()
 
     @property
     def _ini(self):
         tc = self._data[:,0].mean()
-        s = self._data[:,1].std()
+        ls = np.log(self._data[:,1].std())
         k0 = 0
-        pv = [tc,s,k0]
+        pv = [tc,ls,k0]
         return np.array(pv)
 
     @property
     def _args(self):
         t, f = self._data.T
-        k = self._k
-        a = self._a
-        i = self._i
-        u1 = self._u1
-        u2 = self._u2
         p = self._p
+        ps = self._ps
         sc = self._sc
-        return t, f, k, a, i, u1, u2, p, sc
+        return t, f, p, ps, sc

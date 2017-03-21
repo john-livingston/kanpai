@@ -55,19 +55,24 @@ def logprob_q(theta, t, f, p, up=None, sc=False, ret_pvnames=False, ret_mod=Fals
     return lp + ll
 
 
-def logprob_u_tc(theta, t, f, k, a, i, u1, u2, p, sc=False, ret_pvnames=False, ret_mod=False):
+def logprob_q_tc(theta, t, f, p, ps, sc=False, ret_pvnames=False, ret_mod=False):
+
+    tc,ls,k0 = theta
+    # ps contains posterior samples from logprob_q
+    sample = ps[np.random.randint(0,ps.shape[0])]
+    k,tc0,a,b,q1,q2 = sample[:-2]
+    # create new theta for loglike_q
+    theta = [k,tc,a,b,q1,q2,ls,k0]
 
     if ret_pvnames:
         return 'tc,ls,k0'.split(',')
     elif ret_mod:
-        return like.loglike_u_tc(theta, t, f, k, a, i, u1, u2, p, ret_mod=True, sc=sc)
-
-    tc,ls,k0 = theta
+        return like.loglike_q(theta, t, f, p, sc=sc, ret_mod=True)
 
     if tc < t[0] or tc > t[-1]:
         return -np.inf
 
-    ll = like.loglike_u_tc(theta, t, f, k, a, i, u1, u2, p, sc=sc)
+    ll = like.loglike_q(theta, t, f, p, sc=sc, ret_mod=False)
 
     if np.isnan(ll).any():
         return -np.inf
