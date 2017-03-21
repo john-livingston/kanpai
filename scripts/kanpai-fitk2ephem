@@ -34,15 +34,24 @@ parser.add_argument('--sc', help='K2 short cadence data',
     dest='short_cadence', action='store_true')
 parser.add_argument('--skip', help='individual K2 epochs to skip'
     ', comma-separated', type=str, default=None)
+parser.add_argument('--plot_individual', help='plot individual K2 epochs',
+    dest='plot_individual', action='store_true')
+
+# MCMC options
 parser.add_argument('--mcmc', help='use MCMC', dest='mcmc', action='store_true')
+parser.add_argument('-n', '--nproc', help='number of processes to use', type=int, default=None)
 parser.add_argument('--gr', type=float, default=1.1,
     help='Gelmin-Rubin threshold')
+parser.add_argument('--nsteps1', type=int, default=int(500),
+    help='number of initialization MCMC steps')
+parser.add_argument('--nsteps2', type=int, default=int(1000),
+    help='number of production MCMC steps')
 parser.add_argument('--map_init', help='Initialize MCMC with MAP fit',
     dest='map_init', action='store_true')
 parser.add_argument('--restart', dest='restart', help='restart MCMC',
     action='store_true')
 
-parser.set_defaults(short_cadence=False, map_init=False, restart=False)
+parser.set_defaults(short_cadence=False, map_init=False, restart=False, plot_individual=False)
 
 args = parser.parse_args()
 
@@ -61,6 +70,13 @@ else:
 
 width = args.width
 input_dir = args.input
+ns1 = args.nsteps1
+ns2 = args.nsteps2
+
+if args.nproc is not None:
+    nproc = args.nproc
+else:
+    nproc = multiprocessing.cpu_count()
 
 fp = os.path.join(input_dir, 'ephem-input.yaml')
 yaml.dump(vars(args), open(fp, 'w'), default_flow_style=False)
@@ -132,7 +148,8 @@ if not args.mcmc:
         fit = kanpai.k2.fit.FitK2Tc(t, f, k, a, i, u1, u2, p, sc=args.short_cadence)
         fit.run_map(make_plots=False)
         fp = os.path.join(input_dir, 'ephem-map-tc{}.png'.format(o))
-        fit.plot_best(nmodel=500, fp=fp)
+        if args.plot_individual:
+            fit.plot_best(nmodel=500, fp=fp)
         tc_best.append(fit.best['tc'])
         phase = np.append(phase, t-fit.best['tc'])
         flux = np.append(flux, f)
@@ -163,9 +180,10 @@ else:
             fit = kanpai.k2.fit.FitK2Tc(t, f, k, a, i, u1, u2, p, sc=args.short_cadence)
             if args.map_init:
                 fit.run_map(make_plots=False)
-            fit.run_mcmc(make_plots=False, save=False, gr_threshold=args.gr)
+            fit.run_mcmc(make_plots=False, save=False, gr_threshold=args.gr, nproc=nproc, nsteps1=ns1, nsteps2=ns2)
             fp = os.path.join(input_dir, 'ephem-samples-tc{}.png'.format(o))
-            fit.plot_samples(nmodel=500, fp=fp)
+            if args.plot_individual:
+                fit.plot_samples(nmodel=500, fp=fp)
             summary = fit.summarize_mcmc(save=False)
             tc_best.append(summary['pv_best']['tc'])
             tc_perc.append(summary['percentiles']['tc'])
