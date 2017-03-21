@@ -4,7 +4,6 @@ import os
 import sys
 import glob
 import argparse
-import multiprocessing
 
 import yaml
 import numpy as np
@@ -83,10 +82,7 @@ radius = args.radius
 out_dir = args.out_dir
 if not os.path.isdir(out_dir):
     os.mkdir(out_dir)
-if args.nproc is not None:
-    nproc = args.nproc
-else:
-    nproc = multiprocessing.cpu_count()
+nproc = args.nproc
 save = args.save
 gr_threshold = args.gr
 ns1 = args.nsteps1

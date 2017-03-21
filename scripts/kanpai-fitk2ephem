@@ -3,7 +3,6 @@
 import os
 import sys
 import argparse
-import multiprocessing
 
 import yaml
 import numpy as np
@@ -28,8 +27,10 @@ parser.add_argument('-w', '--width', help='Extraction width [days]',
     type=float, default=0.8)
 parser.add_argument('-c', '--clip', help='sigma clip (upper, lower)',
     type=str, default='4,10')
+parser.add_argument('--pipeline', help='which pipeline to use',
+    type=str, default='everest')
 parser.add_argument('--phot', help='Path to photometric time series '
-    'file to use (instead of EVEREST)', type=str, default=None)
+    'file to use (instead of retrieving from --pipeline)', type=str, default=None)
 parser.add_argument('--sc', help='K2 short cadence data',
     dest='short_cadence', action='store_true')
 parser.add_argument('--skip', help='individual K2 epochs to skip'
@@ -39,7 +40,7 @@ parser.add_argument('--plot_individual', help='plot individual K2 epochs',
 
 # MCMC options
 parser.add_argument('--mcmc', help='use MCMC', dest='mcmc', action='store_true')
-parser.add_argument('-n', '--nproc', help='number of processes to use', type=int, default=None)
+parser.add_argument('-n', '--nproc', help='number of processes to use', type=int, default=1)
 parser.add_argument('--gr', type=float, default=1.1,
     help='Gelmin-Rubin threshold')
 parser.add_argument('--nsteps1', type=int, default=int(500),
@@ -73,11 +74,6 @@ input_dir = args.input
 ns1 = args.nsteps1
 ns2 = args.nsteps2
 
-if args.nproc is not None:
-    nproc = args.nproc
-else:
-    nproc = multiprocessing.cpu_count()
-
 fp = os.path.join(input_dir, 'ephem-input.yaml')
 yaml.dump(vars(args), open(fp, 'w'), default_flow_style=False)
 
@@ -95,7 +91,7 @@ i = kanpai.util.transit.inclination(a, b)
 u1, u2 = kanpai.util.ld.q_to_u(q1, q2)
 
 if args.phot is None:
-    t, f = kanpai.k2.lc.unfolded(epic, p, t0, t14)
+    t, f = kanpai.k2.lc.unfolded(epic, p, t0, t14, pipeline=args.pipeline)
 else:
     t, f = np.loadtxt(args.phot, unpack=True)
     if t.max() < 2454833:
@@ -180,7 +176,8 @@ else:
             fit = kanpai.k2.fit.FitK2Tc(t, f, k, a, i, u1, u2, p, sc=args.short_cadence)
             if args.map_init:
                 fit.run_map(make_plots=False)
-            fit.run_mcmc(make_plots=False, save=False, gr_threshold=args.gr, nproc=nproc, nsteps1=ns1, nsteps2=ns2)
+            fit.run_mcmc(make_plots=False, save=False, gr_threshold=args.gr,
+                nproc=args.nproc, nsteps1=ns1, nsteps2=ns2)
             fp = os.path.join(input_dir, 'ephem-samples-tc{}.png'.format(o))
             if args.plot_individual:
                 fit.plot_samples(nmodel=500, fp=fp)

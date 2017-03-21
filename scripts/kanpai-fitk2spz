@@ -4,7 +4,6 @@ import os
 import sys
 import glob
 import argparse
-import multiprocessing
 
 import yaml
 import numpy as np
@@ -53,7 +52,7 @@ parser.add_argument('--cen', help='detrend via centroids', dest='cen', action='s
 parser.add_argument('--pld', help='detrend via PLD', dest='pld', action='store_true')
 
 # MCMC options
-parser.add_argument('-n', '--nproc', help='number of processes to use', type=int, default=None)
+parser.add_argument('-n', '--nproc', help='number of processes to use', type=int, default=1)
 parser.add_argument('--gr', type=float, default=1.1,
     help='Gelmin-Rubin threshold')
 parser.add_argument('--nsteps1', type=int, default=int(1e3),
@@ -87,10 +86,7 @@ radius = args.radius
 out_dir = args.out_dir
 if not os.path.isdir(out_dir):
     os.mkdir(out_dir)
-if args.nproc is not None:
-    nproc = args.nproc
-else:
-    nproc = multiprocessing.cpu_count()
+nproc = args.nproc
 save = args.save
 gr_threshold = args.gr
 ns1 = args.nsteps1
