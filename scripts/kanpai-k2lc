@@ -32,7 +32,7 @@ parser.add_argument('--no_baseline', dest='baseline', help="don't fit a"
 parser.add_argument('-r', '--refine', dest='refine', help="refine parameters",
     action='store_true')
 parser.add_argument('-c', '--clip', help='OOT sigma clip (upper, lower)',
-    type=str, default='3,4')
+    type=str, default='4,10')
 parser.add_argument('--pad', help='pad for OOT sigma clip (multiplicative)',
     type=float, default=1.1)
 parser.add_argument('-s', '--skip', help='individual K2 epochs to skip'
@@ -83,17 +83,15 @@ fold = kanpai.k2.Fold(epic, p, t0, t14, pipeline=pipeline,
     width=width, clip=clip, bl=baseline, skip=skip, lcfp=infile,
     clip_resid=clip_resid, pad=pad)
 
+fold.run(outdir, refine=args.refine)
+
 fp = os.path.join(outdir, 'k2_lc_{}-{}-full.png'.format(epic, pipeline))
 fold.plot_full(fp)
 
-fold.run(outdir, refine=args.refine)
-tf, ff, sig = fold.results
-
-fp = os.path.join(outdir, 'k2_lc_{}-{}.png'.format(epic, pipeline))
 if args.refine:
+    fp = os.path.join(outdir, 'k2_lc_{}-{}-fit.png'.format(epic, pipeline))
     fold.plot_fit(fp)
-else:
-    kanpai.plot.simple_ts(tf, ff, fp=fp)
 
+tf, ff, sig = fold.results
 fp = os.path.join(outdir, 'k2_lc_{}-{}.csv'.format(epic, pipeline))
 np.savetxt(fp, np.c_[tf, ff, sig], delimiter=',')

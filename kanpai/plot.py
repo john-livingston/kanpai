@@ -74,11 +74,14 @@ def corner(fc, labels, fp=None, truths=None, quantiles=[0.16,0.5,0.84],
             pl.savefig(fp, dpi=dpi)
             pl.close()
 
-def simple_ts(t, f, tmodel=None, model=None, fp=None, title="",
-    color='b', alpha=0.5, mew=1, mec='k', vticks=None, timeoffset=False, **kwargs):
+def simple_ts(t, f, tmodel=None, model=None, fp=None, title="", color='b',
+    alpha=0.5, mew=1, mec='k', vticks=None, timeoffset=False, ax=None, **kwargs):
 
     with sb.axes_style('ticks', rc):
-        fig, ax = pl.subplots(1, 1, figsize=(10,3))
+        if ax is None:
+            fig, ax = pl.subplots(1, 1, figsize=(10,3))
+        else:
+            fig = ax.get_figure()
         ax.plot(t, f, linestyle='none', marker='o',
             color=color, alpha=alpha, mew=mew, mec=mec, **kwargs)
         if tmodel is not None and model is not None:

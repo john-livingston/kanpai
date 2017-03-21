@@ -2,6 +2,8 @@ import numpy as np
 from everest import Everest
 import k2plr as kplr
 from astropy.stats import sigma_clip
+import matplotlib.pyplot as pl
+import seaborn as sb
 
 from .fit import FitK2
 from . import prob
@@ -162,8 +164,19 @@ class Fold(object):
         self._fit.plot_best(fp=fp, lw=3, ms=10, nmodel=1000)
 
 
-    def plot_full(self,fp):
+    def plot_full(self, fp):
 
-        tns = util.lc.get_tns(self._t, self._p, self._t0)
-        plot.simple_ts(self._t, self._f, fp=fp, vticks=tns,
-            color='b', alpha=0.3, mew=1, mec='k', ms=3)
+        with sb.axes_style('ticks', plot.rc):
+
+            fig,axs = pl.subplots(2, 1, figsize=(10,6))
+
+            tns = util.lc.get_tns(self._t, self._p, self._t0)
+            plot.simple_ts(self._t, self._f, vticks=tns,
+                color='b', alpha=0.3, mew=1, mec='k', ms=3, ax=axs[0])
+
+            tf, ff, sig = self.results
+            plot.simple_ts(tf, ff, color='b', alpha=0.3,
+                mew=2, mec='k', ms=5, ax=axs[1])
+
+            fig.savefig(fp)
+            pl.close()
