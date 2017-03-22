@@ -108,7 +108,14 @@ for k,v in zip(keys, vals):
 
 # Load data
 df_spz, pix = kanpai.spz.io.load_spz(setup, out_dir=out_dir)
-df_k2 = kanpai.k2.io.load_k2(setup['config']['k2lc'], binning=bin_k2)
+if not os.path.isabs(setup['config']['k2lc']):
+    try:
+        setup_dir = os.path.abspath(os.path.dirname(args.setup))
+        fp = os.path.join(setup_dir, setup['config']['k2lc'])
+    except:
+        sys.exit('Error: unable to locate K2 light curve file')
+else:
+    df_k2 = kanpai.k2.io.load_k2(setup['config']['k2lc'], binning=bin_k2)
 
 # Setup auxiliary vectors for Spitzer detrending
 aux = None
