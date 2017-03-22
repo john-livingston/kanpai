@@ -17,7 +17,7 @@ def load_k2(k2_folded_fp, binning=None, trim=None):
             df['s'] = np.repeat(df['f'].std(), df.shape[0])
 
     except:
-
+        print k2_folded_fp
         raise ValueError('Invalid K2 light curve file format')
 
     if binning is not None:
