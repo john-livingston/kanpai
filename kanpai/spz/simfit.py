@@ -5,6 +5,7 @@ import pickle
 
 import numpy as np
 np.warnings.simplefilter('ignore')
+import pandas as pd
 import sxp
 
 from . import prob
