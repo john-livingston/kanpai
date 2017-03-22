@@ -192,3 +192,6 @@ fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms, bur
     gr_threshold=gr_threshold, make_plots=True, restart=restart, resume=resume)
 fit.post_mcmc()
 fit.summarize_mcmc()
+
+fp = os.path.join(out_dir, 'mcmc.npz')
+kanpai.spz.simfit.transit_params_h5(fp, p)
