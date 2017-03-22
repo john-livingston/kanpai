@@ -69,7 +69,7 @@ def make_samples_h5(npz_fp, p):
     df['tshape'] = df['t23'] / df['t14']
     df['max_k'] = util.transit.max_k(df['tshape'])
 
-    cols = 'a b i k k_k k_s s_k s_s tc_s rhostar t14 t23 tau tshape max_k'.split()
+    cols = 'a b i k k_k k_s ls_k ls_s tc_s rhostar t14 t23 tau tshape max_k'.split()
     fp = npz_fp.replace('.npz', '-samples.h5')
     df[cols].to_hdf(fp, key='samples')
 
@@ -78,10 +78,8 @@ def make_samples_h5(npz_fp, p):
     with open(fp, 'w') as w:
         w.write(qt.to_string() + '\n')
 
-    # import pdb; pdb.set_trace()
-    # qtt = qt.apply(lambda x: (x[1], x[2]-x[1], x[1]-x[0]), axis=1)
     fmt_str = '&${0:.4f}^{{+{1:.4f}}}_{{-{2:.4f}}}$'
-    formatter = lambda x: fmt_str.format(x.values[0], x.values[2]-x.values[1], x.values[1]-x.values[0])
+    formatter = lambda x: fmt_str.format(x.values[1], x.values[2]-x.values[1], x.values[1]-x.values[0])
     tex = qt.apply(formatter, axis=1)
     fp = npz_fp.replace('.npz', '-quantiles-latex.txt')
     with open(fp, 'w') as w:
