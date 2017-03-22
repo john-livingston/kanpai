@@ -80,7 +80,7 @@ class FitK2Spz(Fit):
         self._logprob = logprob
         self._ld_prior = None
 
-        fp = os.path.join(self._out_dir, 'setup.yaml')
+        fp = os.path.join(self._out_dir, 'input.yaml')
         yaml.dump(setup, open(fp, 'w'), default_flow_style=False)
 
 
