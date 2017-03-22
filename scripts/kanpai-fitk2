@@ -95,7 +95,7 @@ burn = args.burn
 restart = args.restart
 resume = args.resume
 
-fp = os.path.join(out_dir, 'input.yaml')
+fp = os.path.join(out_dir, 'args.yaml')
 yaml.dump(vars(args), open(fp, 'w'), default_flow_style=False)
 
 # Load data

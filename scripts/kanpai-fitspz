@@ -102,10 +102,10 @@ for k,v in zip(keys, vals):
     if v is not None:
         setup['config'][k] = v
 
-fp = os.path.join(out_dir, 'input.yaml')
+fp = os.path.join(out_dir, 'args.yaml')
 yaml.dump(vars(args), open(fp, 'w'), default_flow_style=False)
 
-fp = os.path.join(out_dir, 'setup.yaml')
+fp = os.path.join(out_dir, 'input.yaml')
 yaml.dump(setup, open(fp, 'w'), default_flow_style=False)
 
 # Load data
