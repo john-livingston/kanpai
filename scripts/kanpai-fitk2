@@ -164,5 +164,5 @@ fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms, bur
 fit.plot_mcmc(nmodel=1000)
 fit.summarize_mcmc()
 
-os.path.join(out_dir, 'mcmc.npz')
+fp = os.path.join(out_dir, 'mcmc.npz')
 kanpai.k2.util.make_samples_h5(fp, p)
