@@ -184,8 +184,8 @@ elif args.ldp_spz is None:
 
 if 'ld' not in setup.keys():
     setup['ld'] = {}
-setup['ld']['kep'] = ldp_k2
-setup['ld']['spz'] = ldp_spz
+setup['ld']['kep'] = map(float, ldp_k2)
+setup['ld']['spz'] = map(float, ldp_spz)
 
 # Instantiate Fit object
 fit = kanpai.spz.simfit.FitK2Spz(setup, df_k2, df_spz, aux, out_dir=out_dir)
@@ -202,4 +202,4 @@ fit.post_mcmc()
 fit.summarize_mcmc()
 
 fp = os.path.join(out_dir, 'mcmc.npz')
-kanpai.spz.simfit.transit_params_h5(fp, p)
+kanpai.spz.simfit.transit_params_h5(fp, setup['transit']['p'])
