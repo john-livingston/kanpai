@@ -35,8 +35,8 @@ parser.add_argument('--sc', help='K2 short cadence data',
     dest='short_cadence', action='store_true')
 parser.add_argument('--skip', help='individual K2 epochs to skip'
     ', comma-separated', type=str, default=None)
-parser.add_argument('--plot_individual', help='plot individual K2 epochs',
-    dest='plot_individual', action='store_true')
+parser.add_argument('--plot_all', help='plot individual K2 epochs',
+    dest='plot_all', action='store_true')
 
 # MCMC options
 parser.add_argument('-n', '--nproc', help='number of processes to use', type=int, default=1)
@@ -49,7 +49,7 @@ parser.add_argument('--nsteps2', type=int, default=int(1000),
 parser.add_argument('--restart', dest='restart', help='restart MCMC',
     action='store_true')
 
-parser.set_defaults(short_cadence=False, restart=False, plot_individual=False)
+parser.set_defaults(short_cadence=False, restart=False, plot_all=False)
 
 args = parser.parse_args()
 
@@ -138,11 +138,12 @@ if not os.path.isfile(fp) or args.restart:
     phase = np.array([])
     flux = np.array([])
     for o, t, f in zip(orb, ts, fs):
+        print "\nFitting orbit {}...".format(o)
         fit = kanpai.k2.fit.FitK2Tc(t, f, p, ps, sc=args.short_cadence)
         fit.run_mcmc(make_plots=False, save=False, gr_threshold=args.gr,
             nproc=args.nproc, nsteps1=ns1, nsteps2=ns2)
         fp = os.path.join(input_dir, 'ephem-samples-tc{}.png'.format(o))
-        if args.plot_individual:
+        if args.plot_all:
             fit.plot_samples(nmodel=500, fp=fp)
         summary = fit.summarize_mcmc(save=False)
         tc_best.append(summary['pv_best']['tc'])
