@@ -1,8 +1,7 @@
 import numpy as np
 import pandas as pd
 
-# from .. import util
-from kanpai import util
+from .. import util
 
 
 def make_samples_h5(npz_fp, p):

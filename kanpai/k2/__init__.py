@@ -8,5 +8,6 @@ from . import ld
 from . import like
 from . import mod
 from . import prob
+from . import util
 from .fit import FitK2
 from .fold import Fold

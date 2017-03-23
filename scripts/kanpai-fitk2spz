@@ -7,7 +7,6 @@ import argparse
 
 import yaml
 import numpy as np
-import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
 
@@ -188,7 +187,7 @@ setup['ld']['kep'] = map(float, ldp_k2)
 setup['ld']['spz'] = map(float, ldp_spz)
 
 # Instantiate Fit object
-fit = kanpai.spz.simfit.FitK2Spz(setup, df_k2, df_spz, aux, out_dir=out_dir)
+fit = kanpai.k2spz.FitK2Spz(setup, df_k2, df_spz, aux, out_dir=out_dir)
 
 # Apply limb-darkening priors
 fit.set_ld_prior(ldp_k2, ldp_spz)
@@ -202,4 +201,4 @@ fit.post_mcmc()
 fit.summarize_mcmc()
 
 fp = os.path.join(out_dir, 'mcmc.npz')
-kanpai.spz.simfit.transit_params_h5(fp, setup['transit']['p'])
+kanpai.k2spz.util.transit_params_h5(fp, setup['transit']['p'])

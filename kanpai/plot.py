@@ -136,6 +136,7 @@ def samples(t, f, ps, tmodel=None, fp=None, title="", timeoffset=False, **kwargs
 
 def cred_reg(t, f, ps, fp=None, title="", **kwargs):
 
+    # FIXME: not working yet. see k2spz.plot.k2_vs_spz
     dfmt = 'k.'
     bfmt = 'k.'
     dms = 5

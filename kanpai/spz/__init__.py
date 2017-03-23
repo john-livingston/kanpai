@@ -2,10 +2,9 @@ from __future__ import absolute_import
 from . import fit
 from . import io
 from . import ld
-from . import mod
 from . import like
+from . import mod
 from . import plot
 from . import prob
-from . import simfit
-from . import simfit0
+from . import util
 from .fit import FitSpz
