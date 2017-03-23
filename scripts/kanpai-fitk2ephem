@@ -191,8 +191,8 @@ else:
         tc_perc = tc_perc[~idx]
         tc_samples = tc_samples[~idx]
 
-    out['tc_best'] = tc_best
-    out['tc_perc'] = tc_perc
+    out['tc_best'] = map(float, tc_best)
+    out['tc_perc'] = map(float, tc_perc)
 
 for o,tc in zip(orb, tc_best):
     print "Tc,{} = {}".format(o, tc)
@@ -213,8 +213,8 @@ fp = os.path.join(input_dir, 'ephem-oc.png')
 kanpai.plot.oc(orb, tc_best, p, t0, tc_err=tc_err, p_err=p_err, fp=fp)
 out['p_med'] = float(p)
 out['t0_med'] = float(t0)
-out['p_err'] = [float(i) for i in p_err]
-out['t0_err'] = [float(i) for i in t0_err]
+out['p_err'] = map(float, p_err)
+out['t0_err'] = map(float, t0_err)
 
 fp = os.path.join(input_dir, 'ephem-summary.yaml')
 yaml.dump(out, open(fp, 'w'), default_flow_style=False)
