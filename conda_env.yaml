@@ -1,0 +1,101 @@
+name: py2k
+channels:
+- !!python/unicode
+  'defaults'
+dependencies:
+- !!python/unicode
+  'cycler=0.10.0=py27_0'
+- !!python/unicode
+  'freetype=2.5.5=2'
+- !!python/unicode
+  'functools32=3.2.3.2=py27_0'
+- !!python/unicode
+  'h5py=2.7.0=np112py27_0'
+- !!python/unicode
+  'hdf5=1.8.17=1'
+- !!python/unicode
+  'icu=54.1=0'
+- !!python/unicode
+  'libpng=1.6.27=0'
+- !!python/unicode
+  'matplotlib=2.0.0=np112py27_0'
+- !!python/unicode
+  'mkl=2017.0.1=0'
+- !!python/unicode
+  'numpy=1.12.1=py27_0'
+- !!python/unicode
+  'openssl=1.0.2k=1'
+- !!python/unicode
+  'pandas=0.19.2=np112py27_1'
+- !!python/unicode
+  'patsy=0.4.1=py27_0'
+- !!python/unicode
+  'pip=9.0.1=py27_1'
+- !!python/unicode
+  'pyparsing=2.1.4=py27_0'
+- !!python/unicode
+  'pyqt=5.6.0=py27_2'
+- !!python/unicode
+  'python=2.7.13=0'
+- !!python/unicode
+  'python-dateutil=2.6.0=py27_0'
+- !!python/unicode
+  'pytz=2017.2=py27_0'
+- !!python/unicode
+  'qt=5.6.2=0'
+- !!python/unicode
+  'readline=6.2=2'
+- !!python/unicode
+  'scikit-learn=0.18.1=np112py27_1'
+- !!python/unicode
+  'scipy=0.19.0=np112py27_0'
+- !!python/unicode
+  'seaborn=0.7.1=py27_0'
+- !!python/unicode
+  'setuptools=27.2.0=py27_0'
+- !!python/unicode
+  'sip=4.18=py27_0'
+- !!python/unicode
+  'six=1.10.0=py27_0'
+- !!python/unicode
+  'sqlite=3.13.0=0'
+- !!python/unicode
+  'statsmodels=0.8.0=np112py27_0'
+- !!python/unicode
+  'subprocess32=3.2.7=py27_0'
+- !!python/unicode
+  'tk=8.5.18=0'
+- !!python/unicode
+  'wheel=0.29.0=py27_0'
+- !!python/unicode
+  'zlib=1.2.8=3'
+- pip:
+  - asciitree==0.3.3
+  - astropy==1.3.2
+  - beautifulsoup==3.2.1
+  - corner==2.0.1
+  - decorator==4.0.11
+  - emcee==2.2.1
+  - enum34==1.1.6
+  - everest-pipeline==2.0.8
+  - exofop==0.1.1
+  - forecaster==0.1.1
+  - george==0.2.1
+  - hoshi==0.1.1
+  - ipython-genutils==0.2.0
+  - isochrones==1.0
+  - k2plr==0.2.5
+  - kakunin==0.1.1
+  - kanpai==0.1.1
+  - ldtk==1.0b4
+  - limbdark==0.1.1
+  - photutils==0.3.2
+  - pypdf2==1.26.0
+  - pysyzygy==0.0.1
+  - pytransit==1.0
+  - pyyaml==3.12
+  - sxp==0.1.1
+  - tqdm==4.11.2
+  - traitlets==4.3.2
+prefix: !!python/unicode '/Users/jhl/miniconda2/envs/py2k'
+
