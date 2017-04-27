@@ -28,7 +28,7 @@ class Fit(object):
         self._mcmc = None
         self._pv_best = None
         self._lp_best = None
-        
+
     @property
     def _ini(self):
 
@@ -133,6 +133,7 @@ class Fit(object):
                     self._lp_mcmc = npz['logprob_best']
                     self._fc = npz['flat_chain']
                     self._gr = npz['gelman_rubin']
+                    self._c = npz['chain']
 
                     if self._lp_mcmc > self._lp_best:
                         self._pv_best = self._pv_mcmc
@@ -142,13 +143,14 @@ class Fit(object):
 
         self._mcmc = engines.MCMC(self._logprob, ini, args, names, outdir=self._out_dir)
         self._mcmc.run(make_plots=make_plots, **kwargs)
-        pv, lp, fc, gr, acor = self._mcmc.results
+        pv, lp, fc, gr, acor, chain = self._mcmc.results
 
         self._pv_mcmc = pv
         self._lp_mcmc = lp
         self._fc = fc
         self._gr = gr
         self._acor = acor
+        self._c = chain
 
         if self._lp_mcmc > self._lp_best:
             self._pv_best = self._pv_mcmc

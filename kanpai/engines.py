@@ -180,6 +180,8 @@ class MCMC(Engine):
             print "WARNING -- some parameters failed to converge below threshold:"
             print np.array(names)[idx]
 
+        self._c = sampler.chain
+
         self._lp = sampler.lnprobability.flatten().max()
         idx = np.argmax(sampler.lnprobability)
         assert sampler.lnprobability.flat[idx] == self._lp
@@ -207,6 +209,9 @@ class MCMC(Engine):
             fp = os.path.join(self._outdir, 'mcmc')
             np.savez_compressed(
                 fp,
+                ndim=ndim,
+                nwalkers=nwalkers,
+                chain=self._c,
                 flat_chain=self._fc,
                 logprob=self._lps,
                 logprob_best=self._lp,

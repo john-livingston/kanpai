@@ -27,7 +27,7 @@ def transit_params_h5(npz_fp, p):
     with open(fp, 'w') as w:
         w.write(qt.to_string() + '\n')
 
-    df['$a$'] = df['a']
+    df['$a/R_{\star}$'] = df['a']
     df['$b$'] = df['b']
     df['$i$'] = df['i']
     df['$R_p/R_{\star}$'] = df['k']
@@ -43,8 +43,8 @@ def transit_params_h5(npz_fp, p):
     df['$\eta$'] = df['tshape']
     df['$R_{p,max}/R_{\star}$'] = df['max_k']
 
-    cols = ['$a$', '$b$', '$i$',
-        '$R_p/R_{\star}$', '$R_{p,S}/R_{\star}$', '$R_{p,K}/R_{\star}$',
+    cols = ['$a/R_{\star}$', '$R_{p,S}/R_{\star}$', '$R_{p,K}/R_{\star}$',
+        '$R_p/R_{\star}$', '$b$', '$i$',
         'log($\sigma_S$)', 'log($\sigma_K$)', '$T_{c,S}$',
         '$\rho_{\star}$', '$T_{14}$', '$T_{23}$',
         '$\tau$', '$\eta$', '$R_{p,max}/R_{\star}$']
@@ -61,8 +61,12 @@ def transit_params_h5(npz_fp, p):
 def agg_latex(epics, latexfilepaths, fp):
     dfs = [pd.read_fwf(qfp, names=[epic]) for epic,qfp in zip(epics,latexfilepaths)]
     df = pd.concat(dfs, axis=1)
-    df['Unit'] = '--- --- deg. --- --- --- --- --- BKJD $g/cm^3$ day day day --- ---'.split()
+    units = '--- --- deg. --- --- --- --- --- BKJD $g/cm^3$ day day day --- ---'.split()
+    df['Unit'] = ['&'+i for i in units]
     cols = ['Unit'] + epics
     with open(fp, 'w') as w:
         for line in df[cols].to_string().split('\n'):
+            w.write(line + ' \\\\\n')
+    with open('transpose-'+fp, 'w') as w:
+        for line in df[cols].transpose().to_string().split('\n'):
             w.write(line + ' \\\\\n')
