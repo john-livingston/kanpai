@@ -64,7 +64,7 @@ parser.set_defaults(short_cadence=False, save=True, restart=False, resume=False)
 
 args = parser.parse_args()
 
-if fp_csv is None:
+if fp_csv is None and args.input is None:
     sys.exit('Must supply the path to photometry CSV file or place in working directory')
 
 if args.ld == 'q':
