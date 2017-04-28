@@ -74,6 +74,9 @@ class Fit(object):
         Defaults to Nelder-Mead and Powell.
         """
 
+        print "Initial parameter guesses: "
+        for k,v in zip(self._pv_names, self._ini):
+            print "{}: {}".format(k,v)
         self._map = engines.MAP(self._logprob, self._ini, self._args, methods=methods)
         self._map.run()
         self._pv_map, self._lp_map, self._max_apo_alg = self._map.results

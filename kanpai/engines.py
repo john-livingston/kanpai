@@ -233,4 +233,4 @@ class MCMC(Engine):
         if not self._hasrun:
             print "Need to call run() first!"
 
-        return self._pv, self._lp, self._fc, self._gr, self._acor
+        return self._pv, self._lp, self._fc, self._gr, self._acor, self._c

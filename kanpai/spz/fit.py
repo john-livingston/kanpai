@@ -17,7 +17,7 @@ from .plot import corrected_ts
 
 class FitSpz(Fit):
 
-    def __init__(self, t, f, k=None, tc=None, t14=0.2, p=20, b=0, aux=None, out_dir=None, logprob=prob.logprob_q):
+    def __init__(self, t, f, k=None, tc=None, t14=0.2, p=20, b=0, q1=0.1, q2=0.1, aux=None, out_dir=None, logprob=prob.logprob_q):
 
         self._data = np.c_[t,f]
         if k is None:
@@ -29,6 +29,8 @@ class FitSpz(Fit):
         self._t14 = t14
         self._p = p
         self._b = b
+        self._q1 = q1
+        self._q2 = q2
         if aux is None:
             n = self._data.shape[0]
             bias = np.repeat(1, n)
@@ -50,8 +52,8 @@ class FitSpz(Fit):
         p = self._p
         t14 = self._t14
         b = self._b
-        q1 = 0.5
-        q2 = 0.5
+        q1 = self._q1
+        q2 = self._q2
         k1 = 0
         t, f = self._data.T
         idx = (t < tc - t14/2.) | (tc + t14/2. < t)

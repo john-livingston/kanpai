@@ -22,6 +22,7 @@ fp_yaml = yamls[0] if len(yamls) > 0 else None
 parser = argparse.ArgumentParser(description="Fit Spitzer light curve")
 parser.add_argument('--setup', help='YAML setup file', type=str, default=fp_yaml)
 parser.add_argument('-o', '--out_dir', help='output directory', type=str, default=cwd)
+parser.add_argument('--data_dir', help='data directory', type=str, default=None)
 
 # Spitzer options
 parser.add_argument('--bin_spz', help='bin size for'
@@ -108,6 +109,9 @@ yaml.dump(vars(args), open(fp, 'w'), default_flow_style=False)
 fp = os.path.join(out_dir, 'input.yaml')
 yaml.dump(setup, open(fp, 'w'), default_flow_style=False)
 
+if args.data_dir is not None:
+    setup['config']['datadir'] = args.data_dir
+
 # Load data
 df, pix = kanpai.spz.io.load_spz(setup, out_dir=out_dir)
 t, f = df['t f'.split()].values.T
@@ -156,7 +160,9 @@ setup['ld']['spz'] = ldp
 
 # Instantiate Fit object
 p = setup['transit']['p']
-fit = kanpai.spz.FitSpz(t, f, p=p, aux=aux, out_dir=out_dir, logprob=logprob)
+k = setup['transit']['k']
+q1, q2 = kanpai.util.ld.u_to_q(ldp[0], ldp[2])
+fit = kanpai.spz.FitSpz(t, f, k=k, p=p, q1=q1, q2=q2, aux=aux, out_dir=out_dir, logprob=logprob)
 
 # Apply limb-darkening priors
 fit.set_ld_prior(ldp)
