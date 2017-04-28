@@ -58,7 +58,7 @@ class FitSpz(Fit):
         t, f = self._data.T
         idx = (t < tc - t14/2.) | (tc + t14/2. < t)
         s = np.log(f.std())
-        a = util.transit.scaled_a(p, t14, k, np.pi/2)
+        a = util.transit.scaled_a(p, t14, k)
         pv = [k,tc,a,b,q1,q2,s,k1]
         if self._aux is not None:
             pv += [0] * self._aux.shape[0]

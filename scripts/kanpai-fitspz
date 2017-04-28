@@ -161,15 +161,16 @@ setup['ld']['spz'] = ldp
 # Instantiate Fit object
 p = setup['transit']['p']
 k = setup['transit']['k']
+t14 = setup['transit']['t14']
 q1, q2 = kanpai.util.ld.u_to_q(ldp[0], ldp[2])
-fit = kanpai.spz.FitSpz(t, f, k=k, p=p, q1=q1, q2=q2, aux=aux, out_dir=out_dir, logprob=logprob)
+fit = kanpai.spz.FitSpz(t, f, k=k, t14=t14, p=p, q1=q1, q2=q2, aux=aux, out_dir=out_dir, logprob=logprob)
 
 # Apply limb-darkening priors
 fit.set_ld_prior(ldp)
 
 # Run MAP, MCMC, and output plots, samples, etc.
 fit.run_map()
-fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms,
+fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms, burn=burn,
     gr_threshold=gr_threshold, restart=restart, resume=resume)
 fit.post_mcmc()
 fit.summarize_mcmc()
