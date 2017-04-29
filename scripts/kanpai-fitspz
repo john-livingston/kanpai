@@ -174,3 +174,6 @@ fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms, bur
     gr_threshold=gr_threshold, restart=restart, resume=resume)
 fit.post_mcmc()
 fit.summarize_mcmc()
+
+fp = os.path.join(out_dir, 'mcmc.npz')
+kanpai.spz.util.make_samples_h5(fp, p)

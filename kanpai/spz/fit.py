@@ -84,6 +84,7 @@ class FitSpz(Fit):
         else:
             gr = self._gr
         summary['gelman_rubin'] = dict(zip(self._pv_names, gr.tolist()))
+        summary['acceptance_fraction'] = float(np.median(self._af))
 
         percs = [15.87, 50.0, 84.13]
         pc = np.percentile(self._fc, percs, axis=0).T.tolist()
