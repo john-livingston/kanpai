@@ -117,42 +117,15 @@ class Fit(object):
         args = self._args
         names = self._pv_names
 
-        if self._out_dir is not None:
-
-            fp = os.path.join(self._out_dir, 'mcmc.npz')
-            if os.path.isfile(fp):
-
-                if resume:
-
-                    print "Resuming from previous best position"
-                    npz = np.load(fp)
-                    ini = npz['pv_best']
-
-                elif not restart:
-
-                    print "Loading chain from previous run"
-                    npz = np.load(fp)
-                    self._pv_mcmc = npz['pv_best']
-                    self._lp_mcmc = npz['logprob_best']
-                    self._fc = npz['flat_chain']
-                    self._gr = npz['gelman_rubin']
-                    self._c = npz['chain']
-
-                    if self._lp_mcmc > self._lp_best:
-                        self._pv_best = self._pv_mcmc
-                        self._lp_best = self._lp_mcmc
-
-                    return
-
         self._mcmc = engines.MCMC(self._logprob, ini, args, names, outdir=self._out_dir)
-        self._mcmc.run(make_plots=make_plots, **kwargs)
-        pv, lp, fc, gr, acor, chain = self._mcmc.results
+        self._mcmc.run(make_plots=make_plots, restart=restart, resume=resume, **kwargs)
+        pv, lp, fc, gr, af, chain = self._mcmc.results
 
         self._pv_mcmc = pv
         self._lp_mcmc = lp
         self._fc = fc
         self._gr = gr
-        self._acor = acor
+        self._af = af
         self._c = chain
 
         if self._lp_mcmc > self._lp_best:
@@ -210,7 +183,7 @@ class Fit(object):
         else:
             gr = self._gr
         summary['gelman_rubin'] = dict(zip(self._pv_names, gr.tolist()))
-
+        summary['acceptance_fraction'] = float(np.median(self._af))
         percs = [15.87, 50.0, 84.13]
         pc = np.percentile(self._fc, percs, axis=0).T.tolist()
         summary['percentiles'] = dict(zip(self._pv_names, pc))

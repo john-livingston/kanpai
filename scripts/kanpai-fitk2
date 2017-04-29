@@ -159,8 +159,7 @@ fit.set_ld_prior(ldp)
 
 # Run MAP, MCMC, and output plots, samples, etc.
 fit.run_map(make_plots=True, nmodel=1000)
-fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms, burn=burn,
-    gr_threshold=gr_threshold, make_plots=True, restart=restart, resume=resume)
+fit.run_mcmc(make_plots=True, restart=restart, resume=resume, nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms, burn=burn, gr_threshold=gr_threshold)
 fit.plot_mcmc(nmodel=1000)
 fit.summarize_mcmc()
 
