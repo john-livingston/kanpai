@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 from everest import Everest
 import k2plr as kplr
@@ -14,8 +16,7 @@ from .. import plot
 
 class Fold(object):
 
-    def __init__(self, epic, p, t0, t14=0.2, pipeline='everest', width=0.8,
-        clip=[3,3], bl=True, skip=None, lcfp=None, clip_resid=False, pad=1.1):
+    def __init__(self, epic, p, t0, t14=0.2, outdir='.', pipeline='everest', width=0.8, clip=[3,3], bl=True, skip=None, lcfp=None, clip_resid=False, pad=1.1):
 
         self._epic = int(epic)
         self._p = p
@@ -31,7 +32,7 @@ class Fold(object):
         self._pad = pad
         self._get_lc()
         self._reject_oot_outliers()
-
+        self._outdir = outdir
 
     def _get_lc(self):
 
@@ -75,9 +76,10 @@ class Fold(object):
         print "Clipped {} out-of-transit outliers".format((~good).sum())
 
 
-    def run(self, outdir, refine=True):
+    def run(self, refine=True):
 
         # setup
+        outdir = self._outdir
         t, f = self._t, self._f
         p, t0, t14 = self._p, self._t0, self._t14
         w, bl, s = self._width, self._bl, self._skip
@@ -161,12 +163,18 @@ class Fold(object):
         return self._tf, self._ff, np.repeat(self._sig, self._ff.size)
 
 
-    def plot_fit(self, fp):
+    def plot_fit(self, fp=None):
+
+        if fp is None:
+            fp = os.path.join(self._outdir, 'k2_lc_{}-{}-fit.png'.format(self._epic, self._pipeline))
 
         self._fit.plot_best(fp=fp, lw=3, ms=10, nmodel=1000)
 
 
-    def plot_full(self, fp):
+    def plot_full(self, fp=None):
+
+        if fp is None:
+            fp = os.path.join(self._outdir, 'k2_lc_{}-{}-full.png'.format(self._epic, self._pipeline))
 
         with sb.axes_style('ticks', plot.rc):
 
@@ -184,3 +192,21 @@ class Fold(object):
 
             fig.savefig(fp)
             pl.close()
+
+
+    def save_full(self, fp=None):
+
+        if fp is None:
+            fp = os.path.join(self._outdir, 'k2_lc_{}-{}-full.txt'.format(self._epic, self._pipeline))
+
+        t, f = self._t, self._f
+        np.savetxt(fp, np.c_[t, f])
+
+
+    def save_folded(self, fp=None):
+
+        if fp is None:
+            fp = os.path.join(self._outdir, 'k2_lc_{}-{}-folded.csv'.format(self._epic, self._pipeline))
+
+        tf, ff, sig = self.results
+        np.savetxt(fp, np.c_[tf, ff, sig], delimiter=',')

@@ -136,9 +136,12 @@ class MCMC(Engine):
         if save or make_plots:
             assert self._outdir is not None
 
-        fp = os.path.join(self._outdir, 'mcmc.npz')
+        FILE_EXISTS = False
+        if self._outdir is not None:
+            fp = os.path.join(self._outdir, 'mcmc.npz')
+            FILE_EXISTS = os.path.isfile(fp)
 
-        if os.path.isfile(fp) and resume:
+        if FILE_EXISTS and resume:
 
             print "Resuming from previous best position"
             npz = np.load(fp)
@@ -151,7 +154,7 @@ class MCMC(Engine):
             if save:
                 self._save()
 
-        elif os.path.isfile(fp) and not restart:
+        elif FILE_EXISTS and not restart:
 
             print "Loading chain from previous run"
             npz = np.load(fp)
@@ -167,7 +170,7 @@ class MCMC(Engine):
             self._nwalkers, self._nsteps, self._ndim = self._c.shape
             self._hasrun = True
 
-        elif not os.path.isfile(fp) or restart:
+        elif not FILE_EXISTS or restart:
 
             pv_ini = self._ini
             lp_ini = self._logprob_ini

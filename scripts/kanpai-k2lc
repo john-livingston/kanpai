@@ -68,6 +68,7 @@ pipeline = args.pipeline
 infile = args.infile
 clip_resid = args.clip_resid
 pad = args.pad
+refine = args.refine
 
 if infile is not None:
     pipeline = 'user'
@@ -79,19 +80,17 @@ if args.skip:
 else:
     skip = args.skip
 
-fold = kanpai.k2.Fold(epic, p, t0, t14, pipeline=pipeline,
+fold = kanpai.k2.Fold(epic, p, t0, t14, outdir=outdir, pipeline=pipeline,
     width=width, clip=clip, bl=baseline, skip=skip, lcfp=infile,
     clip_resid=clip_resid, pad=pad)
 
-fold.run(outdir, refine=args.refine)
+fold.run(refine=refine)
 
-fp = os.path.join(outdir, 'k2_lc_{}-{}-full.png'.format(epic, pipeline))
-fold.plot_full(fp)
+fold.save_full()
+
+fold.save_folded()
+
+fold.plot_full()
 
 if args.refine:
-    fp = os.path.join(outdir, 'k2_lc_{}-{}-fit.png'.format(epic, pipeline))
-    fold.plot_fit(fp)
-
-tf, ff, sig = fold.results
-fp = os.path.join(outdir, 'k2_lc_{}-{}.csv'.format(epic, pipeline))
-np.savetxt(fp, np.c_[tf, ff, sig], delimiter=',')
+    fold.plot_fit()
