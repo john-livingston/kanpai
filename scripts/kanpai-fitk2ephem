@@ -135,8 +135,8 @@ if not os.path.isfile(fp) or args.restart:
     tc_best = []
     tc_perc = []
     tc_samples = []
-    phase = np.array([])
-    flux = np.array([])
+    phase = []
+    flux = []
     for o, t, f in zip(orb, ts, fs):
         print "\nFitting orbit {}...".format(o)
         fit = kanpai.k2.fit.FitK2Tc(t, f, p, ps, sc=args.short_cadence)
@@ -149,19 +149,19 @@ if not os.path.isfile(fp) or args.restart:
         tc_best.append(summary['pv_best']['tc'])
         tc_perc.append(summary['percentiles']['tc'])
         tc_samples.append(fit._fc[:,fit._pv_names.index('tc')])
-        phase = np.append(phase, t-summary['pv_best']['tc'])
-        flux = np.append(flux, f)
+        phase.append(t-summary['pv_best']['tc'])
+        flux.append(f)
 
     out['tc_best'] = tc_best
     out['tc_perc'] = tc_perc
 
     # make TTV-corrected phasefolded light curve:
-    idx = np.argsort(phase)
-    phase = phase[idx]
-    flux = flux[idx]
+    phase_f = np.concatenate(phase).ravel()
+    flux_f = np.concatenate(flux).ravel()
+    idx = np.argsort(phase_f)
     fp = os.path.join(input_dir, 'ephem-folded.png')
-    kanpai.plot.simple_ts(phase, flux, fp=fp)
-    df = pd.DataFrame(dict(t=phase, f=flux))
+    kanpai.plot.simple_ts(phase_f[idx], flux_f[idx], fp=fp)
+    df = pd.DataFrame(dict(t=phase_f[idx], f=flux_f[idx]))
     fp = os.path.join(input_dir, 'ephem-folded.csv')
     df['t f'.split()].to_csv(fp, index=False, header=False)
 
@@ -172,7 +172,7 @@ if not os.path.isfile(fp) or args.restart:
         tc_samples[n] = tcs[-ns_min:]
 
     fp = os.path.join(input_dir, 'ephem-mcmc.npz')
-    np.savez_compressed(fp, orb=orb, tc_best=tc_best, tc_perc=tc_perc, tc_samples=tc_samples)
+    np.savez_compressed(fp, orb=orb, tc_best=tc_best, tc_perc=tc_perc, tc_samples=tc_samples, phase=phase, flux=flux)
 
 else:
 
@@ -181,6 +181,8 @@ else:
     tc_best = npz['tc_best']
     tc_perc = npz['tc_perc']
     tc_samples = npz['tc_samples']
+    phase = npz['phase']
+    flux = npz['flux']
 
     if skip is not None:
         idx = np.zeros(orb.size).astype(bool)
@@ -190,9 +192,21 @@ else:
         tc_best = tc_best[~idx]
         tc_perc = tc_perc[~idx]
         tc_samples = tc_samples[~idx]
+        phase = phase[~idx]
+        flux = flux[~idx]
 
-    out['tc_best'] = map(float, tc_best)
-    out['tc_perc'] = map(float, tc_perc)
+    out['tc_best'] = tc_best.tolist()
+    out['tc_perc'] = tc_perc.tolist()
+
+    # make TTV-corrected phasefolded light curve:
+    phase_f = np.concatenate(phase).ravel()
+    flux_f = np.concatenate(flux).ravel()
+    idx = np.argsort(phase_f)
+    fp = os.path.join(input_dir, 'ephem-folded.png')
+    kanpai.plot.simple_ts(phase_f[idx], flux_f[idx], fp=fp)
+    df = pd.DataFrame(dict(t=phase_f[idx], f=flux_f[idx]))
+    fp = os.path.join(input_dir, 'ephem-folded.csv')
+    df['t f'.split()].to_csv(fp, index=False, header=False)
 
 for o,tc in zip(orb, tc_best):
     print "Tc,{} = {}".format(o, tc)

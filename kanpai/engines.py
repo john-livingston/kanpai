@@ -150,7 +150,7 @@ class MCMC(Engine):
             self._run(pv_ini, lp_ini, nproc=nproc, nsteps1=nsteps1, nsteps2=nsteps2, max_steps=max_steps, gr_threshold=gr_threshold, make_plots=make_plots)
             if burn is None:
                 burn = nsteps2 if self._nsteps > nsteps2 else 0
-            self._burn_thin(burn=burn)
+            self._burn_thin(burn=burn, make_plots=make_plots)
             if save:
                 self._save()
 
@@ -166,7 +166,7 @@ class MCMC(Engine):
             self._af = npz['acceptance_fraction']
             self._c = npz['chain']
             self._lp = npz['logprob']
-            self._burn_thin(burn=burn)
+            self._burn_thin(burn=burn, make_plots=make_plots)
             self._nwalkers, self._nsteps, self._ndim = self._c.shape
             self._hasrun = True
 
@@ -177,7 +177,7 @@ class MCMC(Engine):
             self._run(pv_ini, lp_ini, nproc=nproc, nsteps1=nsteps1, nsteps2=nsteps2, max_steps=max_steps, gr_threshold=gr_threshold, make_plots=make_plots)
             if burn is None:
                 burn = nsteps2 if self._nsteps > nsteps2 else 0
-            self._burn_thin(burn=burn)
+            self._burn_thin(burn=burn, make_plots=make_plots)
             if save:
                 self._save()
 
@@ -251,6 +251,9 @@ class MCMC(Engine):
         self._lp_flat = self._lp[:,burn::thin].reshape(-1)
 
         if make_plots:
+
+            assert self._outdir is not None
+
             fp = os.path.join(self._outdir, 'mcmc-gr.png')
             plot.gr_iter(self._gr, fp=fp)
 
