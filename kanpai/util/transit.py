@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import numpy as np
 from astropy import constants as c
 from astropy import units as u

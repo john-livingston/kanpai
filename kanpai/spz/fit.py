@@ -1,8 +1,10 @@
+from __future__ import absolute_import
 import os
 import sys
 import yaml
 
 import numpy as np
+from six.moves import zip
 np.warnings.simplefilter('ignore')
 import pandas as pd
 
@@ -77,18 +79,18 @@ class FitSpz(Fit):
     def summarize_mcmc(self):
 
         summary = {}
-        summary['pv_best'] = dict(zip(self._pv_names, self._pv_best.tolist()))
+        summary['pv_best'] = dict(list(zip(self._pv_names, self._pv_best.tolist())))
         summary['logprob_best'] = float(self._lp_best)
         if len(self._gr.shape) > 1:
             gr = self._gr[-1,:]
         else:
             gr = self._gr
-        summary['gelman_rubin'] = dict(zip(self._pv_names, gr.tolist()))
+        summary['gelman_rubin'] = dict(list(zip(self._pv_names, gr.tolist())))
         summary['acceptance_fraction'] = float(np.median(self._af))
 
         percs = [15.87, 50.0, 84.13]
         pc = np.percentile(self._fc, percs, axis=0).T.tolist()
-        summary['percentiles'] = dict(zip(self._pv_names, pc))
+        summary['percentiles'] = dict(list(zip(self._pv_names, pc)))
 
         resid_spz = self.resid(pv=self._pv_best)
         rms_spz = util.stats.rms(resid_spz)

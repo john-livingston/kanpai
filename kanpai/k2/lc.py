@@ -1,9 +1,12 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import numpy as np
 from everest import Everest
 import k2plr as kplr
 
 from .. import util
-from fit import Fit
+from .fit import Fit
+from six.moves import map
 
 
 PIPELINES = 'everest k2sff k2sc'.split()
@@ -21,7 +24,7 @@ def unfolded(epic, p, t0, t14, pipeline='everest', use_everest_mask=True):
         if use_everest_mask:
             bad = np.zeros_like(t).astype(bool)
             bad[star.badmask] = True
-            print "Masking {} bad data points identified by EVEREST".format(bad.sum())
+            print("Masking {} bad data points identified by EVEREST".format(bad.sum()))
             t, f = t[~bad], f[~bad]
     elif pipeline == 'k2sff':
         star = kplr.K2SFF(epic)
@@ -32,7 +35,7 @@ def unfolded(epic, p, t0, t14, pipeline='everest', use_everest_mask=True):
     else:
         raise ValueError('Pipeline must be one of: {}'.format(PIPELINES))
 
-    t, f = map(np.array, (t, f))
+    t, f = list(map(np.array, (t, f)))
 
     bad = (t == 0) | np.isnan(f)
     t, f = t[~bad], f[~bad]
@@ -62,6 +65,6 @@ def folded(epic, p, t0, t14, pipeline='everest',
         t14 = fit.t14()
         tf, ff = util.lc.fold(t, f, p, t0, t14=t14,
             width=width, clip=clip, bl=bl, skip=skip)
-        print "Refined transit duration: {} [days]".format(t14)
+        print("Refined transit duration: {} [days]".format(t14))
 
     return tf, ff

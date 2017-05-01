@@ -1,5 +1,7 @@
+from __future__ import absolute_import
 import numpy as np
 from astropy.stats import sigma_clip
+from six.moves import range
 
 
 def binned(a, binsize, fun=np.mean):

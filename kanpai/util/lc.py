@@ -1,7 +1,11 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import numpy as np
 import statsmodels.api as sm
 
-from stats import outliers
+from .stats import outliers
+from six.moves import range
+from six.moves import zip
 
 
 def get_tns(t, p, t0):
@@ -31,7 +35,7 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None, ret_s
     t, f = t[~idx], f[~idx]
     tns = get_tns(t, p, t0)
 
-    orb = range(len(tns))
+    orb = list(range(len(tns)))
 
     if skip is not None:
         orb = [i for i in range(len(tns)) if i not in skip]
@@ -56,7 +60,7 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None, ret_s
             idx = (ti < -t14/2.) | (ti > t14/2.)
             if idx.sum() == 0:
                 orb.pop(orb.index(o))
-                print "No valid data for baseline fit"
+                print("No valid data for baseline fit")
                 continue
 
             try:
@@ -64,8 +68,8 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None, ret_s
                 res = sm.RLM(fi[idx], sm.add_constant(ti[idx])).fit()
 
                 if np.abs(res.params[1]) > max_slope:
-                    print "Bad data possibly causing poor fit. ",
-                    print "Transit {} baseline params: {}".format(i, res.params)
+                    print("Bad data possibly causing poor fit. ", end=' ')
+                    print("Transit {} baseline params: {}".format(i, res.params))
                     orb.pop(orb.index(o))
                     continue
 
@@ -74,8 +78,8 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None, ret_s
 
             except:
 
-                print "Error computing baseline for transit {}. ".format(o),
-                print "Number of datapoints: {}".format(idx.sum())
+                print("Error computing baseline for transit {}. ".format(o), end=' ')
+                print("Number of datapoints: {}".format(idx.sum()))
                 orb.pop(orb.index(o))
                 continue
 
@@ -95,10 +99,10 @@ def fold(t, f, p, t0, t14=0.2, width=0.8, clip=False, bl=False, skip=None, ret_s
 
     if clip:
         idx = outliers(ff, su=clip[0], sl=clip[1])
-        print "Clipped {} outliers".format(idx.sum())
+        print("Clipped {} outliers".format(idx.sum()))
         tf, ff = tf[~idx], ff[~idx]
 
     idx = (tf < -t14/2.) | (t14/2. < tf)
-    print "OOT std dev: {}".format(ff[idx].std())
+    print("OOT std dev: {}".format(ff[idx].std()))
 
     return tf, ff

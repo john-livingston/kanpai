@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import numpy as np
 
 lam = np.array([350.,  375.,  400.,  425.,  450.,  475.,  500.,  525.,  550.,

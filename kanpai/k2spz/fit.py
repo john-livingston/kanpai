@@ -1,9 +1,13 @@
+from __future__ import absolute_import
 import os
 import sys
 import yaml
 import pickle
 
 import numpy as np
+from six.moves import map
+from six.moves import range
+from six.moves import zip
 np.warnings.simplefilter('ignore')
 import pandas as pd
 import sxp
@@ -181,18 +185,18 @@ class FitK2Spz(Fit):
     def summarize_mcmc(self):
 
         summary = {}
-        summary['pv_best'] = dict(zip(self._pv_names, self._pv_best.tolist()))
+        summary['pv_best'] = dict(list(zip(self._pv_names, self._pv_best.tolist())))
         summary['logprob_best'] = float(self._lp_best)
         if len(self._gr.shape) > 1:
             gr = self._gr[-1,:]
         else:
             gr = self._gr
-        summary['gelman_rubin'] = dict(zip(self._pv_names, gr.tolist()))
+        summary['gelman_rubin'] = dict(list(zip(self._pv_names, gr.tolist())))
         summary['acceptance_fraction'] = float(np.median(self._af))
         
         percs = [15.87, 50.0, 84.13]
         pc = np.percentile(self._fc, percs, axis=0).T.tolist()
-        summary['percentiles'] = dict(zip(self._pv_names, pc))
+        summary['percentiles'] = dict(list(zip(self._pv_names, pc)))
 
         pv_best_spz = get_theta(self._pv_best, 'spz')
         resid_spz = self._fit_spz.resid(pv=pv_best_spz)
@@ -212,7 +216,7 @@ class FitK2Spz(Fit):
         summary['spz_rchisq'] = float(rchisq_spz)
         summary['spz_bic'] = float(bic_spz)
 
-        mag, umag = map(float, self._oot_phot())
+        mag, umag = list(map(float, self._oot_phot()))
         summary['spz_mag'] = [mag, umag]
 
         fp = os.path.join(self._out_dir, 'mcmc-summary.yaml')
@@ -267,7 +271,7 @@ class FitK2Spz(Fit):
             flux_pr_sp.append(spz_model(theta_sp, *args_spz[:-1], ret_ma=True))
             flux_pr_k2.append(lp_k2(theta_k2, ti_k2, *args_k2[1:], ret_mod=True))
 
-        flux_pr_sp, flux_pr_k2 = map(np.array, [flux_pr_sp, flux_pr_k2])
+        flux_pr_sp, flux_pr_k2 = list(map(np.array, [flux_pr_sp, flux_pr_k2]))
         flux_pc_sp = np.percentile(flux_pr_sp, percs, axis=0)
         flux_pc_k2 = np.percentile(flux_pr_k2, percs, axis=0)
 
@@ -280,14 +284,14 @@ class FitK2Spz(Fit):
     @property
     def _plot_title(self):
 
-        if 'name' in self._setup['config'].keys():
+        if 'name' in list(self._setup['config'].keys()):
             title = self._setup['config']['name']
         else:
             prefix = self._setup['config']['prefix']
             starid = self._setup['config']['starid']
             planet = self._setup['config']['planet']
             title = '{}-{}{}'.format(prefix, starid, planet)
-        if 'epoch' in self._setup['config'].keys():
+        if 'epoch' in list(self._setup['config'].keys()):
             epoch = self._setup['config']['epoch']
             title += ' epoch {}'.format(epoch)
         return title

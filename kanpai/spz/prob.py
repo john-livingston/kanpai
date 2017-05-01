@@ -1,8 +1,10 @@
+from __future__ import absolute_import
 import numpy as np
 from scipy import stats
 
 from . import like
 from .. import util
+from six.moves import range
 
 
 def logprob_u(theta, t, f, p, aux=None, ldp=None, ret_pvnames=False, ret_mod=False):

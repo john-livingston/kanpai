@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import os
 
 import numpy as np
@@ -43,7 +45,7 @@ class Fold(object):
             t0 = self._t0
             t14 = self._t14
             pipeline = self._pipeline
-            print("Retrieving {} light curve...".format(pipeline))
+            print(("Retrieving {} light curve...".format(pipeline)))
             t, f = lc.unfolded(epic, p, t0, t14, pipeline=pipeline)
 
         else:
@@ -73,7 +75,7 @@ class Fold(object):
         good[bad] = False
         self._t = t[good]
         self._f = f[good]
-        print "Clipped {} out-of-transit outliers".format((~good).sum())
+        print("Clipped {} out-of-transit outliers".format((~good).sum()))
 
 
     def run(self, refine=True):
@@ -110,7 +112,7 @@ class Fold(object):
         pv = fit.best
         t14 = util.transit.t14_circ(p, pv['a'], pv['k'], pv['b'])
         t0 += pv['tc']
-        print "Refined T0 [BJD]: {}".format(t0)
+        print("Refined T0 [BJD]: {}".format(t0))
 
         # fold with refined T0
         tf, ff = util.lc.fold(t, f, p, t0, t14=t14,
@@ -123,7 +125,7 @@ class Fold(object):
             su, sl = self._clip
             idx = util.stats.outliers(fit.resid(), su=su, sl=sl)
             tf, ff = tf[~idx], ff[~idx]
-            print("Sigma clip residuals: {}".format(idx.sum()))
+            print(("Sigma clip residuals: {}".format(idx.sum())))
 
         # re-normalize to median OOT flux
         idx = (tf < -t14/2.) | (tf > t14/2.)
@@ -140,15 +142,15 @@ class Fold(object):
         i = util.transit.inclination(a, b)
         t14 = util.transit.t14_circ(p, a, k, b)
 
-        print "Transit duration (t14) [days]: {0:.4f}".format(t14)
-        print "Scaled semi-major axis (a): {0:.4f}".format(a)
-        print "Radius ratio (k): {0:.4f}".format(k)
-        print "Impact parameter: {0:.4f}".format(b)
-        print "Inclination (i) [degrees]: {0:.4f}".format(i * 180./np.pi)
-        print "Limb-darkening coefficients (q1, q2): {0:.4f}, {1:.4f}".format(pv['q1'], pv['q2'])
-        print "Baseline offset (k0): {0:.8f}".format(pv['k0'])
-        print "Sigma: {0:.8f}".format(np.exp(pv['ls']))
-        print "Residual RMS: {0:.8f}".format(util.stats.rms(fit.resid()))
+        print("Transit duration (t14) [days]: {0:.4f}".format(t14))
+        print("Scaled semi-major axis (a): {0:.4f}".format(a))
+        print("Radius ratio (k): {0:.4f}".format(k))
+        print("Impact parameter: {0:.4f}".format(b))
+        print("Inclination (i) [degrees]: {0:.4f}".format(i * 180./np.pi))
+        print("Limb-darkening coefficients (q1, q2): {0:.4f}, {1:.4f}".format(pv['q1'], pv['q2']))
+        print("Baseline offset (k0): {0:.8f}".format(pv['k0']))
+        print("Sigma: {0:.8f}".format(np.exp(pv['ls'])))
+        print("Residual RMS: {0:.8f}".format(util.stats.rms(fit.resid())))
 
         self._fit = fit
         self._tf, self._ff = tf, ff

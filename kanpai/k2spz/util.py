@@ -1,13 +1,15 @@
+from __future__ import absolute_import
 import numpy as np
 import pandas as pd
 
 from .. import util
+from six.moves import zip
 
 
 def transit_params_h5(npz_fp, p):
 
     npz = np.load(npz_fp)
-    df = pd.DataFrame(dict(zip(npz['pv_names'], npz['flat_chain'].T)))
+    df = pd.DataFrame(dict(list(zip(npz['pv_names'], npz['flat_chain'].T))))
 
     df['i'] = util.transit.inclination(df['a'], df['b']) * 180 / np.pi
     df['k'] = df['k_k k_s'.split()].mean(axis=1)

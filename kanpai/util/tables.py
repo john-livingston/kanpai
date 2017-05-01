@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import os
 import yaml
 import numpy as np
@@ -5,6 +7,7 @@ import pandas as pd
 import astropy.units as u
 
 import forecaster
+from six.moves import zip
 
 SOLRAD = (u.Rsun / u.Rearth).to(u.dimensionless_unscaled)
 
@@ -70,7 +73,7 @@ def aggregate_results(list_of_output_dirs):
             utc_sp_minus.append(b-a)
 
         except KeyError as e:
-            print fp, e
+            print(fp, e)
 
     df = pd.DataFrame(
         dict(
@@ -203,7 +206,7 @@ def check_radii(list_of_output_dirs, verbose=False):
 
         except Exception as e:
 
-            print d, e
+            print(d, e)
 
     df = pd.DataFrame(dict(d=ds, r=rads, beta=betas, rms=rmss, max_lp=lps, tc_mp=tc_mp,
         gr=grs,
@@ -225,7 +228,7 @@ def check_radii(list_of_output_dirs, verbose=False):
             tcs_str = "${0:.6f}^(+{1:.6f})_(-{2:.6f})$".format(*tcs).replace('(','{').replace(')','}')
             text = "r = {0}, beta = {1:.4f}, rms = {2:.8f}, gr_tcs = {3:.4f}, lp = {4:.4f}, tc_mp = {5:.6f}"
             text += ", tc_s = {6}, k agreement = {7:.4f} [sigma]"
-            print text.format(row['r'], row['beta'], row['rms'], row['gr'],
-                row['max_lp'], row['tc_mp'], tcs_str, row['k_sigma'])
+            print(text.format(row['r'], row['beta'], row['rms'], row['gr'],
+                row['max_lp'], row['tc_mp'], tcs_str, row['k_sigma']))
 
     return df

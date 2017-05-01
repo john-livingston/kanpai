@@ -1,7 +1,10 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import numpy as np
 import sklearn.decomposition as dc
 from astropy.stats import sigma_clip
-import ts
+from . import ts
+from six.moves import range
 
 def gelman_rubin(chains, verbose=False):
     assert chains.ndim == 3
@@ -43,7 +46,7 @@ def pca(X, n=2):
     res = pca.fit(X)
     ratio_exp = pca.explained_variance_ratio_
     for i in range(n):
-        print "PCA BV{0} explained variance: {1:.4f}".format(i+1, ratio_exp[i])
+        print("PCA BV{0} explained variance: {1:.4f}".format(i+1, ratio_exp[i]))
 
     return pca.components_[:n].T
 

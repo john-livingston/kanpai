@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import os
 import sys
 import yaml
@@ -6,6 +8,7 @@ import functools
 
 import matplotlib.pyplot as pl
 import numpy as np
+from six.moves import zip
 np.warnings.simplefilter('ignore')
 import pandas as pd
 import scipy.optimize as op
@@ -55,7 +58,7 @@ class Fit(object):
 
     @property
     def best(self):
-        return dict(zip(self._pv_names, [float(i) for i in self._pv_best]))
+        return dict(list(zip(self._pv_names, [float(i) for i in self._pv_best])))
 
 
     def set_ld_prior(self, ldp):
@@ -74,9 +77,9 @@ class Fit(object):
         Defaults to Nelder-Mead and Powell.
         """
 
-        print "Initial parameter guesses: "
+        print("Initial parameter guesses: ")
         for k,v in zip(self._pv_names, self._ini):
-            print "{}: {}".format(k,v)
+            print("{}: {}".format(k,v))
         self._map = engines.MAP(self._logprob, self._ini, self._args, methods=methods)
         self._map.run()
         self._pv_map, self._lp_map, self._max_apo_alg = self._map.results
@@ -176,17 +179,17 @@ class Fit(object):
     def summarize_mcmc(self, save=True):
 
         summary = {}
-        summary['pv_best'] = dict(zip(self._pv_names, self._pv_best.tolist()))
+        summary['pv_best'] = dict(list(zip(self._pv_names, self._pv_best.tolist())))
         summary['logprob_best'] = float(self._lp_best)
         if len(self._gr.shape) > 1:
             gr = self._gr[-1,:]
         else:
             gr = self._gr
-        summary['gelman_rubin'] = dict(zip(self._pv_names, gr.tolist()))
+        summary['gelman_rubin'] = dict(list(zip(self._pv_names, gr.tolist())))
         summary['acceptance_fraction'] = float(np.median(self._af))
         percs = [15.87, 50.0, 84.13]
         pc = np.percentile(self._fc, percs, axis=0).T.tolist()
-        summary['percentiles'] = dict(zip(self._pv_names, pc))
+        summary['percentiles'] = dict(list(zip(self._pv_names, pc)))
         summary['rms'] = float(util.stats.rms(self.resid()))
         if save:
             fp = os.path.join(self._out_dir, 'mcmc-summary.yaml')

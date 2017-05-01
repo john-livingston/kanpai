@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import numpy as np
 import pandas as pd
 
@@ -8,7 +10,7 @@ def load_k2(k2_folded_fp, binning=None, trim=None):
 
     try:
 
-        print "\nLoading K2 data from file: {}".format(k2_folded_fp)
+        print("\nLoading K2 data from file: {}".format(k2_folded_fp))
         ncols = len(open(k2_folded_fp).readline().split(','))
         if ncols == 3:
             df = pd.read_csv(k2_folded_fp, names='t f s'.split())
@@ -17,7 +19,7 @@ def load_k2(k2_folded_fp, binning=None, trim=None):
             df['s'] = np.repeat(df['f'].std(), df.shape[0])
 
     except:
-        print k2_folded_fp
+        print(k2_folded_fp)
         raise ValueError('Invalid K2 light curve file format')
 
     if binning is not None:
@@ -40,7 +42,7 @@ def load_k2(k2_folded_fp, binning=None, trim=None):
         if trim < t_range:
             # assume the input light curve is centered (T=0 at mid-transit)
             idx = (df.t > -trim/2.) & (df.t < trim/2.)
-            print "Trimming {} data points outside of desired window".format(idx.sum())
+            print("Trimming {} data points outside of desired window".format(idx.sum()))
             return df[idx]
 
     return df

@@ -1,7 +1,12 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import os
 import functools
 import numpy as np
 import pandas as pd
+from six.moves import map
+from six.moves import range
+from six.moves import zip
 try:
     from photutils.centroids import centroid_com, centroid_2dg
 except:
@@ -9,7 +14,7 @@ except:
 
 import sxp
 
-import plot
+from . import plot
 from .. import util
 
 
@@ -18,7 +23,7 @@ def load_spz(setup, out_dir=None, make_plots=True):
     if make_plots:
         assert out_dir is not None
 
-    print "\nLoading Spitzer data"
+    print("\nLoading Spitzer data")
 
     radius = setup['config']['radius']
     aor = setup['config']['aor']
@@ -35,7 +40,7 @@ def load_spz(setup, out_dir=None, make_plots=True):
     df = sxp.util.df_from_pickle(fp, radius, pix=True, geom=geom)
 
     # rescale errorbars if desired
-    if 'rescale' in setup['config'].keys():
+    if 'rescale' in list(setup['config'].keys()):
         rescale_fac = setup['config']['rescale']
         df['s'] *= rescale_fac
 
@@ -53,7 +58,7 @@ def load_spz(setup, out_dir=None, make_plots=True):
         timestep = np.median(np.diff(t)) * 24 * 3600
         bs = int(round(bin_size_sec/timestep))
         binned = functools.partial(util.ts.binned, binsize=bs)
-        tb, fb, ub, pixb = map(binned, [t, f, s, pix])
+        tb, fb, ub, pixb = list(map(binned, [t, f, s, pix]))
         ub /= np.sqrt(bs)
         t, f, s, pix = tb, fb, ub, pixb
         if make_plots:
@@ -71,8 +76,8 @@ def load_spz(setup, out_dir=None, make_plots=True):
 
     # compute and plot centroids
     cx, cy = centroid_2dg(cubestacked)
-    print "Cube centroids: {}, {}".format(cx, cy)
-    cx, cy = map(int, map(round, [cx, cy]))
+    print("Cube centroids: {}, {}".format(cx, cy))
+    cx, cy = list(map(int, list(map(round, [cx, cy]))))
 
     xy = np.array([centroid_com(i) for i in cube])
     x, y = xy.T

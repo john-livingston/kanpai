@@ -1,11 +1,13 @@
+from __future__ import absolute_import
 import numpy as np
 import matplotlib.pyplot as pl
 import seaborn as sb
+from six.moves import range
 sb.set_color_codes('muted')
 import scipy.optimize as op
 from scipy import stats
 
-import util
+from . import util
 
 
 def k2_vs_spz(df_sp, df_k2, flux_pc_sp, flux_pc_k2, npercs, k_s, k_k,

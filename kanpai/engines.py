@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import os
 import numpy as np
 import scipy.optimize as op
@@ -5,8 +7,8 @@ from emcee import MHSampler, EnsembleSampler
 from emcee.utils import sample_ball
 from tqdm import tqdm
 
-import util
-import plot
+from . import util
+from . import plot
 
 
 
@@ -59,12 +61,12 @@ class MAP(Engine):
 
     def run(self):
 
-        print "\nAttempting maximum a posteriori optimization"
+        print("\nAttempting maximum a posteriori optimization")
         results = []
         for method in self._methods:
             res = self._map(method=method)
             if res.success:
-                print "Log probability ({}): {}".format(method, -res.fun)
+                print("Log probability ({}): {}".format(method, -res.fun))
                 results.append(res)
 
         if len(results) > 0:
@@ -79,7 +81,7 @@ class MAP(Engine):
             else:
                 self._pv, self._lp, self._method = self._ini, lp_ini, 'initial'
         else:
-            print "All methods failed to converge"
+            print("All methods failed to converge")
 
         self._hasrun = True
 
@@ -88,7 +90,7 @@ class MAP(Engine):
     def results(self):
 
         if not self._hasrun:
-            print "Need to call run() first!"
+            print("Need to call run() first!")
 
         return self._pv, self._lp, self._method
 
@@ -143,7 +145,7 @@ class MCMC(Engine):
 
         if FILE_EXISTS and resume:
 
-            print "Resuming from previous best position"
+            print("Resuming from previous best position")
             npz = np.load(fp)
             pv_ini = npz['pv_best']
             lp_ini = npz['logprob_best']
@@ -156,7 +158,7 @@ class MCMC(Engine):
 
         elif FILE_EXISTS and not restart:
 
-            print "Loading chain from previous run"
+            print("Loading chain from previous run")
             npz = np.load(fp)
             self._pv = npz['pv_best']
             self._lp_max = npz['logprob_best']
@@ -191,14 +193,14 @@ class MCMC(Engine):
         ndim = self._ndim
         nwalkers = 8 * ndim if ndim > 12 else 16 * ndim
 
-        print "\nRunning MCMC"
-        print "{} walkers exploring {} dimensions".format(nwalkers, ndim)
+        print("\nRunning MCMC")
+        print("{} walkers exploring {} dimensions".format(nwalkers, ndim))
 
         sampler = EnsembleSampler(nwalkers, ndim, logprob,
             args=args, threads=nproc)
         pos0 = sample_ball(pv_ini, [1e-4]*ndim, nwalkers)
 
-        print "\nstage 1"
+        print("\nstage 1")
         for pos,_,_ in tqdm(sampler.sample(pos0, iterations=nsteps1)):
             pass
 
@@ -213,7 +215,7 @@ class MCMC(Engine):
         pos = sample_ball(best, [1e-6]*ndim, nwalkers)
         sampler.reset()
 
-        print "\nstage 2"
+        print("\nstage 2")
         nsteps = 0
         gr_vals = []
         while nsteps < max_steps:
@@ -223,14 +225,14 @@ class MCMC(Engine):
             gr = util.stats.gelman_rubin(sampler.chain)
             gr_vals.append(gr)
             msg = "After {} steps\n  Mean G-R: {}\n  Max G-R: {}"
-            print msg.format(nsteps, gr.mean(), gr.max())
+            print(msg.format(nsteps, gr.mean(), gr.max()))
             if (gr < gr_threshold).all():
                 break
 
         idx = gr_vals[-1] >= gr_threshold
         if idx.any():
-            print "WARNING -- some parameters failed to converge below threshold:"
-            print np.array(names)[idx]
+            print("WARNING -- some parameters failed to converge below threshold:")
+            print(np.array(names)[idx])
 
         self._c = sampler.chain
         self._lp = sampler.lnprobability
@@ -287,6 +289,6 @@ class MCMC(Engine):
     def results(self):
 
         if not self._hasrun:
-            print "Need to call run() first!"
+            print("Need to call run() first!")
 
         return self._pv, self._lp_max, self._fc, self._gr, self._af, self._c

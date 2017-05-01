@@ -1,12 +1,16 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as pl
 import seaborn as sb
+from six.moves import range
+from six.moves import zip
 sb.set_color_codes('muted')
 from corner import corner as triangle
 import scipy.optimize as op
 from scipy import stats
 
-import util
+from . import util
 
 ncolors = 5
 cp = [sb.desaturate(pl.cm.gnuplot((j+1)/float(ncolors+1)), 0.75) for j in range(ncolors)]
@@ -187,7 +191,7 @@ def multi_gauss_fit(samples, p0, fp=None, return_popt=False, verbose=True):
     try:
         popt, pcov = op.curve_fit(multi_gauss, x, y, p0=p0)
     except RuntimeError as e:
-        print e
+        print(e)
         with sb.axes_style('white'):
             fig,ax = pl.subplots(1,1, figsize=(7,3))
             ax.hist(samples, bins=30, normed=True,
@@ -200,9 +204,9 @@ def multi_gauss_fit(samples, p0, fp=None, return_popt=False, verbose=True):
     for i in range(ncomp):
         comp += (np.zeros(3) + i).astype(int).tolist()
     if verbose:
-        print
+        print()
         for i,(p,u) in enumerate(zip(popt, np.sqrt(np.diag(pcov)))):
-            print "{0}{1}: {2:.6f} +/- {3:.6f}".format(names[i], comp[i], p, u)
+            print("{0}{1}: {2:.6f} +/- {3:.6f}".format(names[i], comp[i], p, u))
 
     a_,mu_,sig_ =[],[],[]
     for i in range(len(p0)/3):
