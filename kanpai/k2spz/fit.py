@@ -22,6 +22,7 @@ from .plot import k2_vs_spz
 from ..spz.fit import FitSpz
 from ..k2.fit import FitK2
 from ..fit import Fit
+from .util import transit_params_h5
 
 
 def logprob(theta, lp_k2, lp_spz, args_k2, args_spz, aux=None, ret_pvnames=False):
@@ -314,3 +315,44 @@ class FitK2Spz(Fit):
         mag, umag = sxp.phot.oot_phot(cornichon, t1, t4, r=r, verbose=False)
 
         return mag, umag
+
+
+    def update_ephemeris(self, t0, ut0):
+
+        idx = self._pv_names.index('tc_s')
+        tc_s = self._fc[:,idx]
+        n = tc_s.shape[0]
+        t0_s = np.random.randn(n) * ut0 + t0
+        tc_samples = np.c_[t0_s, tc_s].T
+
+        p0 = self._p
+        n_orb = int(round( (np.median(tc_s) - t0) / p0 ))
+        orb = [0, n_orb]
+
+        ephem_samples = util.transit.sample_ephem(orb, tc_samples)
+        fp = os.path.join(self._out_dir, 'ephem-corner.png')
+        plot.corner(ephem_samples, labels=r'$T_0$ $P$'.split(), truths=[t0,p0], fp=fp)
+
+        p_s = ephem_samples[:,1]
+        p1, up1 = np.median(p_s), p_s.std()
+        print "P = {} +/- {}".format(p1, up1)
+
+        self._p = p1
+        self._p_s = p_s
+
+        # FIXME: save ephemeris samples, add to table, summary file, etc.
+
+        # FIXME: need uncertainty in P0 for below, should it be in setup file?
+        # tc_best = self.best['tc_s']
+        # tc_pred = t0 + n_orb * p0
+        # utc_pred = np.sqrt(ut0**2 + (n_orb*up0)**2)
+        # utc = tc_s.std()
+        # print "{0:.2f}-sigma diff. in Tc from expected".format((tc_pred - tc_best) / np.sqrt(utc_pred**2 + utc**2))
+
+
+    def make_table(self):
+        try:
+            fp = os.path.join(self._out_dir, 'mcmc.npz')
+            transit_params_h5(fp, self._p) # FIXME: pass samples (self._fc) instead of fp
+        except:
+            print "Saved samples not found, not making table."

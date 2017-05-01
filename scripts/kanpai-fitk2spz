@@ -27,6 +27,8 @@ parser.add_argument('--k2lc', help='k2 folded lc file',
     type=str, default=None)
 parser.add_argument('--bin_k2', help='bin size for K2 data [seconds]',
     type=int, default=None)
+parser.add_argument('--t0_k2', help='K2 transit epoch (in BJD_TDB) and uncertainty'
+    ' (comma-separated)', type=str, default=None)
 
 # Spitzer options
 parser.add_argument('--bin_spz', help='bin size for'
@@ -79,6 +81,7 @@ if args.setup is None:
 
 k2lc = args.k2lc
 bin_k2 = args.bin_k2
+t0_k2 = args.t0_k2
 bin_spz = args.bin_spz
 geom = args.geom
 radius = args.radius
@@ -200,5 +203,8 @@ fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms, bur
 fit.post_mcmc()
 fit.summarize_mcmc()
 
-fp = os.path.join(out_dir, 'mcmc.npz')
-kanpai.k2spz.util.transit_params_h5(fp, setup['transit']['p'])
+if t0_k2 is not None:
+    t0, ut0 = map(float, t0_k2.split(','))
+    fit.update_ephemeris(t0, ut0)
+
+fit.make_table()
