@@ -64,9 +64,6 @@ parser.set_defaults(short_cadence=False, save=True, restart=False, resume=False)
 
 args = parser.parse_args()
 
-if fp_csv is None and args.input is None:
-    sys.exit('Must supply the path to photometry CSV file or place in working directory')
-
 if args.ld == 'q':
     logprob = kanpai.k2.prob.logprob_q
 elif args.ld == 'u':
@@ -80,6 +77,9 @@ if args.setup is not None:
     p = setup['transit']['p']
 else:
     p = args.period
+
+if fp_csv is None and args.input is None and args.setup is None:
+    sys.exit('Must supply the path to photometry CSV file or place in working directory')
 
 bin_k2 = args.bin_k2
 out_dir = args.out_dir
@@ -118,13 +118,16 @@ def print_ldp(band, ldp):
 ldp = None
 if args.ldp is not None:
     ldp = [float(i) for i in args.ldp.split(',')]
-    print_ldp("K2", ldp)
 elif args.setup is not None:
-    teff, uteff = setup['stellar']['teff']
-    logg, ulogg = setup['stellar']['logg']
-    feh, ufeh = setup['stellar']['feh']
-    ldp = kanpai.k2.ld.claret(teff, uteff, logg, ulogg, feh, ufeh)
-    print_ldp("K2", ldp)
+    try:
+        ldp = setup['ld']['kep']
+        print "Reading LD priors from setup file"
+    except:
+        teff, uteff = setup['stellar']['teff']
+        logg, ulogg = setup['stellar']['logg']
+        feh, ufeh = setup['stellar']['feh']
+        ldp = kanpai.k2.ld.claret(teff, uteff, logg, ulogg, feh, ufeh)
+        print "Using stellar parameters from setup file to compute Claret+2012 LD priors"
 elif args.ldp_exofop is not None:
     try:
         import exofop
@@ -133,7 +136,7 @@ elif args.ldp_exofop is not None:
         logg, ulogg = res['logg']
         feh, ufeh = res['feh']
         ldp = kanpai.k2.ld.claret(teff, uteff, logg, ulogg, feh, ufeh)
-        print_ldp("K2", ldp)
+        print "Using stellar parameters from ExoFOP to compute Claret+2012 LD priors"
     except:
         print "No limb-darkening priors applied for K2"
 else:
@@ -142,11 +145,12 @@ else:
         logg, ulogg = [float(i) for i in args.logg.split(',')]
         feh, ufeh = [float(i) for i in args.feh.split(',')]
         ldp = kanpai.k2.ld.claret(teff, uteff, logg, ulogg, feh, ufeh)
-        print_ldp("K2", ldp)
+        print "Using stellar parameters from args to compute Claret+2012 LD priors"
     except:
         print "No limb-darkening priors applied for K2"
 
 if ldp is not None:
+    print_ldp("K2", ldp)
     fp = os.path.join(out_dir, 'ld-prior.yaml')
     ldp_dict = dict(zip('u1 u1_sig u2 u2_sig'.split(), [float(i) for i in ldp]))
     yaml.dump(ldp_dict, open(fp, 'w'), default_flow_style=False)

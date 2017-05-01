@@ -193,7 +193,7 @@ class FitK2Spz(Fit):
             gr = self._gr
         summary['gelman_rubin'] = dict(list(zip(self._pv_names, gr.tolist())))
         summary['acceptance_fraction'] = float(np.median(self._af))
-        
+
         percs = [15.87, 50.0, 84.13]
         pc = np.percentile(self._fc, percs, axis=0).T.tolist()
         summary['percentiles'] = dict(list(zip(self._pv_names, pc)))
@@ -260,7 +260,6 @@ class FitK2Spz(Fit):
         nmodel_k2 = self._data_k2.shape[0]
         ti_k2 = np.linspace(self._data_k2.t.min(), self._data_k2.t.max(), nmodel_k2)
         self._data_k2['ti'] = ti_k2
-        # self._data_k2['ti'] = self._data_k2['t'] # FIXME
 
         flux_pr_k2, flux_pr_sp = [], []
         for theta in fc[np.random.permutation(fc.shape[0])[:1000]]:
