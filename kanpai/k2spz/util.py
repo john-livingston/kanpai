@@ -20,8 +20,8 @@ def make_quantiles_table(npz_fp, p, save_h5=False):
     df['tshape'] = df['t23'] / df['t14']
     df['max_k'] = util.transit.max_k(df['tshape'])
 
+    cols = 'a b i k k_k k_s ls_k ls_s tc_s rhostar t14 t23 tau tshape max_k'.split()
     if save_h5:
-        cols = 'a b i k k_k k_s ls_k ls_s tc_s rhostar t14 t23 tau tshape max_k'.split()
         fp = npz_fp.replace('.npz', '-samples.h5')
         df[cols].to_hdf(fp, key='samples')
 
