@@ -22,7 +22,7 @@ from .plot import k2_vs_spz
 from ..spz.fit import FitSpz
 from ..k2.fit import FitK2
 from ..fit import Fit
-from .util import transit_params_h5
+from .util import make_quantiles_table
 
 
 def logprob(theta, lp_k2, lp_spz, args_k2, args_spz, aux=None, ret_pvnames=False):
@@ -353,6 +353,6 @@ class FitK2Spz(Fit):
     def make_table(self):
         try:
             fp = os.path.join(self._out_dir, 'mcmc.npz')
-            transit_params_h5(fp, self._p) # FIXME: pass samples (self._fc) instead of fp
+            make_quantiles_table(fp, self._p) # FIXME: pass samples (self._fc) instead of fp
         except:
             print "Saved samples not found, not making table."

@@ -168,4 +168,4 @@ fit.plot_mcmc(nmodel=1000)
 fit.summarize_mcmc()
 
 fp = os.path.join(out_dir, 'mcmc.npz')
-kanpai.k2.util.make_samples_h5(fp, p)
+kanpai.k2.util.make_quantiles_table(fp, p)

@@ -176,4 +176,4 @@ fit.post_mcmc()
 fit.summarize_mcmc()
 
 fp = os.path.join(out_dir, 'mcmc.npz')
-kanpai.spz.util.make_samples_h5(fp, p)
+kanpai.spz.util.make_quantiles_table(fp, p)

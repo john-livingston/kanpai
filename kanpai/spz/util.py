@@ -57,7 +57,7 @@ def setup_aux(method, xy, pix):
     return aux
 
 
-def make_samples_h5(npz_fp, p):
+def make_quantiles_table(npz_fp, p, save_h5=False):
 
     npz = np.load(npz_fp)
     df = pd.DataFrame(dict(list(zip(npz['pv_names'], npz['flat_chain'].T))))
@@ -70,9 +70,10 @@ def make_samples_h5(npz_fp, p):
     df['tshape'] = df['t23'] / df['t14']
     df['max_k'] = util.transit.max_k(df['tshape'])
 
-    cols = 'a b i k ls rhostar t14 t23 tau tshape max_k'.split()
-    fp = npz_fp.replace('.npz', '-samples.h5')
-    df[cols].to_hdf(fp, key='samples')
+    if save_h5:
+        cols = 'a b i k ls rhostar t14 t23 tau tshape max_k'.split()
+        fp = npz_fp.replace('.npz', '-samples.h5')
+        df[cols].to_hdf(fp, key='samples')
 
     qt = df[cols].quantile([0.1587, 0.5, 0.8413]).transpose()
     fp = npz_fp.replace('.npz', '-quantiles.txt')
