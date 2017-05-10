@@ -67,7 +67,7 @@ parser.set_defaults(save=True, cen=False, pld=False, restart=False, resume=False
 
 args = parser.parse_args()
 
-if fp_yaml is None:
+if args.setup is None:
     sys.exit('Must supply the path to YAML setup file or place in working directory')
 
 if args.ld == 'q':

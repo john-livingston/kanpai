@@ -206,5 +206,10 @@ fit.summarize_mcmc()
 if t0_k2 is not None:
     t0, ut0 = map(float, t0_k2.split(','))
     fit.update_ephemeris(t0, ut0)
-
+else:
+    try:
+        t0, ut0 = setup['transit']['t0'], setup['transit']['ut0']
+        fit.update_ephemeris(t0, ut0)
+    except:
+        print "Insufficient information to update ephemeris"
 fit.make_table()

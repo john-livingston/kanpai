@@ -317,7 +317,12 @@ class FitK2Spz(Fit):
         return mag, umag
 
 
-    def update_ephemeris(self, t0, ut0):
+    def update_ephemeris(self, t0=None, ut0=None):
+
+        if t0 is None:
+            t0 = self._tr['t0']
+        if ut0 is None:
+            ut0 = self._tr['ut0']
 
         idx = self._pv_names.index('tc_s')
         tc_s = self._fc[:,idx]
@@ -331,23 +336,34 @@ class FitK2Spz(Fit):
 
         ephem_samples = util.transit.sample_ephem(orb, tc_samples)
         fp = os.path.join(self._out_dir, 'ephem-corner.png')
-        plot.corner(ephem_samples, labels=r'$T_0$ $P$'.split(), truths=[t0,p0], fp=fp)
+        plot.corner(ephem_samples, labels=r'$T_0$ $P$'.split(),
+            # truths=[t0,p0],
+            # tight=True,
+            fp=fp)
 
         p_s = ephem_samples[:,1]
         p1, up1 = np.median(p_s), p_s.std()
-        print "P = {} +/- {}".format(p1, up1)
+        msg = "P = {} +/- {}".format(p1, up1)
+        print msg
+        fp = os.path.join(self._out_dir, 'ephem.txt')
+        with open(fp, 'w') as w:
+            w.write(msg)
+
+        fp = os.path.join(self._out_dir, 'ephem.npz')
+        np.savez_compressed(fp, samples=ephem_samples)
+
+        try:
+            up0 = self._tr['up']
+            tc_best = self.best['tc_s']
+            tc_pred = t0 + n_orb * p0
+            utc_pred = np.sqrt(ut0**2 + (n_orb*up0)**2)
+            utc = tc_s.std()
+            print "{0:.2f}-sigma diff. in Tc from expected".format((tc_pred - tc_best) / np.sqrt(utc_pred**2 + utc**2))
+        except:
+            pass
 
         self._p = p1
         self._p_s = p_s
-
-        # FIXME: save ephemeris samples, add to table, summary file, etc.
-
-        # FIXME: need uncertainty in P0 for below, should it be in setup file?
-        # tc_best = self.best['tc_s']
-        # tc_pred = t0 + n_orb * p0
-        # utc_pred = np.sqrt(ut0**2 + (n_orb*up0)**2)
-        # utc = tc_s.std()
-        # print "{0:.2f}-sigma diff. in Tc from expected".format((tc_pred - tc_best) / np.sqrt(utc_pred**2 + utc**2))
 
 
     def make_table(self):
