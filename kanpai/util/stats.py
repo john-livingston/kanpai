@@ -92,6 +92,22 @@ def beta(residuals, timestep, start_min=5, stop_min=20):
     return np.median(betas)
 
 
+def bin_std(residuals, timestep, width=20):
+
+    """
+    residuals : data - model
+    timestep : time interval between datapoints in seconds
+    width : bin width in minutes
+    """
+
+    ndata = len(residuals)
+    bs = int(width * 60 / timestep)
+    steps = range(0,ndata,bs) + [ndata]
+    sigmas = [f[i:j].std() for i,j in zip(steps[:-1], steps[1:])]
+
+    return np.median(sigmas)
+
+
 def simple_ols(x, y, intercept=True):
     """
     Simple OLS with no y uncertainties.
