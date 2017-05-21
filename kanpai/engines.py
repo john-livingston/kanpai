@@ -120,7 +120,7 @@ class MCMC(Engine):
         self._ndim = len(ini)
 
 
-    def run(self, nproc=4, nsteps1=1e3, nsteps2=1e3, max_steps=1e4, burn=None, gr_threshold=1.1, save=True, make_plots=True, restart=False, resume=False):
+    def run(self, nproc=1, nsteps1=1e3, nsteps2=1e3, max_steps=1e4, burn=None, gr_threshold=1.1, save=True, make_plots=True, restart=False, resume=False):
 
         """
         :param nproc        : number of processes to use for sampling
