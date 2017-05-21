@@ -41,9 +41,10 @@ parser.add_argument('-i', '--infile', help='path to text file containing'
     ' light curve, (2 cols, no header row: time, flux)', type=str, default=None)
 parser.add_argument('--clip_residuals', help='sigma clip residuals',
     dest='clip_resid', action='store_true')
+parser.add_argument('--no_everest_mask', help='do not apply the EVEREST bad pixel mask',
+    dest='no_everest_mask', action='store_true')
 
-
-parser.set_defaults(baseline=True, refine=False, clip_resid=False)
+parser.set_defaults(baseline=True, refine=False, clip_resid=False, no_everest_mask=False)
 args = parser.parse_args()
 
 if args.setup is not None:
@@ -69,6 +70,12 @@ infile = args.infile
 clip_resid = args.clip_resid
 pad = args.pad
 refine = args.refine
+use_everest_mask = not args.no_everest_mask
+
+if use_everest_mask and pipeline == 'everest':
+    print "Appyling the EVEREST mask"
+elif not use_everest_mask:
+    print "Not appyling the EVEREST mask"
 
 if infile is not None:
     pipeline = 'user'
@@ -82,7 +89,7 @@ else:
 
 fold = kanpai.k2.Fold(epic, p, t0, t14, outdir=outdir, pipeline=pipeline,
     width=width, clip=clip, bl=baseline, skip=skip, lcfp=infile,
-    clip_resid=clip_resid, pad=pad)
+    clip_resid=clip_resid, pad=pad, use_everest_mask=use_everest_mask)
 
 fold.run(refine=refine)
 

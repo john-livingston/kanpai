@@ -18,7 +18,7 @@ from .. import plot
 
 class Fold(object):
 
-    def __init__(self, epic, p, t0, t14=0.2, outdir='.', pipeline='everest', width=0.8, clip=[3,3], bl=True, skip=None, lcfp=None, clip_resid=False, pad=1.1):
+    def __init__(self, epic, p, t0, t14=0.2, outdir='.', pipeline='everest', width=0.8, clip=[3,3], bl=True, skip=None, lcfp=None, clip_resid=False, pad=1.1, use_everest_mask=True):
 
         self._epic = int(epic)
         self._p = p
@@ -32,6 +32,7 @@ class Fold(object):
         self._lcfp = lcfp
         self._clip_resid = clip_resid
         self._pad = pad
+        self._use_everest_mask = use_everest_mask
         self._get_lc()
         self._reject_oot_outliers()
         self._outdir = outdir
@@ -46,7 +47,7 @@ class Fold(object):
             t14 = self._t14
             pipeline = self._pipeline
             print(("Retrieving {} light curve...".format(pipeline)))
-            t, f = lc.unfolded(epic, p, t0, t14, pipeline=pipeline)
+            t, f = lc.unfolded(epic, p, t0, t14, pipeline=pipeline, use_everest_mask=self._use_everest_mask)
 
         else:
 
