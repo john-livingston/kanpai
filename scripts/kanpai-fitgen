@@ -1,0 +1,196 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import glob
+import argparse
+
+import yaml
+import numpy as np
+import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
+
+import kanpai
+
+
+cwd = os.path.abspath('.')
+
+# General options
+parser = argparse.ArgumentParser(description="Fit light curve")
+parser.add_argument('-s', '--setup', help='path to YAML setup file', type=str, default=None)
+# parser.add_argument('-i', '--input', help='light curve file', type=str, default=None)
+parser.add_argument('-o', '--outdir', help='output directory', type=str, default='fitgen-out')
+# parser.add_argument('-p', '--period', help='period [days]', type=float, default=None)
+parser.add_argument('-b', '--binsize', help='bin size [seconds]', type=int, default=None)
+# parser.add_argument('-w', '--width', help='trim input light curve to width [days]', type=float, default=None)
+
+# Limb-darkening options
+parser.add_argument('--band', help='photometric band', default=None)
+# parser.add_argument('--ld', help='sample in "q" or "u" limb-darkening space', default='q')
+parser.add_argument('--teff', help='host star teff,uteff', type=str, default=None)
+parser.add_argument('--logg', help='host star logg,ulogg', type=str, default=None)
+parser.add_argument('--feh', help='host star feh,ufeh', type=str, default=None)
+parser.add_argument('--ldp', help='apply limb-darkening prior (u1_mu,u1_sig,u2_mu,u2_sig)', default=None, type=str)
+# parser.add_argument('--exofop', help='try Teff and logg from ExoFOP for LD priors', type=str, default=None)
+
+# MCMC options
+parser.add_argument('-n', '--nproc', help='number of processes to use', type=int, default=1)
+parser.add_argument('-g', '--gelmanrubin', type=float, default=1.1, help='Gelmin-Rubin threshold')
+parser.add_argument('--nsteps1', type=int, default=int(1e3), help='number of initialization MCMC steps')
+parser.add_argument('--nsteps2', type=int, default=int(1e3), help='number of production MCMC steps')
+parser.add_argument('--maxsteps', type=int, default=int(1e4), help='maximum number of MCMC steps')
+parser.add_argument('--burn', type=int, default=None, help='number of MCMC steps to discard for final burn-in')
+parser.add_argument('--nosave', help='do not save MCMC samples', dest='save', action='store_false')
+parser.add_argument('--restart', dest='restart', help='restart MCMC', action='store_true')
+parser.add_argument('--resume', dest='resume', help='resume MCMC from previous best position', action='store_true')
+
+parser.set_defaults(save=True, restart=False, resume=False)
+
+args = parser.parse_args()
+
+# if args.ld == 'q':
+#     logprob = kanpai.gen.prob.logprob_q
+# elif args.ld == 'u':
+#     logprob = kanpai.gen.prob.logprob_u
+# else:
+#     sys.exit('Limb-darkening space must be "q" or "u"')
+
+# if args.setup is not None:
+#     print("Reading setup file: {}".format(args.setup))
+#     setup = yaml.load(open(args.setup))
+#     p = setup['transit']['p']
+# else:
+#     p = args.period
+
+
+binsize = args.binsize
+outdir = args.outdir
+nproc = args.nproc
+save = args.save
+gr = args.gelmanrubin
+ns1 = args.nsteps1
+ns2 = args.nsteps2
+ms = args.maxsteps
+burn = args.burn
+restart = args.restart
+resume = args.resume
+band = args.band
+
+if not os.path.isdir(outdir):
+    os.mkdir(outdir)
+
+setup = yaml.load(open(args.setup))
+
+fp = os.path.join(outdir, 'args.yaml')
+yaml.dump(vars(args), open(fp, 'w'), default_flow_style=False)
+
+# # Load data
+# if args.input is None:
+#     fplc = setup['config']['fplc']
+# else:
+#     try:
+#         fplc = args.input
+#     except:
+#         sys.exit('Need path to folded light curve (via --input or in setup file)')
+
+
+def print_ldp(band, ldp):
+    msg = "Applying limb-darkening priors for {0}: u1"
+    msg += " = {1:.4f} +/- {2:.4f}, u2 = {3:.4f} +/- {4:.4f}"
+    print msg.format(band, *ldp)
+
+# handle limb-darkening priors
+ldp = None
+if args.ldp is not None:
+    ldp = [float(i) for i in args.ldp.split(',')]
+
+# elif args.setup is not None:
+#     try:
+#         band, ldp = setup['ld'].items()
+#         print "Reading LD priors from setup file"
+#     except:
+#         teff, uteff = setup['stellar']['teff']
+#         logg, ulogg = setup['stellar']['logg']
+#         feh, ufeh = setup['stellar']['feh']
+#         ldp = kanpai.util.ld.claret(teff, uteff, logg, ulogg, feh, ufeh, band)
+#         print "Using stellar parameters from setup file to compute Claret+2012 LD priors"
+# elif args.ldp_exofop is not None:
+#     try:
+#         import exofop
+#         res = exofop.get_stellar(args.exofop)
+#         teff, uteff = res['Teff']
+#         logg, ulogg = res['logg']
+#         feh, ufeh = res['feh']
+#         ldp = kanpai.util.ld.claret(teff, uteff, logg, ulogg, feh, ufeh, band)
+#         print "Using stellar parameters from ExoFOP to compute Claret+2012 LD priors"
+#     except:
+#         print "No limb-darkening priors applied"
+# else:
+#     try:
+#         teff, uteff = [float(i) for i in args.teff.split(',')]
+#         logg, ulogg = [float(i) for i in args.logg.split(',')]
+#         feh, ufeh = [float(i) for i in args.feh.split(',')]
+#         ldp = kanpai.util.ld.claret(teff, uteff, logg, ulogg, feh, ufeh, band)
+#         print "Using stellar parameters from args to compute Claret+2012 LD priors"
+#     except:
+#         print "No limb-darkening priors applied."
+
+else:
+    try:
+        teff, uteff = setup['stellar']['teff']
+        logg, ulogg = setup['stellar']['logg']
+        feh, ufeh = setup['stellar']['feh']
+        ldp = kanpai.util.ld.claret(teff, uteff, logg, ulogg, feh, ufeh, band)
+        print "Using stellar parameters from setup file to compute Claret+2012 LD priors"
+    except:
+        teff, uteff = [float(i) for i in args.teff.split(',')]
+        logg, ulogg = [float(i) for i in args.logg.split(',')]
+        feh, ufeh = [float(i) for i in args.feh.split(',')]
+        ldp = kanpai.util.ld.claret(teff, uteff, logg, ulogg, feh, ufeh, band)
+        print "Using stellar parameters from args to compute Claret+2012 LD priors"
+
+
+if ldp is not None:
+    print_ldp(band, ldp)
+    fp = os.path.join(outdir, 'ld-prior.yaml')
+    ldp = map(float, ldp)
+    u1, u2 = ldp[:2], ldp[2:]
+    ldp_dict = dict(band=band,
+        u1=dict(zip('mu sig'.split(), u1)),
+        u2=dict(zip('mu sig'.split(), u2))
+        )
+    yaml.dump(ldp_dict, open(fp, 'w'), default_flow_style=False)
+
+
+# Load data
+fp_data = setup['config']['fplc']
+df = kanpai.gen.io.load_fukui(fp_data, binning=binsize)
+
+t = df['t_bjd_tdb'].values
+f = df['flux'].values
+
+aux_names = 'airmass sky fwhm peak'.split()
+aux = df[aux_names].values
+aux = np.c_[np.ones_like(t), aux].T
+
+k = setup['transit']['k']
+p = setup['transit']['p']
+t14 = setup['transit']['t14']
+tc = t.mean()
+
+# Instantiate Fit object
+fit = kanpai.gen.FitGen(t, f, k=k, tc=tc, t14=t14, p=p, aux=aux, out_dir=outdir)
+
+# Apply limb-darkening priors
+fit.set_ld_prior(ldp)
+
+# Run MAP, MCMC, and output plots, samples, etc.
+fit.run_map(make_plots=True)
+fit.run_mcmc(make_plots=True, restart=restart, resume=resume, nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms, burn=burn, gr_threshold=gr)
+fit.post_mcmc()
+fit.summarize_mcmc()
+fit.plot_mcmc()
+
+fp = os.path.join(outdir, 'mcmc.npz')
+kanpai.gen.util.make_quantiles_table(fp, p)

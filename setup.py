@@ -43,11 +43,14 @@ setup(
                     + "---------\n\n",
     package_dir={"kanpai": "kanpai" },
     package_data={"kanpai": []},
-    scripts=['scripts/kanpai-k2lc',
+    scripts=[
+        'scripts/kanpai-k2lc',
         'scripts/kanpai-fitk2',
         'scripts/kanpai-fitk2ephem',
         'scripts/kanpai-fitspz',
-        'scripts/kanpai-fitk2spz'],
+        'scripts/kanpai-fitk2spz',
+        'scripts/kanpai-fitgen',
+        ],
     include_package_data=True,
     keywords=[],
     classifiers = [
