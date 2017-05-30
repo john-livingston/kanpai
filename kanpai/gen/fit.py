@@ -14,7 +14,6 @@ from .. import plot
 from .. import util
 from .. import engines
 from ..fit import Fit
-from .plot import corrected_ts
 
 
 class FitGen(Fit):
@@ -158,4 +157,4 @@ class FitGen(Fit):
         f_cor = self._df['f_cor'].values
         resid = self._df['resid'].values
         fp = os.path.join(self._out_dir, 'fit-best.png')
-        corrected_ts(t, f, f_cor, mod_full, mod_transit, resid, fp)
+        plot.corrected_ts(t, f, f_cor, mod_full, mod_transit, resid, fp)

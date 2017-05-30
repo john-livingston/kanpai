@@ -16,7 +16,7 @@ import kanpai
 
 # Helper functions
 def print_ldp(band, ldp):
-    msg = "Applying limb-darkening priors for {0}: u1"
+    msg = "Applying limb-darkening priors for {0} band: u1"
     msg += " = {1:.4f} +/- {2:.4f}, u2 = {3:.4f} +/- {4:.4f}"
     print msg.format(band, *ldp)
 

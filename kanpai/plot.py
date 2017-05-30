@@ -258,3 +258,28 @@ def oc(orb, tc, p, t0, tc_err=None, p_err=None, fp=None):
         if fp is not None:
             fig.savefig(fp)
             pl.close()
+
+
+def corrected_ts(t, f, f_cor, mod_full, mod_ma, resid, fp=None):
+
+    with sb.axes_style('white', rc):
+        fig, axs = pl.subplots(3, 1, figsize=(6,6), sharex=True, sharey=False)
+        axs.flat[0].plot(t, f, 'ko', ms=5, alpha=0.6)
+        axs.flat[0].plot(t, mod_full, 'r-', lw=1.5, label='Model')
+        axs.flat[1].plot(t, f_cor, 'ko', ms=5, alpha=0.6)
+        axs.flat[1].plot(t, mod_ma, 'r-', lw=3, label='Transit')
+        axs.flat[2].plot(t, resid, 'ko', ms=5, alpha=0.6)
+        axs.flat[0].yaxis.get_major_formatter().set_useOffset(False)
+        axs.flat[1].yaxis.get_major_formatter().set_useOffset(False)
+        axs.flat[2].xaxis.get_major_formatter().set_useOffset(False)
+        axs.flat[0].minorticks_on()
+        axs.flat[1].minorticks_on()
+        axs.flat[2].minorticks_on()
+        pl.setp(axs.flat[2].xaxis.get_majorticklabels(), rotation=20)
+        pl.setp(axs.flat[0], title='Raw data', ylabel='Normalized flux')
+        pl.setp(axs.flat[1], title='Corrected', ylabel='Normalized flux')
+        pl.setp(axs.flat[2], title='Residuals', xlim=[t.min(), t.max()], xlabel='Time [BJD]')
+        fig.tight_layout()
+        if fp:
+            fig.savefig(fp)
+            pl.close()
