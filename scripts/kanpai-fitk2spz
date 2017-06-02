@@ -37,6 +37,7 @@ parser.add_argument('--geom', help='pixel geometry for PLD',
     type=str, default=None)
 parser.add_argument('--radius', help='Spitzer photometric aperture radius',
     type=float, default=None)
+parser.add_argument('-c', '--channel', help='IRAC channel', type=int, default=2)
 
 # Limb-darkening options
 # parser.add_argument('--ld', help='sample in "q" or "u" limb darkening space', default='q')
@@ -83,6 +84,7 @@ k2lc = args.k2lc
 bin_k2 = args.bin_k2
 t0_k2 = args.t0_k2
 bin_spz = args.bin_spz
+channel = args.channel
 geom = args.geom
 radius = args.radius
 out_dir = args.out_dir
@@ -102,8 +104,8 @@ print("Reading setup file: {}".format(args.setup))
 setup = yaml.load(open(args.setup))
 
 # YAML setup file config overrides
-keys = 'k2lc binsize geom nsteps1 nsteps2 maxsteps grthreshold nthreads bin_k2 radius'.split()
-vals = k2lc, bin_spz, geom, ns1, ns2, ms, gr_threshold, nproc, bin_k2, radius
+keys = 'k2lc binsize geom nsteps1 nsteps2 maxsteps grthreshold nthreads bin_k2 radius channel'.split()
+vals = k2lc, bin_spz, geom, ns1, ns2, ms, gr_threshold, nproc, bin_k2, radius, channel
 for k,v in zip(keys, vals):
     if v is not None:
         setup['config'][k] = v
