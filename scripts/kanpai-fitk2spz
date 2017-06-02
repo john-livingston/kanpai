@@ -136,60 +136,62 @@ def print_ldp(band, ldp):
 
 # handle K2 limb-darkening priors
 ldp_k2 = None
+band = 'Kp'
 if args.ldp_k2 is not None:
     ldp_k2 = [float(i) for i in args.ldp_k2.split(',')]
-    print_ldp("K2", ldp_k2)
+    print_ldp(band, ldp_k2)
 elif args.ldp_k2 is None:
     try:
-        ldp_k2 = setup['ld']['kep']
-        print_ldp("K2", ldp_k2)
+        ldp_k2 = setup['ld']['Kp']
+        print_ldp(band, ldp_k2)
     except:
         try:
             teff, uteff = [float(i) for i in args.teff.split(',')]
             logg, ulogg = [float(i) for i in args.logg.split(',')]
             feh, ufeh = [float(i) for i in args.feh.split(',')]
             ldp_k2 = kanpai.k2.ld.claret(teff, uteff, logg, ulogg, feh, ufeh)
-            print_ldp("K2", ldp_k2)
+            print_ldp(band, ldp_k2)
         except:
             try:
                 teff, uteff = setup['stellar']['teff']
                 logg, ulogg = setup['stellar']['logg']
                 feh, ufeh = setup['stellar']['feh']
                 ldp_k2 = kanpai.k2.ld.claret(teff, uteff, logg, ulogg, feh, ufeh)
-                print_ldp("K2", ldp_k2)
+                print_ldp(band, ldp_k2)
             except:
                 print "No limb-darkening priors applied for K2"
 
 # handle Spitzer limb-darkening priors
 ldp_spz = None
+band = 'S{}'.format(channel)
 if args.ldp_spz is not None:
     ldp_spz = [float(i) for i in args.ldp_spz.split(',')]
-    print_ldp("Spitzer", ldp_spz)
+    print_ldp(band, ldp_spz)
 elif args.ldp_spz is None:
     try:
-        ldp_spz = setup['ld']['spz']
-        print_ldp("Spitzer", ldp_spz)
+        ldp_spz = setup['ld'][band]
+        print_ldp(band, ldp_spz)
     except:
         try:
             teff, uteff = [float(i) for i in args.teff.split(',')]
             logg, ulogg = [float(i) for i in args.logg.split(',')]
             feh, ufeh = [float(i) for i in args.feh.split(',')]
-            ldp_spz = kanpai.spz.ld.claret(teff, uteff, logg, ulogg, feh, ufeh)
-            print_ldp("Spitzer", ldp_spz)
+            ldp_spz = kanpai.util.ld.claret(teff, uteff, logg, ulogg, feh, ufeh, band)
+            print_ldp(band, ldp_spz)
         except:
             try:
                 teff, uteff = setup['stellar']['teff']
                 logg, ulogg = setup['stellar']['logg']
                 feh, ufeh = setup['stellar']['feh']
-                ldp_spz = kanpai.spz.ld.claret(teff, uteff, logg, ulogg, feh, ufeh)
-                print_ldp("Spitzer", ldp_spz)
+                ldp_spz = kanpai.util.ld.claret(teff, uteff, logg, ulogg, feh, ufeh, band)
+                print_ldp(band, ldp_spz)
             except:
                 print "No limb-darkening priors applied for Spitzer"
 
 if 'ld' not in setup.keys():
     setup['ld'] = {}
-setup['ld']['kep'] = map(float, ldp_k2)
-setup['ld']['spz'] = map(float, ldp_spz)
+setup['ld']['Kp'] = map(float, ldp_k2)
+setup['ld'][band] = map(float, ldp_spz)
 
 # Instantiate Fit object
 fit = kanpai.k2spz.FitK2Spz(setup, df_k2, df_spz, aux, out_dir=out_dir)
