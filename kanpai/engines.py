@@ -254,6 +254,7 @@ class MCMC(Engine):
 
         if make_plots:
 
+            print("Making MCMC plots")
             assert self._outdir is not None
 
             fp = os.path.join(self._outdir, 'mcmc-gr.png')

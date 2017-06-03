@@ -63,6 +63,8 @@ class FitK2Spz(Fit):
         self._out_dir = out_dir
         self._tr  = setup['transit']
 
+        self._channel = setup['config']['channel']
+
         self._data_k2 = data_k2
         self._data_spz = data_spz
 
@@ -299,6 +301,7 @@ class FitK2Spz(Fit):
 
     def _oot_phot(self):
 
+        channel = self._channel
         aor = self._setup['config']['aor']
         data_dir = self._setup['config']['datadir']
         fp = os.path.join(data_dir, '{}_phot.pkl'.format(aor))
@@ -312,7 +315,7 @@ class FitK2Spz(Fit):
 
         t1, t4 = ti[mod<1][0], ti[mod<1][-1]
         r = '3_3_7'
-        mag, umag = sxp.phot.oot_phot(cornichon, t1, t4, r=r, verbose=False)
+        mag, umag = sxp.phot.oot_phot(cornichon, t1, t4, r, channel, verbose=False)
 
         return mag, umag
 

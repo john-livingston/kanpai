@@ -12,8 +12,6 @@ from . import band
 from six.moves import zip
 
 
-claret = functools.partial(util.ld.claret, band='Kp')
-
 
 def ldtk(teff, uteff, logg, ulogg, feh, ufeh, kind='quadratic'):
 

@@ -47,7 +47,8 @@ setup(
         'scripts/kanpai-fitk2',
         'scripts/kanpai-fitk2ephem',
         'scripts/kanpai-fitspz',
-        'scripts/kanpai-fitk2spz'],
+        'scripts/kanpai-fitk2spz',
+        'scripts/kanpai-fitspz2'],
     include_package_data=True,
     keywords=[],
     classifiers = [

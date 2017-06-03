@@ -15,12 +15,10 @@ import kanpai
 
 
 cwd = os.path.abspath('.')
-yamls = glob.glob('./*.yaml')
-fp_yaml = yamls[0] if len(yamls) > 0 else None
 
 # General options
 parser = argparse.ArgumentParser(description="Fit Spitzer light curve")
-parser.add_argument('--setup', help='YAML setup file', type=str, default=fp_yaml)
+parser.add_argument('-s', '--setup', help='YAML setup file', type=str, default=os.path.join(cwd, 'setup.yaml'))
 parser.add_argument('-o', '--out_dir', help='output directory', type=str, default=cwd)
 parser.add_argument('--data_dir', help='data directory', type=str, default=None)
 
@@ -31,6 +29,7 @@ parser.add_argument('--geom', help='pixel geometry for PLD',
     type=str, default=None)
 parser.add_argument('--radius', help='Spitzer photometric aperture radius',
     type=float, default=None)
+parser.add_argument('-c', '--channel', help='IRAC channel', type=int, default=2)
 
 # Limb-darkening options
 parser.add_argument('--ld', help='sample in "q" or "u" limb darkening space', default='q')
@@ -80,6 +79,7 @@ else:
 bin_spz = args.bin_spz
 geom = args.geom
 radius = args.radius
+channel = args.channel
 out_dir = args.out_dir
 if not os.path.isdir(out_dir):
     os.mkdir(out_dir)
@@ -113,7 +113,8 @@ if args.data_dir is not None:
     setup['config']['datadir'] = args.data_dir
 
 # Load data
-df, pix = kanpai.spz.io.load_spz(setup, out_dir=out_dir)
+dd, aor, rad, geom, bs = [setup['config'].get(k) for k in 'datadir aor radius geom binsize'.split()]
+df, pix = kanpai.spz.io.load_spz(dd, aor, rad, geom, bs, out_dir=out_dir)
 t, f = df['t f'.split()].values.T
 
 # Setup auxiliary vectors for Spitzer detrending
@@ -130,33 +131,34 @@ def print_ldp(band, ldp):
 
 # handle Spitzer limb-darkening priors
 ldp = None
+band = 'S{}'.format(channel)
 if args.ldp is not None:
     ldp = [float(i) for i in args.ldp.split(',')]
-    print_ldp("Spitzer", ldp)
+    print_ldp(band, ldp)
 elif args.ldp is None:
     try:
-        ldp = setup['ld']['spz']
-        print_ldp("Spitzer", ldp)
+        ldp = setup['ld'][band]
+        print_ldp(band, ldp)
     except:
         try:
             teff, uteff = [float(i) for i in args.teff.split(',')]
             logg, ulogg = [float(i) for i in args.logg.split(',')]
             feh, ufeh = [float(i) for i in args.feh.split(',')]
-            ldp = kanpai.spz.ld.claret(teff, uteff, logg, ulogg, feh, ufeh)
-            print_ldp("Spitzer", ldp)
+            ldp = kanpai.util.ld.claret(teff, uteff, logg, ulogg, feh, ufeh, band)
+            print_ldp(band, ldp)
         except:
             try:
                 teff, uteff = setup['stellar']['teff']
                 logg, ulogg = setup['stellar']['logg']
                 feh, ufeh = setup['stellar']['feh']
-                ldp = kanpai.spz.ld.claret(teff, uteff, logg, ulogg, feh, ufeh)
-                print_ldp("Spitzer", ldp)
+                ldp = kanpai.util.ld.claret(teff, uteff, logg, ulogg, feh, ufeh, band)
+                print_ldp(band, ldp)
             except:
                 print "No limb-darkening priors applied for Spitzer"
 
 if 'ld' not in setup.keys():
     setup['ld'] = {}
-setup['ld']['spz'] = ldp
+setup['ld'][band] = ldp
 
 # Instantiate Fit object
 p = setup['transit']['p']
