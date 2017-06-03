@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 
 import os
-import sys
-import glob
 import argparse
 
 import yaml
@@ -24,7 +22,8 @@ def save_ldp(outdir, band, ldp):
     fp = os.path.join(outdir, 'ld-prior.yaml')
     ldp = map(float, ldp)
     u1, u2 = ldp[:2], ldp[2:]
-    ldp_dict = dict(band=band,
+    ldp_dict = dict(
+        band=band,
         u1=dict(zip('mu sig'.split(), u1)),
         u2=dict(zip('mu sig'.split(), u2))
         )
@@ -113,7 +112,8 @@ f = df['flux'].values
 
 aux_names = 'airmass sky fwhm peak'.split()
 aux = df[aux_names].values
-aux = np.c_[np.ones_like(t), aux].T
+# aux = np.c_[np.ones_like(t), aux].T
+aux = None
 
 k = setup['transit']['k']
 p = setup['transit']['p']
@@ -121,7 +121,8 @@ t14 = setup['transit']['t14']
 tc = t.mean()
 
 # Instantiate Fit object
-fit = kanpai.gen.FitGen(t, f, k=k, tc=tc, t14=t14, p=p, aux=aux, out_dir=outdir)
+# fit = kanpai.gen.FitGen(t, f, k=k, tc=tc, t14=t14, p=p, aux=aux, out_dir=outdir)
+fit = kanpai.gen.FitGen(t, f, k=k, tc=tc, t14=t14, p=p, aux=aux, out_dir=outdir, logprob=kanpai.gen.prob.logprob_gp)
 
 # Apply limb-darkening priors
 fit.set_ld_prior(ldp)

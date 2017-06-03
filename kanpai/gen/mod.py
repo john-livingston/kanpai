@@ -7,10 +7,11 @@ from .. import util
 MA = MandelAgol()
 
 
-def model_u(theta, t, f, p, aux, ret_ma=False, ret_sys=False):
-    k,tc,a,b,u1,u2,ls,k1 = theta[:8]
+def model_q(theta, t, f, p, aux, ret_ma=False, ret_sys=False):
+    k,tc,a,b,q1,q2,ls,k1 = theta[:8]
     auxcoeff = theta[8:]
     i = util.transit.inclination(a, b)
+    u1, u2 = util.ld.q_to_u(q1, q2)
     ma = MA.evaluate(t, k, (u1, u2), tc, p, a, i)
     bl = k1 * (t-t[0])
     if aux is None:
@@ -27,9 +28,9 @@ def model_u(theta, t, f, p, aux, ret_ma=False, ret_sys=False):
         return ma
 
 
-def model_q(theta, t, f, p, aux, ret_ma=False, ret_sys=False):
-    k,tc,a,b,q1,q2,ls,k1 = theta[:8]
-    auxcoeff = theta[8:]
+def model_gp(theta, t, f, p, aux, ret_ma=False, ret_sys=False):
+    k,tc,a,b,q1,q2,ls,k1,lna,lntau = theta[:10]
+    auxcoeff = theta[10:]
     i = util.transit.inclination(a, b)
     u1, u2 = util.ld.q_to_u(q1, q2)
     ma = MA.evaluate(t, k, (u1, u2), tc, p, a, i)

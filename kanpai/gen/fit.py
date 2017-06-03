@@ -58,9 +58,11 @@ class FitGen(Fit):
         k1 = 0
         t, f = self._data.T
         idx = (t < tc - t14/2.) | (tc + t14/2. < t)
-        s = np.log(f.std())
+        ls = np.log(f.std())
         a = util.transit.scaled_a(p, t14, k)
-        pv = [k,tc,a,b,q1,q2,s,k1]
+        pv = [k,tc,a,b,q1,q2,ls,k1]
+        if self._logprob is prob.logprob_gp:
+            pv += [0] * 2
         if self._aux is not None:
             pv += [0] * self._aux.shape[0]
         return np.array(pv)
@@ -124,10 +126,10 @@ class FitGen(Fit):
 
         if self._logprob is prob.logprob_q:
             _model = mod.model_q
-        elif self._logprob is prob.logprob_u:
-            _model = mod.model_u
+        elif self._logprob is prob.logprob_gp:
+            _model = mod.model_gp
         else:
-            sys.exit('logprob not one of: logprob_u, logprob_q')
+            sys.exit('logprob not one of: logprob_q, logprob_gp')
 
         t, f = self._data.T
         self._df = pd.DataFrame(dict(t=t, f=f))

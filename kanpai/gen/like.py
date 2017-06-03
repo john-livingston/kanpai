@@ -1,18 +1,12 @@
 from __future__ import absolute_import
 import numpy as np
 
+import george
+from george import kernels
+
 from .. import util
 from . import mod
 
-
-def loglike_u(theta, t, f, p, aux, ret_mod=False):
-    k,tc,a,b,u1,u2,ls,k1 = theta[:8]
-    m = mod.model_u(theta, t, f, p, aux)
-    if ret_mod:
-        return m
-    resid = f - m
-    inv_sig2 = np.exp(-2*ls)
-    return -0.5*(np.sum((resid)**2 * inv_sig2 + 2*ls))
 
 def loglike_q(theta, t, f, p, aux, ret_mod=False):
     k,tc,a,b,q1,q2,ls,k1 = theta[:8]
@@ -22,3 +16,20 @@ def loglike_q(theta, t, f, p, aux, ret_mod=False):
     resid = f - m
     inv_sig2 = np.exp(-2*ls)
     return -0.5*(np.sum((resid)**2 * inv_sig2 + 2*ls))
+
+
+def loglike_gp(theta, t, f, p, aux, ret_mod=False):
+    k,tc,a,b,q1,q2,ls,k1,lna,lntau = theta[:10]
+    amp, tau = np.exp([lna, lntau])
+
+    m = mod.model_gp(theta, t, f, p, aux)
+    if ret_mod:
+        return m
+
+    # gp = george.GP(amp * kernels.Matern32Kernel(tau))ExpSquaredKernel
+    gp = george.GP(amp * kernels.ExpSquaredKernel(tau))
+    gp.compute(t, np.exp(ls))
+    # gp.compute(t)
+
+    resid = f - m
+    return gp.lnlikelihood(resid)
