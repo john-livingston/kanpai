@@ -88,15 +88,15 @@ if args.ldp is not None:
     ldp = [float(i) for i in args.ldp.split(',')]
 else:
     try:
-        teff, uteff = setup['stellar']['teff']
-        logg, ulogg = setup['stellar']['logg']
-        feh, ufeh = setup['stellar']['feh']
-        ldp = kanpai.util.ld.claret(teff, uteff, logg, ulogg, feh, ufeh, band)
-        print "Using stellar parameters from setup file to compute Claret+2012 LD priors"
-    except:
         teff, uteff = [float(i) for i in args.teff.split(',')]
         logg, ulogg = [float(i) for i in args.logg.split(',')]
         feh, ufeh = [float(i) for i in args.feh.split(',')]
+        ldp = kanpai.util.ld.claret(teff, uteff, logg, ulogg, feh, ufeh, band)
+        print "Using stellar parameters from setup file to compute Claret+2012 LD priors"
+    except:
+        teff, uteff = setup['stellar']['teff']
+        logg, ulogg = setup['stellar']['logg']
+        feh, ufeh = setup['stellar']['feh']
         ldp = kanpai.util.ld.claret(teff, uteff, logg, ulogg, feh, ufeh, band)
         print "Using stellar parameters from args to compute Claret+2012 LD priors"
 

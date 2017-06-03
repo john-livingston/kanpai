@@ -49,6 +49,8 @@ def logprob_gp(theta, t, f, p, aux=None, ldp=None, ret_pvnames=False, ret_mod=Fa
 
     k,tc,a,b,q1,q2,ls,k1,lna,lntau = theta[:10]
 
+    if not 0 < k < 1:
+        return -np.inf
     if not b < a:
         return -np.inf
     if not 0 < q1 < 1:

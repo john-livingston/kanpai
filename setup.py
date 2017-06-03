@@ -49,7 +49,7 @@ setup(
         'scripts/kanpai-fitk2ephem',
         'scripts/kanpai-fitspz',
         'scripts/kanpai-fitk2spz',
-        'scripts/kanpai-fitspz2'],
+        'scripts/kanpai-fitspz2',
         'scripts/kanpai-fitgen',
         ],
     include_package_data=True,
