@@ -14,12 +14,10 @@ import kanpai
 
 
 cwd = os.path.abspath('.')
-# yamls = glob.glob('./*.yaml')
-# fp_yaml = yamls[0] if len(yamls) > 0 else None
 
 # General options
 parser = argparse.ArgumentParser(description="simultaneously fit Spitzer and K2 light curves")
-parser.add_argument('--setup', help='YAML setup file', type=str, default=None)
+parser.add_argument('-s', '--setup', help='YAML setup file', type=str, default=os.path.join(cwd, 'setup.yaml'))
 parser.add_argument('-o', '--out_dir', help='output directory', type=str, default=cwd)
 
 # K2 options
@@ -111,7 +109,8 @@ for k,v in zip(keys, vals):
         setup['config'][k] = v
 
 # Load data
-df_spz, pix = kanpai.spz.io.load_spz(setup, out_dir=out_dir)
+dd, aor, rad, geom, bs = [setup['config'].get(k) for k in 'datadir aor radius geom binsize'.split()]
+df_spz, pix = kanpai.spz.io.load_spz(dd, aor, rad, geom, bs, out_dir=out_dir)
 if not os.path.isabs(setup['config']['k2lc']):
     try:
         setup_dir = os.path.abspath(os.path.dirname(args.setup))

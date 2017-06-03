@@ -18,17 +18,16 @@ from . import plot
 from .. import util
 
 
-def load_spz(setup, out_dir=None, make_plots=True):
+def load_spz(data_dir, aor, radius=2.4, geom='3x3', binsize=60, rescale=None, make_plots=True, out_dir=None):
 
     if make_plots:
         assert out_dir is not None
 
-    print("\nLoading Spitzer data")
+    print("\nLoading Spitzer data: {}".format(aor))
+    print("Radius [pixels]= {}".format(radius))
+    print("Bin size [seconds] = {}".format(binsize))
+    print("Geometry = {}".format(geom))
 
-    radius = setup['config']['radius']
-    aor = setup['config']['aor']
-    data_dir = setup['config']['datadir']
-    geom = setup['config']['geom']
     if geom == '3x3':
         npix = 9
     elif geom == '5x5':
@@ -40,9 +39,8 @@ def load_spz(setup, out_dir=None, make_plots=True):
     df = sxp.util.df_from_pickle(fp, radius, pix=True, geom=geom)
 
     # rescale errorbars if desired
-    if 'rescale' in list(setup['config'].keys()):
-        rescale_fac = setup['config']['rescale']
-        df['s'] *= rescale_fac
+    if rescale is not None:
+        df['s'] *= rescale
 
     # plot
     if make_plots:
@@ -53,10 +51,9 @@ def load_spz(setup, out_dir=None, make_plots=True):
     keys = ['p{}'.format(i) for i in range(npix)]
     pix = df[keys].values
     t, f, s = df.t, df.f, df.s
-    bin_size_sec = setup['config']['binsize']
-    if bin_size_sec > 0:
+    if binsize > 0:
         timestep = np.median(np.diff(t)) * 24 * 3600
-        bs = int(round(bin_size_sec/timestep))
+        bs = int(round(binsize/timestep))
         binned = functools.partial(util.ts.binned, binsize=bs)
         tb, fb, ub, pixb = list(map(binned, [t, f, s, pix]))
         ub /= np.sqrt(bs)

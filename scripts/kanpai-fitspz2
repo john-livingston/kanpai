@@ -1,0 +1,139 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import glob
+import argparse
+
+import yaml
+import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+
+import kanpai
+
+
+def print_ldp(band, ldp):
+    msg = "Applying limb-darkening priors for {0}: u1"
+    msg += " = {1:.4f} +/- {2:.4f}, u2 = {3:.4f} +/- {4:.4f}"
+    print msg.format(band, *ldp)
+
+
+cwd = os.path.abspath('.')
+
+# General options
+parser = argparse.ArgumentParser(description="simultaneously fit Spitzer light curves")
+parser.add_argument('-s', '--setup', help='YAML setup file', type=str, default=os.path.join(cwd, 'setup.yaml'))
+parser.add_argument('-o', '--out_dir', help='output directory', type=str, default=cwd)
+
+# MCMC options
+parser.add_argument('-n', '--nproc', help='number of processes to use', type=int, default=1)
+parser.add_argument('--gr', type=float, default=1.1,
+    help='Gelmin-Rubin threshold')
+parser.add_argument('--nsteps1', type=int, default=int(1e3),
+    help='number of initialization MCMC steps')
+parser.add_argument('--nsteps2', type=int, default=int(1e3),
+    help='number of production MCMC steps')
+parser.add_argument('--max_steps', type=int, default=int(1e4),
+    help='maximum number of MCMC steps')
+parser.add_argument('--burn', type=int, default=None,
+    help='number of MCMC steps to discard for final burn-in')
+parser.add_argument('--no_save', help='do not save MCMC samples', dest='save', action='store_false')
+parser.add_argument('--restart', dest='restart', help='restart MCMC',
+    action='store_true')
+parser.add_argument('--resume', dest='resume', help='resume MCMC'
+    ' from previous best position', action='store_true')
+
+
+parser.set_defaults(save=True, restart=False, resume=False)
+
+args = parser.parse_args()
+
+
+out_dir = args.out_dir
+if not os.path.isdir(out_dir):
+    os.mkdir(out_dir)
+nproc = args.nproc
+save = args.save
+gr_threshold = args.gr
+ns1 = args.nsteps1
+ns2 = args.nsteps2
+ms = args.max_steps
+burn = args.burn
+restart = args.restart
+resume = args.resume
+
+print("Reading setup file: {}".format(args.setup))
+setup = yaml.load(open(args.setup))
+
+# override MCMC options in YAML setup file
+keys = 'nsteps1 nsteps2 maxsteps grthreshold nthreads'.split()
+vals = ns1, ns2, ms, gr_threshold, nproc
+for k,v in zip(keys, vals):
+    if v is not None:
+        setup['mcmc'][k] = v
+
+# Load data
+df, pix, band = [], [], []
+for ds in setup['data']:
+    dd, aor, rad, geom, bs = ds['datadir'], ds['aor'], ds['radius'], ds['geom'], ds['binsize']
+    _df, _pix = kanpai.spz.io.load_spz(dd, aor, rad, geom, bs, out_dir=out_dir, make_plots=False)
+    if 'trim' in ds.keys():
+        tr = ds['trim']
+        ix = (_df.t > _df.t.values[0]+tr[0]) & (_df.t < _df.t.values[-1]-tr[1])
+        _df = _df[ix]
+        _pix = _pix[ix]
+    df.append(_df)
+    pix.append(_pix)
+    band.append(ds['band'])
+
+
+# Setup auxiliary vectors for Spitzer detrending
+aux = []
+for i,ds in enumerate(setup['data']):
+    _df = df[i]
+    _pix = pix[i]
+    if ds['method'] == 'cen':
+        aux.append(_df['x y'.split()].values.T)
+    elif ds['method'] == 'pld':
+        aux.append(_pix.T)
+    else:
+        aux.append(None)
+
+# handle Spitzer limb-darkening priors
+setup['ld'] = []
+ldp = []
+print("\n")
+for i,ds in enumerate(setup['data']):
+    _ldp = None
+    try:
+        band = ds['band']
+        teff, uteff = setup['stellar']['teff']
+        logg, ulogg = setup['stellar']['logg']
+        feh, ufeh = setup['stellar']['feh']
+        _ldp = kanpai.util.ld.claret(teff, uteff, logg, ulogg, feh, ufeh, band)
+        print_ldp(band, _ldp)
+        setup['ld'].append(
+            dict(band=band,
+            u1=dict(zip('mu sig'.split(), map(float, _ldp[:2]))),
+            u2=dict(zip('mu sig'.split(), map(float, _ldp[2:]))))
+            )
+    except:
+        print "No limb-darkening priors applied for {}".format(band)
+    ldp.append(_ldp)
+print("\n")
+
+
+# Instantiate Fit object
+fit = kanpai.spz2.FitSpz2(setup, df[0], df[1], aux[0], aux[1], out_dir=out_dir)
+
+# Apply limb-darkening priors
+fit.set_ld_prior(*ldp)
+
+# Run MAP, MCMC, and output plots, samples, etc.
+fit.run_map(make_plots=False)
+fit.post_map()
+fit.run_mcmc(nproc=nproc, save=save, nsteps1=ns1, nsteps2=ns2, max_steps=ms, burn=burn,
+    gr_threshold=gr_threshold, make_plots=True, restart=restart, resume=resume)
+fit.post_mcmc()
+fit.summarize_mcmc()
