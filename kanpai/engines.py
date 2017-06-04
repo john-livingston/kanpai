@@ -120,16 +120,17 @@ class MCMC(Engine):
         self._ndim = len(ini)
 
 
-    def run(self, nproc=1, nsteps1=1e3, nsteps2=1e3, max_steps=1e4, burn=None, gr_threshold=1.1, save=True, make_plots=True, restart=False, resume=False):
+    def run(self, nproc=1, nsteps1=1e3, nsteps2=1e3, max_steps=1e4, burn=0, gr_threshold=1.1, save=True, make_plots=True, restart=False, resume=False):
 
         """
         :param nproc        : number of processes to use for sampling
         :param nsteps1      : number of steps to take during stage 1 exploration
         :param nsteps2      : number of steps to take during each stage 2 iteration
         :param max_steps    : maximum number of steps to take during stage 2
+        :param burn         : number of burn-in steps to discard
         :param gr_threshold : Gelman-Rubin convergence threshold
         :param save         : whether to save MCMC samples and related output
-        :param plot         : whether to generate plots
+        :param make_plots   : whether to generate plots
         :param restart      : whether to restart (if previous run exists)
         :param resume       : whether to resume (if previous run exists)
         """
@@ -247,7 +248,7 @@ class MCMC(Engine):
         self._nwalkers = nwalkers
 
 
-    def _burn_thin(self, burn=None, thin=10, make_plots=True):
+    def _burn_thin(self, burn=0, thin=10, make_plots=True):
 
         self._fc = self._c[:,burn::thin,:].reshape(-1, self._ndim)
         self._lp_flat = self._lp[:,burn::thin].reshape(-1)
