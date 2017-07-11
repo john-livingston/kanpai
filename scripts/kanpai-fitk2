@@ -15,12 +15,12 @@ import kanpai
 
 
 cwd = os.path.abspath('.')
-csvs = glob.glob('./*.csv')
-fp_csv = csvs[0] if len(csvs) > 0 else None
+# csvs = glob.glob('./*.csv')
+# fp_csv = csvs[0] if len(csvs) > 0 else None
 
 # General options
 parser = argparse.ArgumentParser(description="Fit K2 light curve")
-parser.add_argument('-i', '--input', help='light curve file (CSV)', type=str, default=fp_csv)
+parser.add_argument('-i', '--input', help='light curve file (CSV)', type=str, default=None)
 parser.add_argument('-o', '--out_dir', help='output directory', type=str, default=cwd)
 parser.add_argument('-p', '--period', help='period [days]', type=float)
 parser.add_argument('--bin_k2', help='bin size for K2 data [seconds]',
@@ -64,9 +64,6 @@ parser.set_defaults(short_cadence=False, save=True, restart=False, resume=False)
 
 args = parser.parse_args()
 
-if fp_csv is None:
-    sys.exit('Must supply the path to photometry CSV file or place in working directory')
-
 if args.ld == 'q':
     logprob = kanpai.k2.prob.logprob_q
 elif args.ld == 'u':
@@ -100,12 +97,13 @@ yaml.dump(vars(args), open(fp, 'w'), default_flow_style=False)
 
 # Load data
 if args.input is None:
-    k2lc = setup['config']['k2lc']
-else:
     try:
-        k2lc = args.input
+        k2lc = setup['config']['k2lc']
     except:
         sys.exit('Need path to folded light curve (via --input or in setup file)')
+else:
+    k2lc = args.input
+
 df = kanpai.k2.io.load_k2(k2lc, binning=bin_k2, trim=args.width)
 t, f = df['t f'.split()].values.T
 
