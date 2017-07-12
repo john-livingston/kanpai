@@ -267,8 +267,8 @@ class MCMC(Engine):
             plot.corner(self._fc, self._names, fp=fp, truths=self._pv)
 
 
-    def _save(self):
-        fp = os.path.join(self._outdir, 'mcmc')
+    def _save(self, fp=self._outdir):
+        fp = os.path.join(fp, 'mcmc')
         np.savez_compressed(
             fp,
             ndim=self._ndim,
