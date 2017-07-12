@@ -10,7 +10,7 @@ PIPELINES = 'everest k2sff k2sc'.split()
 K2_TIME_OFFSET = 2454833
 
 
-def unfolded(epic, p, t0, t14, pipeline='everest', use_everest_mask=True):
+def unfolded(epic, p, t0, t14, pipeline='everest', use_everest_mask=False):
 
     epic = int(epic)
     if pipeline == 'everest':
