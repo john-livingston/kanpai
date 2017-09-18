@@ -9,5 +9,5 @@ from . import like
 from . import mod
 from . import prob
 from . import util
-from .fit import FitK2
+from .fit import FitK2, FitK2P
 from .fold import Fold

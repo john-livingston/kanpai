@@ -28,3 +28,12 @@ def loglike_q(theta, t, f, p, sc=False, ret_mod=False):
     resid = f - m
     inv_sig2 = np.exp(-2*ls)
     return -0.5*(np.sum((resid)**2 * inv_sig2 + 2*ls))
+
+def loglike_q_fitp(theta, t, f, ret_mod=False):
+    ls,k0 = theta[-2:]
+    m = mod.model_q_fitp(theta[:-2], t) + k0
+    if ret_mod:
+        return m
+    resid = f - m
+    inv_sig2 = np.exp(-2*ls)
+    return -0.5*(np.sum((resid)**2 * inv_sig2 + 2*ls))

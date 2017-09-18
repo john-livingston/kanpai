@@ -78,3 +78,28 @@ def logprob_q_tc(theta, t, f, p, ps, sc=False, ret_pvnames=False, ret_mod=False)
     if np.isnan(ll).any():
         return -np.inf
     return ll
+
+def logprob_q_fitp(theta, t, f, up=None, ret_pvnames=False, ret_mod=False):
+
+    if ret_pvnames:
+        return 'k,tc,a,b,q1,q2,p,ls,k0'.split(',')
+    elif ret_mod:
+        return like.loglike_q_fitp(theta, t, f, ret_mod=True)
+
+    k,tc,a,b,q1,q2,p,ls,k0 = theta
+
+    if q1 < 0 or q1 > 1 or q2 < 0 or q2 > 1 or b < 0 or b > 1 or k < 0 or k > 1:
+        return -np.inf
+
+    u1, u2 = util.ld.q_to_u(q1, q2)
+
+    lp = 0
+    if up is not None:
+        lp += np.log(stats.norm.pdf(u1, loc=up[0], scale=up[1]))
+        lp += np.log(stats.norm.pdf(u2, loc=up[2], scale=up[3]))
+
+    ll = like.loglike_q_fitp(theta, t, f)
+
+    if np.isnan(ll).any():
+        return -np.inf
+    return lp + ll

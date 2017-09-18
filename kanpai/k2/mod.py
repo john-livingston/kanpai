@@ -37,3 +37,10 @@ def model_q_sc(theta, t, p):
     u1, u2 = util.ld.q_to_u(q1, q2)
     m = MA_SC.evaluate(t, k, (u1, u2), tc, p, a, i)
     return m
+
+def model_q_fitp(theta, t):
+    k,tc,a,b,q1,q2,p = theta
+    i = util.transit.inclination(a, b)
+    u1, u2 = util.ld.q_to_u(q1, q2)
+    m = MA_LC.evaluate(t, k, (u1, u2), tc, p, a, i)
+    return m
